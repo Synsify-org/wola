@@ -21,7 +21,8 @@ before(async () => {
   app = postgres(APP_URL, { max: 2 });
   await admin`DELETE FROM audit_log`; await admin`DELETE FROM employees`;
   await admin`DELETE FROM memberships`; await admin`DELETE FROM users`;
-  await admin`DELETE FROM tenants`;
+  // was: await admin`DELETE FROM tenants`;
+  await admin`DELETE FROM tenants WHERE slug IN ('acme','umoja')`;
   [A] = await admin`INSERT INTO tenants (slug, name, status) VALUES ('acme','Acme Ltd','active') RETURNING id`;
   [B] = await admin`INSERT INTO tenants (slug, name, status) VALUES ('umoja','Umoja SACCO','active') RETURNING id`;
   await admin`INSERT INTO employees (tenant_id, employee_no, full_name, gross_salary, net_salary)
