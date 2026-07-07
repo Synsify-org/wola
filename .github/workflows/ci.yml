@@ -1,0 +1,26 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: wola_admin, POSTGRES_PASSWORD: admin_dev, POSTGRES_DB: wola }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U wola_admin -d wola"
+          --health-interval 5s --health-retries 10
+    env:
+      DATABASE_ADMIN_URL: postgres://wola_admin:admin_dev@localhost:5432/wola
+      DATABASE_URL: postgres://wola_app:app_dev@localhost:5432/wola
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - name: create runtime role
+        run: PGPASSWORD=admin_dev psql -h localhost -U wola_admin -d wola -c "CREATE ROLE wola_app LOGIN PASSWORD 'app_dev';"
+      - run: npm run migrate
+      - name: isolation suite (merge-blocking)
+        run: npm run test:isolation

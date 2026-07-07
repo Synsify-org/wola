@@ -1,0 +1,29 @@
+# Wola local development stack. `docker compose up -d`, then npm run migrate.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: wola_admin
+      POSTGRES_PASSWORD: admin_dev
+      POSTGRES_DB: wola
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wola_admin -d wola"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment: { MINIO_ROOT_USER: wola, MINIO_ROOT_PASSWORD: wola_dev_secret }
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [minio:/data]
+  mailpit:
+    image: axllent/mailpit
+    ports: ["8025:8025", "1025:1025"]
+volumes: { pgdata: {}, minio: {} }
