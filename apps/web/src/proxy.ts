@@ -18,7 +18,7 @@ const RESERVED = new Set([
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}$/;
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const host = (req.headers.get("host") ?? "").split(":")[0].toLowerCase();
   const headers = new Headers(req.headers);
 

@@ -6,6 +6,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { makeDb, resolveTenant, tenantTx, type Tx } from "@wola/db";
+export { tenantTx, type Tx } from "@wola/db";
 
 // One pool per server process (Next dev hot-reload guard).
 const globalForDb = globalThis as unknown as { __wolaDb?: ReturnType<typeof makeDb> };
