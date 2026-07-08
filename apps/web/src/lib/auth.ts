@@ -43,7 +43,6 @@ export async function login(email: string, password: string, tenantId: string) {
   const ok = await verifyPassword(hash, password);
 
   if (!user || !user.password_hash || !ok) {
-    console.log("LOGIN FAIL:", { hasUser: !!user, hasHash: !!user?.password_hash, verifyOk: ok });
     return null;
   }
 

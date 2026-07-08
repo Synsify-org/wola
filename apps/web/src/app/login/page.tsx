@@ -9,7 +9,6 @@ async function doLogin(formData: FormData) {
   "use server";
   const slug = (await headers()).get("x-tenant-slug");
   const tenant = slug ? await resolveTenant(db, slug) : null;
-  console.log("LOGIN ROUTE:", { slug, tenantId: tenant?.id }); // temporary
   if (!tenant) throw new TenantError(404, "Unknown tenant");
 
   const email = String(formData.get("email") ?? "");
