@@ -27,8 +27,7 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
  *  The membership lookup runs inside tenantTx() because `memberships`
  *  is RLS-protected: without a tenant context, Postgres hides the row
  *  and the JOIN returns nothing. We resolved the tenant from the
- *  subdomain before calling this, so scoping the read to that tenant
- *  is correct. */
+ *  subdomain before calling this, so scoping the read is correct. */
 export async function login(email: string, password: string, tenantId: string) {
   const [user] = await tenantTx(db, tenantId, (tx: Tx) => tx`
     SELECT u.id, u.password_hash
