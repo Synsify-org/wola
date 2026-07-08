@@ -1,0 +1,15 @@
+{
+  "name": "@wola/engine",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/amortization.js",
+  "types": "dist/amortization.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
