@@ -8,12 +8,13 @@
   ],
   "scripts": {
     "migrate": "node scripts/migrate.mjs",
-    "test:isolation": "node --import dotenv/config --test packages/db/test/*.test.mjs"
+    "test:isolation": "node --import tsx --import dotenv/config --test packages/db/test/*.test.mjs"
   },
   "dependencies": {
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "tsx": "^4.23.0"
   }
 }
