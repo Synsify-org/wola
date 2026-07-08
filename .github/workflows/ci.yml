@@ -24,3 +24,5 @@ jobs:
       - run: npm run migrate
       - name: isolation suite (merge-blocking)
         run: npm run test:isolation
+      - name: engine tests
+        run: npm run test --workspace @wola/engine
