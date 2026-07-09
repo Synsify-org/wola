@@ -10,6 +10,9 @@ import postgres from "postgres";
 export type Sql = postgres.Sql;
 export type Tx = postgres.TransactionSql;
 
+export * from "./employee-financials";
+export * from "./schedules";
+
 export function makeDb(url = process.env.DATABASE_URL!): Sql {
   // Connects as wola_app: no BYPASSRLS, no DDL, no audit UPDATE/DELETE.
   return postgres(url, { max: 10 });
@@ -43,5 +46,5 @@ export async function audit(
 ) {
   await tx`INSERT INTO audit_log (tenant_id, actor_id, action, entity, entity_id, before, after)
     VALUES (${e.tenantId}, ${e.actorId ?? null}, ${e.action}, ${e.entity},
-            ${e.entityId ?? null}, ${tx.json(e.before ?? null)}, ${tx.json(e.after ?? null)})`;
+            ${e.entityId ?? null}, ${tx.json((e.before ?? null) as never)}, ${tx.json((e.after ?? null) as never)})`;
 }

@@ -1,10 +1,12 @@
 {
   "name": "@wola/db",
-  "@wola/engine": "*",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "main": "src/client.ts",
   "types": "src/client.ts",
-  "dependencies": { "postgres": "^3.4.5" }
+  "dependencies": {
+    "postgres": "^3.4.5",
+    "@wola/engine": "*"
+  }
 }
