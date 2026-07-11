@@ -40,6 +40,8 @@ export default async function Home() {
         </form>
       </header>
 
+      <a href="/loans" style={{ fontSize: 14, marginRight: 12 }}>Loan register</a>
+
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: 18 }}>Loan products</h2>
         {data.products.length === 0 ? (
