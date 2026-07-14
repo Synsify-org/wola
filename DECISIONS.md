@@ -92,3 +92,49 @@
   - RESOLVED 2026-07-14: car cap is 40% × take-home × 30 (=96m for the spec example).
   Confirmed with MUA HR. The 240m briefing figure was an error in the briefing.
   CAR_TAKEHOME_FACTOR = 0.40. Do not change without written confirmation.
+
+  ## 2026-07-14 — Isolation is RLS, not the app layer
+- `inboxFor` had no tenant_id predicate. This was NOT exploitable: wola_app
+  has no BYPASSRLS, and loan_applications RLS keys on current_tenant_id(),
+  so the rows were already filtered. Diagnosed as a live leak; it wasn't.
+- Predicate added anyway. No read of tenant data should depend on one control.
+- CONSEQUENCE: tenant_leak.test.mjs passes with OR without the fix, because it
+  runs on the app connection (the real runtime path). A test that proves the
+  app-layer filter independently would need BYPASSRLS, which the app never has.
+  Accepted: the test documents intent, RLS enforces it.
+- wola_admin: Superuser, BYPASSRLS. wola_app: no attributes. Fixtures use admin;
+  assertions use app. Never assert on admin — it proves nothing about runtime.
+
+## 2026-07-14 — Car cap RESOLVED
+- 40% × take-home × 30 = 96m. Confirmed with MUA. The 240m briefing figure was
+  an error. CAR_TAKEHOME_FACTOR = 0.40. Do not change without written confirmation.
+
+## 2026-07-14 — Known, unfixed
+- inboxFor is N+1: routeApplication (3 queries) + a metadata query PER pending
+  application. page.tsx calls it just for `inbox.length` — the dashboard's
+  slowest query, for one integer. Fine at ~30 applications, not at 400.
+- No unique constraint on approvals(application_id, stage_id). Concurrent
+  approvers can double-insert one stage. Audit-trail defect, not a routing one.
+- effectiveStages strips a stage by role; if an applicant is PROMOTED mid-flight
+  into an approver role, an existing approval for that stage is orphaned.
+  Mitigation would be to snapshot effective stage IDs at submission.
+
+  ## 2026-07-14 — Product rules are TENANT CONFIG (migration 0008)
+- Eligibility rules moved from code to loan_products columns: cap_method
+  ('salary_multiple' | 'takehome_factor'), cap_basis, cap_multiple,
+  takehome_factor, takehome_multiplier, max_tenor_months, interest_applies,
+  and the gates (post-probation, final warning, external declaration).
+  Concurrent-product bars live in product_exclusions. Same move as approval
+  pipelines: the customer's policy is DATA. MUA is one row; a SACCO is another.
+- COST OF THIS: it moved the lending rules OUT FROM UNDER the test suite.
+  The engine tests now prove the ENGINE is right for any config — they no
+  longer prove MUA's config is right. packages/db/test/eligibility.test.mjs
+  exists solely to close that gap: it asserts the SEEDED car product yields
+  96,000,000 for the spec employee. Any refactor that moves rules into data
+  must be accompanied by a test that pins the data.
+
+## 2026-07-14 — Car cap CONFIRMED
+- 40% x take-home x 30 = 96m. Confirmed with MUA HR. The 240m briefing figure
+  omitted the 40% and was wrong. Seeded as takehome_factor=0.4,
+  takehome_multiplier=30. Pinned by test. Do not change without written
+  confirmation from the customer.

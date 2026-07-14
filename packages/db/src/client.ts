@@ -51,3 +51,4 @@ export async function audit(
             ${e.entityId ?? null}, ${tx.json((e.before ?? null) as never)}, ${tx.json((e.after ?? null) as never)})`;
 }
 export * from "./metrics";
+export * from "./product-rules";

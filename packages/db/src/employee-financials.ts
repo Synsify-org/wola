@@ -1,6 +1,7 @@
 // packages/db/src/employee-financials.ts
-// Assembles the EmployeeFinancials shape the eligibility engine needs,
-// from the employee row + their active loans. Runs inside a tenantTx.
+// Assembles what the eligibility engine needs about a person. Note there are
+// no product-specific flags here: which products clash is CONFIGURATION
+// (product_exclusions), not a property of the employee.
 import type { Tx } from "./client";
 
 export interface EmployeeProfile {
@@ -14,42 +15,37 @@ export interface EmployeeProfile {
   netSalary: number;
   isPostProbation: boolean;
   onFinalWarning: boolean;
-  internalRecoveries: number;      // computed from active loans
-  hasActiveDevelopmentLoan: boolean;
-  hasActiveCarLoan: boolean;
+  internalRecoveries: number;
+  activeProductIds: string[];
 }
 
-/** Load the logged-in user's employee profile + computed loan state.
- *  Returns null if the user has no employee record in this tenant. */
-export async function getEmployeeProfile(tx: Tx, userId: string): Promise<EmployeeProfile | null> {
+export async function getEmployeeProfile(
+  tx: Tx,
+  userId: string,
+): Promise<EmployeeProfile | null> {
   const [emp] = await tx`
     SELECT id, employee_no, full_name, title, department, department_head,
            gross_salary, net_salary, is_post_probation, on_final_warning
     FROM employees WHERE user_id = ${userId} AND status = 'active'`;
   if (!emp) return null;
 
-  // Active loans for this employee → internal recoveries = sum of monthly
-  // instalments from each active loan's active schedule (first line's instalment
-  // is the level payment). Also detect concurrency flags.
+  // Active loans: their monthly instalment is an internal recovery, and the
+  // product they are against decides what the employee may now take out.
   const loans = await tx`
-    SELECT l.id, l.status,
-           lp.kind AS product_kind,
+    SELECT la.loan_product_id,
            (SELECT sl.instalment FROM schedule_lines sl
-            JOIN loan_schedules s ON s.id = sl.schedule_id
+             JOIN loan_schedules s ON s.id = sl.schedule_id
             WHERE s.loan_id = l.id AND s.is_active
             ORDER BY sl.period_no LIMIT 1) AS monthly
     FROM loans l
     JOIN loan_applications la ON la.id = l.application_id
-    JOIN loan_products lp ON lp.id = la.loan_product_id
     WHERE la.employee_id = ${emp.id} AND l.status = 'active'`;
 
   let internalRecoveries = 0;
-  let hasActiveDevelopmentLoan = false;
-  let hasActiveCarLoan = false;
+  const activeProductIds: string[] = [];
   for (const l of loans) {
     internalRecoveries += Number(l.monthly ?? 0);
-    if (l.product_kind === "term") hasActiveDevelopmentLoan = true;
-    if (l.product_kind === "asset") hasActiveCarLoan = true;
+    activeProductIds.push(l.loan_product_id as string);
   }
 
   return {
@@ -64,7 +60,6 @@ export async function getEmployeeProfile(tx: Tx, userId: string): Promise<Employ
     isPostProbation: emp.is_post_probation as boolean,
     onFinalWarning: emp.on_final_warning as boolean,
     internalRecoveries,
-    hasActiveDevelopmentLoan,
-    hasActiveCarLoan,
+    activeProductIds,
   };
 }

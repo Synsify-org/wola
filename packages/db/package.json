@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "test": "npm run test:isolation",
   "main": "src/client.ts",
   "types": "src/client.ts",
   "dependencies": {
