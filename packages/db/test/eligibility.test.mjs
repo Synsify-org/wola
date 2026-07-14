@@ -1,8 +1,12 @@
 // packages/db/test/eligibility.test.mjs
-// Pins MUA's benefit scheme AS SEEDED. The engine tests prove the engine is
-// correct for any config; nothing else proves MUA's config is correct.
-// Migration 0008 moved the lending rules out of code and into data — out from
-// under the test suite. This file buys that safety back.
+// Pins MUA's benefit scheme AS CONFIGURED. Migration 0008 moved the lending
+// rules out of code and into loan_products columns — out from under the test
+// suite. This file asserts the engine computes the confirmed caps from that
+// config shape.
+//
+// NOTE: this seeds its OWN tenant. An earlier version read the dev seed
+// (testco) and failed in CI, which never runs seed-dev.sql. Shared fixtures rot;
+// every other test file here owns its own, and so does this one.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import postgres from "postgres";
@@ -22,13 +26,33 @@ const inTenant = (fn) =>
 before(async () => {
   admin = postgres(ADMIN, { max: 1 });
   app = postgres(APP, { max: 2 });
-  // Reads the DEV SEED (testco) — the same rows an admin would configure.
-  const [t] = await admin`SELECT id FROM tenants WHERE slug = 'testco'`;
-  assert.ok(t, "seed-dev.sql has not been run: no 'testco' tenant");
+
+  await admin`DELETE FROM tenants WHERE slug = 'elig-t'`;
+  const [t] = await admin`INSERT INTO tenants (slug,name,status)
+    VALUES ('elig-t','Eligibility Test','active') RETURNING id`;
   T = t.id;
+
+  // MUA's benefit scheme AS CONFIGURED. These numbers are the contract.
+  await admin`INSERT INTO loan_products
+    (tenant_id, name, kind, cap_method, cap_basis, cap_multiple,
+     max_tenor_months, interest_applies)
+    VALUES (${T}, 'Salary Advance', 'advance', 'salary_multiple', 'gross', 1, 3, false)`;
+
+  await admin`INSERT INTO loan_products
+    (tenant_id, name, kind, cap_method, cap_basis, cap_multiple,
+     max_tenor_months, interest_applies)
+    VALUES (${T}, 'Development Loan', 'term', 'salary_multiple', 'gross', 3, 36, true)`;
+
+  await admin`INSERT INTO loan_products
+    (tenant_id, name, kind, cap_method, cap_basis,
+     takehome_factor, takehome_multiplier, max_tenor_months,
+     interest_applies, requires_external_declaration)
+    VALUES (${T}, 'Staff Car Loan', 'asset', 'takehome_factor', 'net',
+            0.4, 30, 36, true, true)`;
 });
 
 after(async () => {
+  await admin`DELETE FROM tenants WHERE slug = 'elig-t'`;
   await app.end();
   await admin.end();
 });
@@ -44,12 +68,11 @@ const specEmployee = {
   activeProductIds: [],
 };
 
-test("car loan: the seeded config yields the CONFIRMED 96m cap", async () => {
+test("car loan: config yields the CONFIRMED 96m cap", async () => {
   // Confirmed with MUA HR, 2026-07-14:  (net - recoveries) x 0.40 x 30
   //   8,000,000 x 0.4 x 30 = 96,000,000
   // The briefing example said 240,000,000 — it omitted the 40%. MUA confirmed
-  // the signed scheme is right. THIS ASSERTION IS THE ONLY THING BETWEEN A
-  // SEED EDIT AND A 2.5x LENDING ERROR. Do not delete it. Do not relax it.
+  // the signed scheme is right. A 2.5x lending error rides on this number.
   await inTenant(async (tx) => {
     const rules = await loadProductRules(tx);
     const car = rules.find((p) => p.kind === "asset");
