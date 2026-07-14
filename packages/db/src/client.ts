@@ -50,3 +50,4 @@ export async function audit(
     VALUES (${e.tenantId}, ${e.actorId ?? null}, ${e.action}, ${e.entity},
             ${e.entityId ?? null}, ${tx.json((e.before ?? null) as never)}, ${tx.json((e.after ?? null) as never)})`;
 }
+export * from "./metrics";

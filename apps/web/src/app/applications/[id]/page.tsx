@@ -1,6 +1,3 @@
-// apps/web/src/app/applications/[id]/page.tsx
-// Shows an application, WHERE it sits in the approval chain, and — if this
-// viewer is the current approver — the approve/reject actions.
 import { requireSession } from "@/lib/guard";
 import { routeApplication } from "@wola/db";
 import { canAct } from "@wola/engine";
@@ -41,7 +38,7 @@ export default async function ApplicationDetail({
       WHERE la.id = ${id}`;
 
     const decisions = await tx`
-      SELECT a.stage_id, a.decision, a.comment, u.email AS approver
+      SELECT a.decision, a.comment, u.email AS approver
       FROM approvals a LEFT JOIN users u ON u.id = a.approver_user_id
       WHERE a.application_id = ${id} ORDER BY a.created_at`;
 
@@ -50,88 +47,114 @@ export default async function ApplicationDetail({
 
   if (!data) {
     return (
-      <main style={{ maxWidth: 720, margin: "6vh auto", fontFamily: "system-ui", padding: "0 16px" }}>
-        <h1>Application not found</h1><a href="/approvals">← Back</a>
+      <main className="page">
+        <h1>No such application</h1>
+        <p><a href="/approvals">Back to approvals</a></p>
       </main>
     );
   }
 
   const { app, routing, isMyTurn, meta, decisions } = data;
   const doneIds = new Set(routing.completed.map((s) => s.id));
+  const rejected = routing.state === "rejected";
 
   return (
-    <main style={{ maxWidth: 720, margin: "5vh auto", fontFamily: "system-ui", padding: "0 16px" }}>
-      <a href="/approvals" style={{ fontSize: 14, color: "#666" }}>← Approvals</a>
-      <h1 style={{ marginBottom: 4 }}>{meta.product_name}</h1>
-      <p style={{ color: "#666", margin: "0 0 20px" }}>
-        {meta.full_name} ({meta.employee_no}) · {fmt(app.amount)} over {app.tenorMonths} months ·{" "}
-        <strong style={{
-          color: routing.state === "approved" ? "#137333"
-               : routing.state === "rejected" ? "#b3261e" : "#8a6d00",
-        }}>{routing.state}</strong>
+    <main className="page">
+      <p className="eyebrow"><a href="/approvals">Approvals</a></p>
+
+      <h1>{meta.product_name}</h1>
+      <p style={{ color: "var(--ink-soft)", marginTop: "var(--s-2)" }}>
+        {meta.full_name} · <span className="num">{meta.employee_no}</span>
       </p>
 
-      {error && (
-        <div style={{ padding: 12, background: "#fef2f2", border: "1px solid #fca5a5",
-                      borderRadius: 8, marginBottom: 16, color: "#991b1b", fontSize: 14 }}>
-          {error}
+      <div className="figures">
+        <div className="figure">
+          <span className="v">{fmt(app.amount)}</span>
+          <span className="k">Requested</span>
         </div>
-      )}
+        <div className="figure">
+          <span className="v">{app.tenorMonths}</span>
+          <span className="k">Months</span>
+        </div>
+        <div className="figure">
+          <span className="v" style={{
+            color: rejected ? "var(--void)"
+                 : routing.state === "approved" ? "var(--stamp)"
+                 : "var(--pending)",
+            fontSize: "var(--step-1)",
+          }}>
+            {routing.state}
+          </span>
+          <span className="k">Status</span>
+        </div>
+      </div>
 
-      {/* Approval chain — who has it, who's next */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "0 0 24px" }}>
+      {/* ── The stamp trail. Who has signed, who holds it now. ── */}
+      <div className="trail" aria-label="Approval chain">
         {routing.stages.map((s, i) => {
           const done = doneIds.has(s.id);
-          const current = routing.currentStage?.id === s.id;
+          const now = routing.currentStage?.id === s.id;
+          const voided = rejected && routing.rejectedAt?.id === s.id;
+          const cls = voided ? "stamp stamp--void"
+                    : done ? "stamp stamp--done"
+                    : now ? "stamp stamp--now"
+                    : "stamp stamp--next";
           return (
-            <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                padding: "6px 12px", borderRadius: 20, fontSize: 13,
-                background: done ? "#e6f4ea" : current ? "#fff4e5" : "#f5f5f5",
-                border: current ? "1px solid #f0a500" : "1px solid transparent",
-                color: done ? "#137333" : current ? "#8a6d00" : "#999",
-                fontWeight: current ? 600 : 400,
-              }}>
-                {done ? "✓ " : ""}{label(s.approverRole)}
+            <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: "var(--s-3)" }}>
+              <span className={cls}>
+                {done && <span className="mark">✓</span>}
+                {voided && <span className="mark">✕</span>}
+                {label(s.approverRole)}
               </span>
-              {i < routing.stages.length - 1 && <span style={{ color: "#ccc" }}>→</span>}
+              {i < routing.stages.length - 1 && <span className="arrow">→</span>}
             </span>
           );
         })}
       </div>
 
-      {/* Decision history */}
+      {error && <p className="notice">{error}</p>}
+
       {decisions.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Decisions</h2>
-          {decisions.map((d, i) => (
-            <div key={i} style={{ fontSize: 13, padding: "6px 0", borderBottom: "1px solid #f5f5f5" }}>
-              <strong style={{ color: d.decision === "rejected" ? "#b3261e" : "#137333" }}>
-                {d.decision}
-              </strong>{" "}
-              by {d.approver}
-              {d.comment && <div style={{ color: "#666" }}>{d.comment}</div>}
-            </div>
-          ))}
-        </div>
+        <section style={{ marginBottom: "var(--s-6)" }}>
+          <h2 style={{ marginBottom: "var(--s-3)" }}>Decisions</h2>
+          <table className="ledger">
+            <tbody>
+              {decisions.map((d, i) => (
+                <tr key={i}>
+                  <td style={{
+                    color: d.decision === "rejected" ? "var(--void)" : "var(--stamp)",
+                    fontWeight: 500, width: "8rem",
+                  }}>
+                    {d.decision}
+                  </td>
+                  <td>
+                    {d.approver}
+                    {d.comment && (
+                      <div style={{ color: "var(--ink-soft)", fontSize: "var(--step--1)" }}>
+                        {d.comment}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       )}
 
-      {/* Actions — only for the person whose turn it actually is */}
       {isMyTurn && routing.currentStage && (
-        <form action={decideAction} style={{ display: "grid", gap: 12 }}>
+        <form action={decideAction} style={{ display: "grid", gap: "var(--s-4)" }}>
           <input type="hidden" name="applicationId" value={app.applicationId} />
-          <textarea name="comment" placeholder="Comment (required if rejecting)"
-            style={{ padding: 10, borderRadius: 8, border: "1px solid #ddd",
-                     fontFamily: "inherit", minHeight: 70 }} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="submit" name="decision" value="approved"
-              style={{ padding: "10px 20px", borderRadius: 8, border: "none",
-                       background: "#137333", color: "#fff", cursor: "pointer" }}>
+          <label>
+            <span className="eyebrow">Comment — required to reject</span>
+            <textarea name="comment" rows={3} className="field"
+              style={{ marginTop: "var(--s-2)" }} />
+          </label>
+          <div style={{ display: "flex", gap: "var(--s-3)" }}>
+            <button type="submit" name="decision" value="approved" className="btn btn--approve">
               Approve
             </button>
-            <button type="submit" name="decision" value="rejected"
-              style={{ padding: "10px 20px", borderRadius: 8, border: "1px solid #b3261e",
-                       background: "#fff", color: "#b3261e", cursor: "pointer" }}>
+            <button type="submit" name="decision" value="rejected" className="btn btn--reject">
               Reject
             </button>
           </div>
@@ -139,8 +162,8 @@ export default async function ApplicationDetail({
       )}
 
       {!isMyTurn && routing.state === "pending" && (
-        <p style={{ color: "#666", fontSize: 14 }}>
-          Awaiting {label(routing.currentStage!.approverRole)}.
+        <p style={{ color: "var(--ink-soft)" }}>
+          With {label(routing.currentStage!.approverRole)}.
         </p>
       )}
     </main>
