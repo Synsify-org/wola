@@ -1,26 +1,202 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ═══════════════════════════════════════════════════════════════
+   Wola — design tokens.
+
+   TWO CLASSES OF COLOUR, and the distinction is load-bearing:
+
+   STATE colours encode financial fact (approved / rejected / awaiting).
+   They are SYSTEM-OWNED and can never be branded. If a SACCO could brand
+   their header red, and rejection is also red, an approver misreads a
+   document. State must look identical in every tenant, forever.
+
+   BRAND colours are the tenant's own. They colour chrome only: sidebar,
+   headers, primary actions, links. Injected at runtime from the tenants
+   table; --brand is the single axis a customer can move.
+   ═══════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── Brand (tenant-overridable) ─────────────────────────── */
+  --color-brand:        #064E3B;   /* deep forest green — default */
+  --color-brand-deep:   #003527;
+  --color-brand-ink:    #FFFFFF;
+  --color-brand-wash:   #EAF1EE;
+
+  /* ── State (NEVER brandable) ────────────────────────────── */
+  --color-approved:      #1B5E4B;
+  --color-approved-wash: #E8F2ED;
+  --color-rejected:      #A0342B;
+  --color-rejected-wash: #F8EDEC;
+  --color-awaiting:      #B57C1E;
+  --color-awaiting-wash: #FBF3E5;
+
+  /* ── Surfaces & ink ─────────────────────────────────────── */
+  --color-paper:      #F9F7F2;   /* warm — the paper-like ground */
+  --color-surface:    #FFFFFF;
+  --color-rule:       #E5E7EB;
+  --color-ink:        #111827;
+  --color-ink-soft:   #5A6270;
+  --color-ink-faint:  #949AA5;
+
+  /* ── Type ───────────────────────────────────────────────── */
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* ── Rhythm: 8px base ───────────────────────────────────── */
+  --radius-DEFAULT: 0.25rem;
+  --radius-lg:      0.5rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html, body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Money, staff numbers, schedule columns. Tabular figures are not
+     optional — every screen has UGX 13,800,000 in a column that must align. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .caps {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-ink-soft);
+  }
+
+  /* ── Ledger table. Compact rows, hairline rules. ─────────── */
+  .ledger { width: 100%; border-collapse: collapse; }
+  .ledger th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-ink);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-ink-soft);
+    white-space: nowrap;
+  }
+  .ledger td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .ledger .r { text-align: right; }
+  .ledger tbody tr:hover { background: var(--color-paper); }
+
+  /* ── Status chips. Pill shape — never confusable with a button. ── */
+  .chip {
+    display: inline-block;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .chip--approved { background: var(--color-approved-wash); color: var(--color-approved); }
+  .chip--rejected { background: var(--color-rejected-wash); color: var(--color-rejected); }
+  .chip--awaiting { background: var(--color-awaiting-wash); color: var(--color-awaiting); }
+
+  /* ── Approval chain. Completed / in-hand / not yet reached. ── */
+  .trail { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    white-space: nowrap;
+  }
+  .stage--done {
+    border-color: var(--color-approved);
+    background: var(--color-approved-wash);
+    color: var(--color-approved);
+  }
+  .stage--now {
+    border-color: var(--color-awaiting);
+    background: var(--color-awaiting-wash);
+    color: var(--color-awaiting);
+    border-style: dashed;
+  }
+  .stage--void {
+    border-color: var(--color-rejected);
+    background: var(--color-rejected-wash);
+    color: var(--color-rejected);
+  }
+  .trail .arrow { color: var(--color-rule); }
+
+  /* ── Cards: tonal layers, no heavy shadow. ──────────────── */
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+  }
+
+  /* ── Actions ────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font: inherit;
+    font-weight: 600;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.25rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn--primary { background: var(--color-brand); color: var(--color-brand-ink); }
+  .btn--primary:hover { background: var(--color-brand-deep); }
+  .btn--ghost {
+    background: transparent;
+    color: var(--color-brand);
+    border-color: var(--color-brand);
+  }
+  .btn--danger {
+    background: transparent;
+    color: var(--color-rejected);
+    border-color: var(--color-rejected);
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .field {
+    width: 100%;
+    font: inherit;
+    padding: 0.625rem 0.75rem;
+    background: var(--color-surface);
+    border: 1px solid #D1D5DB;
+    border-radius: 0.25rem;
+  }
+  .field:focus { border-color: var(--color-brand); outline: none; }
+
+  .notice {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-rejected);
+    background: var(--color-rejected-wash);
+    color: var(--color-rejected);
+    font-size: 0.875rem;
+  }
 }
