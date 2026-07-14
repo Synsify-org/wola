@@ -61,7 +61,7 @@ export default async function Dashboard() {
     // "Awaiting me" must be routed through the approval engine — the dept_head
     // rule cannot be expressed in SQL without duplicating engine logic, and
     // duplicated rules drift apart. Correctness over cleverness.
-    const inbox = await inboxFor(tx, {
+    const inbox = await inboxFor(tx, ctx.tenantId, {
       userId: ctx.userId,
       employeeId: (me?.id as string) ?? null,
       role: ctx.role,

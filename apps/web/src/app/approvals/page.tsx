@@ -23,7 +23,7 @@ export default async function ApprovalInbox() {
       LEFT JOIN employees e ON e.user_id = u.id
       WHERE u.id = ${ctx.userId}`;
 
-    const items = await inboxFor(tx, {
+    const inbox = await inboxFor(tx, ctx.tenantId, {
       userId: ctx.userId,
       employeeId: (me?.id as string) ?? null,
       role: ctx.role,
@@ -36,7 +36,7 @@ export default async function ApprovalInbox() {
         role: ctx.role,
         canSeeAllLoans: ctx.canSeeAllLoans,
       },
-      items,
+      items: inbox,
     };
   });
 
