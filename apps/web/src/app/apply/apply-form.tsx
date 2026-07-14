@@ -1,109 +1,172 @@
-// apps/web/src/app/apply/apply-form.tsx — client component, live eligibility.
 "use client";
 import { useState, useMemo } from "react";
-import { assessEligibility, type LoanKind, type EmployeeFinancials } from "@wola/engine";
+import {
+  assessEligibility,
+  type ProductRules,
+  type EmployeeFinancials,
+} from "@wola/engine";
 
-type Profile = EmployeeFinancials & {
-  fullName: string; employeeNo: string; title: string | null;
-  department: string | null; departmentHead: string | null;
+type Identity = {
+  fullName: string;
+  employeeNo: string;
+  title: string | null;
+  department: string | null;
+  departmentHead: string | null;
 };
 
-const LOANS: { kind: LoanKind; label: string; blurb: string }[] = [
-  { kind: "advance", label: "Salary Advance", blurb: "Up to 1 month gross. Interest-free. Repaid in 3 months." },
-  { kind: "development", label: "Development Loan", blurb: "Up to 3× gross. CBR interest. Up to 36 months." },
-  { kind: "car", label: "Staff Car Loan", blurb: "Paid to vendor. CBR interest. Up to 36 months." },
-];
+const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
-const fmt = (n: number) => "UGX " + Math.round(n).toLocaleString();
-
-export default function ApplyForm({ profile }: { profile: Profile }) {
-  const [kind, setKind] = useState<LoanKind>("advance");
-  const [externalRecoveries, setExternalRecoveries] = useState(0);
+export default function ApplyForm({
+  products,
+  employee,
+  identity,
+}: {
+  products: ProductRules[];
+  employee: EmployeeFinancials;
+  identity: Identity;
+}) {
+  const [productId, setProductId] = useState(products[0]?.productId ?? "");
+  const [external, setExternal] = useState(0);
   const [amount, setAmount] = useState(0);
-  const [tenor, setTenor] = useState(3);
+  const [tenor, setTenor] = useState(1);
 
-  // Live eligibility — recomputes on every change. External recoveries only
-  // matter for the car loan (declared per spec).
-  const result = useMemo(() => assessEligibility(kind, {
-    ...profile,
-    externalRecoveries: kind === "car" ? externalRecoveries : 0,
-  }), [kind, externalRecoveries, profile]);
+  const rules = products.find((p) => p.productId === productId) ?? null;
 
-  const overCap = amount > result.maxAmount;
-  const canSubmit = result.eligible && amount > 0 && !overCap;
+  // Live eligibility, computed from CONFIGURATION. No product is special-cased.
+  const result = useMemo(() => {
+    if (!rules) return null;
+    return assessEligibility(rules, {
+      ...employee,
+      externalRecoveries: rules.requiresExternalDeclaration ? external : 0,
+    });
+  }, [rules, employee, external]);
+
+  const step = 100000;
+  const canSubmit =
+    !!result && result.eligible && amount > 0 && amount <= result.maxAmount;
 
   return (
-    <main style={{ maxWidth: 640, margin: "5vh auto", fontFamily: "system-ui", padding: "0 16px" }}>
-      <h1 style={{ marginBottom: 4 }}>Apply for a loan</h1>
-      <p style={{ color: "#666", margin: "0 0 20px" }}>
-        {profile.fullName} · {profile.employeeNo} · {profile.title ?? "—"} · {profile.department ?? "—"}
+    <>
+      <h1 className="text-2xl">Apply for a loan</h1>
+      <p className="text-ink-soft mt-1 mb-6">
+        {identity.fullName} - {identity.employeeNo}
+        {identity.title ? " - " + identity.title : ""}
+        {identity.department ? " - " + identity.department : ""}
       </p>
 
-      {/* Loan type picker */}
-      <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
-        {LOANS.map((l) => (
-          <button key={l.kind} onClick={() => { setKind(l.kind); setAmount(0); }}
-            style={{
-              textAlign: "left", padding: 12, borderRadius: 8, cursor: "pointer",
-              border: kind === l.kind ? "2px solid #137333" : "1px solid #ddd",
-              background: kind === l.kind ? "#f0f9f2" : "#fff",
-            }}>
-            <strong>{l.label}</strong>
-            <div style={{ fontSize: 13, color: "#666" }}>{l.blurb}</div>
-          </button>
-        ))}
+      <div className="grid gap-3 mb-6">
+        {products.map((p) => {
+          const on = p.productId === productId;
+          return (
+            <button
+              key={p.productId}
+              type="button"
+              onClick={() => {
+                setProductId(p.productId);
+                setAmount(0);
+                setTenor(1);
+              }}
+              className={
+                on
+                  ? "card rounded-xl text-left border-brand ring-1 ring-brand"
+                  : "card rounded-xl text-left hover:border-brand"
+              }
+            >
+              <div className="font-semibold">{p.name}</div>
+              <div className="text-sm text-ink-soft mt-1">
+                {p.interestApplies ? "Interest applies" : "Interest-free"}
+                {" - up to " + p.maxTenorMonths + " months"}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Car loan: declare external loans */}
-      {kind === "car" && (
-        <label style={{ display: "block", marginBottom: 16, fontSize: 14 }}>
-          Declared external loans (banks/SACCOs), monthly recovery:
-          <input type="number" value={externalRecoveries}
-            onChange={(e) => setExternalRecoveries(Number(e.target.value) || 0)}
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
-        </label>
+      {rules?.requiresExternalDeclaration && (
+        <div className="card rounded-xl mb-6">
+          <label className="block">
+            <span className="caps">Declare outside borrowings</span>
+            <p className="text-sm text-ink-soft mt-1 mb-3">
+              Monthly recovery on any bank or SACCO loan. This reduces what you
+              qualify for.
+            </p>
+            <input
+              type="number"
+              min={0}
+              value={external}
+              onChange={(e) => setExternal(Number(e.target.value) || 0)}
+              className="field num"
+            />
+          </label>
+        </div>
       )}
 
-      {/* Eligibility result */}
-      {!result.eligible ? (
-        <div style={{ padding: 12, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, marginBottom: 16 }}>
-          {result.reasons.map((r, i) => <div key={i} style={{ color: "#991b1b", fontSize: 14 }}>{r}</div>)}
+      {result && !result.eligible && (
+        <div className="notice mb-6">
+          {result.reasons.map((r, i) => (
+            <div key={i}>{r}</div>
+          ))}
         </div>
-      ) : (
-        <>
-          <p style={{ fontSize: 14, color: "#137333", marginBottom: 8 }}>
-            You qualify for up to <strong>{fmt(result.maxAmount)}</strong>
-            {result.interestApplies ? " (interest applies at CBR)" : " (interest-free)"}.
-          </p>
-          <label style={{ display: "block", marginBottom: 8, fontSize: 14 }}>
-            Amount: <strong>{fmt(amount)}</strong>
-            <input type="range" min={0} max={result.maxAmount} step={100000}
-              value={amount} onChange={(e) => setAmount(Number(e.target.value))}
-              style={{ display: "block", width: "100%", marginTop: 4 }} />
+      )}
+
+      {result && result.eligible && (
+        <div className="card rounded-xl mb-6">
+          <div className="caps">You qualify for up to</div>
+          <div className="num text-2xl font-bold text-approved mt-1">
+            {ugx(result.maxAmount)}
+          </div>
+
+          <label className="block mt-6">
+            <div className="flex justify-between items-baseline">
+              <span className="caps">Amount</span>
+              <span className="num font-bold">{ugx(amount)}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={result.maxAmount}
+              step={step}
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              className="w-full mt-2"
+            />
           </label>
-          <label style={{ display: "block", marginBottom: 16, fontSize: 14 }}>
-            Repayment period: {tenor} months
-            <input type="range" min={1} max={result.maxTenorMonths} step={1}
-              value={tenor} onChange={(e) => setTenor(Number(e.target.value))}
-              style={{ display: "block", width: "100%", marginTop: 4 }} />
+
+          <label className="block mt-5">
+            <div className="flex justify-between items-baseline">
+              <span className="caps">Repayment period</span>
+              <span className="num font-bold">{tenor} months</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={result.maxTenorMonths}
+              step={1}
+              value={tenor}
+              onChange={(e) => setTenor(Number(e.target.value))}
+              className="w-full mt-2"
+            />
           </label>
-        </>
+        </div>
       )}
 
       <form action="/api/apply" method="post">
-        <input type="hidden" name="kind" value={kind} />
+        <input type="hidden" name="productId" value={productId} />
         <input type="hidden" name="amount" value={amount} />
         <input type="hidden" name="tenor" value={tenor} />
-        <input type="hidden" name="externalRecoveries" value={kind === "car" ? externalRecoveries : 0} />
-        <button type="submit" disabled={!canSubmit}
-          style={{
-            padding: "10px 20px", borderRadius: 8, border: "none",
-            background: canSubmit ? "#137333" : "#ccc",
-            color: "#fff", cursor: canSubmit ? "pointer" : "not-allowed",
-          }}>
+        <input
+          type="hidden"
+          name="externalRecoveries"
+          value={rules?.requiresExternalDeclaration ? external : 0}
+        />
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="btn btn--primary rounded-full"
+        >
           Submit application
         </button>
       </form>
-    </main>
+    </>
   );
 }

@@ -146,3 +146,51 @@ WHERE e.tenant_id = h.tenant_id
   AND h.employee_no = 'ST005'
   AND e.employee_no IN ('ST001','ST002','ST003')
   AND e.tenant_id = (SELECT id FROM tenants WHERE slug='testco');
+-- ── MUA benefit scheme, as CONFIGURATION ────────────────────────────────
+-- These are rows, not code. A SACCO seeds different numbers and Wola works
+-- for them with no release. The car factor below (0.4) is the SIGNED scheme;
+-- if MUA confirms the briefing example instead, an admin changes this number.
+
+UPDATE loan_products SET
+  cap_method = 'salary_multiple', cap_basis = 'gross', cap_multiple = 1,
+  max_tenor_months = 3, interest_applies = false,
+  requires_post_probation = true, blocked_by_final_warning = true,
+  requires_external_declaration = false
+WHERE kind = 'advance'
+  AND tenant_id = (SELECT id FROM tenants WHERE slug = 'testco');
+
+UPDATE loan_products SET
+  cap_method = 'salary_multiple', cap_basis = 'gross', cap_multiple = 3,
+  max_tenor_months = 36, interest_applies = true,
+  requires_post_probation = true, blocked_by_final_warning = true,
+  requires_external_declaration = false
+WHERE kind = 'term'
+  AND tenant_id = (SELECT id FROM tenants WHERE slug = 'testco');
+
+UPDATE loan_products SET
+  cap_method = 'takehome_factor', cap_basis = 'net',
+  takehome_factor = 0.4, takehome_multiplier = 30,
+  max_tenor_months = 36, interest_applies = true,
+  requires_post_probation = true, blocked_by_final_warning = true,
+  requires_external_declaration = true
+WHERE kind = 'asset'
+  AND tenant_id = (SELECT id FROM tenants WHERE slug = 'testco');
+
+-- Car and development cannot run together. An advance may run with either.
+INSERT INTO product_exclusions (tenant_id, loan_product_id, excludes_product_id, reason)
+SELECT car.tenant_id, car.id, dev.id, 'Benefit scheme: no concurrent car and development loan'
+FROM loan_products car
+JOIN loan_products dev
+  ON dev.tenant_id = car.tenant_id AND dev.kind = 'term'
+WHERE car.kind = 'asset'
+  AND car.tenant_id = (SELECT id FROM tenants WHERE slug = 'testco')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO product_exclusions (tenant_id, loan_product_id, excludes_product_id, reason)
+SELECT dev.tenant_id, dev.id, car.id, 'Benefit scheme: no concurrent car and development loan'
+FROM loan_products dev
+JOIN loan_products car
+  ON car.tenant_id = dev.tenant_id AND car.kind = 'asset'
+WHERE dev.kind = 'term'
+  AND dev.tenant_id = (SELECT id FROM tenants WHERE slug = 'testco')
+ON CONFLICT DO NOTHING;
