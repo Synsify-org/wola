@@ -19,8 +19,18 @@ const inTenant = (tenantId, fn) =>
 before(async () => {
   admin = postgres(ADMIN_URL, { max: 1 });
   app = postgres(APP_URL, { max: 2 });
-  await admin`DELETE FROM audit_log`; await admin`DELETE FROM employees`;
-  await admin`DELETE FROM memberships`; await admin`DELETE FROM users`;
+  // Scope EVERY cleanup to this file's tenants. Bare DELETEs destroy the dev
+  // fixtures (testco) and other test files' data — users/employees/audit_log
+  // are not protected by any tenant convention here.
+  await admin`DELETE FROM audit_log WHERE tenant_id IN
+    (SELECT id FROM tenants WHERE slug IN ('acme','umoja'))`;
+  await admin`DELETE FROM employees WHERE tenant_id IN
+    (SELECT id FROM tenants WHERE slug IN ('acme','umoja'))`;
+// users is GLOBAL (no tenant_id) — a bare DELETE destroys the dev login
+  // users and every other test's fixtures. Scope to THIS file's data only.
+  await admin`DELETE FROM memberships WHERE tenant_id IN
+    (SELECT id FROM tenants WHERE slug IN ('acme','umoja'))`;
+  await admin`DELETE FROM users WHERE email LIKE '%@iso.t'`;
   // was: await admin`DELETE FROM tenants`;
   await admin`DELETE FROM tenants WHERE slug IN ('acme','umoja')`;
   [A] = await admin`INSERT INTO tenants (slug, name, status) VALUES ('acme','Acme Ltd','active') RETURNING id`;
