@@ -1,12 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@wola/db"],
+  transpilePackages: ["@wola/db", "@wola/engine"],
+  allowedDevOrigins: ["testco.local", "other.local"],
   experimental: {
     serverActions: {
       allowedOrigins: [
-        "testco.localhost:3000",
-        "other.localhost:3000",
+        "testco.local:3000",
+        "other.local:3000",
         "localhost:3000",
       ],
     },

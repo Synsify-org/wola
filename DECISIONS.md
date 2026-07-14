@@ -38,3 +38,53 @@
 - Auth unit tests assert on raw SQL, not the real auth.ts functions. Refactor pure auth logic into a Next-independent module tests can import and call.
 - Create scripts/seed-dev.sql for repeatable dev seeding.
 - Add .gitattributes with `* text=auto eol=lf` to stop the LF→CRLF warnings on every Windows commit (they'll make Willy's diffs noisy).
+
+## 2026-07 — Approval workflow decisions
+- Pipelines are TENANT CONFIG (approval_pipelines/approval_stages), never code. MUA's chain is one configuration; a SACCO seeds different rows. Never hardcode a customer's approval chain.
+- NO SELF-APPROVAL: the applicant's role is stripped from their own pipeline, escalating upward. MUA's "special CEO pipeline" is this same rule applied at the top of the org — it generalizes, so every role gets it free.
+- Rejection TERMINATES the application (mandatory reason, DB CHECK-enforced). Send-back-a-stage was rejected: it invalidates the frozen eligibility_snapshot and muddies the audit trail.
+- dept_head routes to a PERSON (employees.department_head_id), not a role. An employee with no dept head has that stage dropped (same mechanism as self-approval) — which is why the CEO's pipeline has no dept_head stage.
+- UNRESOLVED, BLOCKING: car-loan cap is 40%×take-home×30 (=96m for the spec's example) per the SIGNED benefit scheme, but the briefing example says 240m (no 40%). Built to the scheme. CAR_TAKEHOME_FACTOR in eligibility.ts is the one-line switch. MUST confirm with MUA — a 2.5× lending error rides on it.
+
+## 2026-07 — More testing traps
+- `users` is GLOBAL (no tenant_id). Deleting a tenant does NOT cascade to users. Any test creating users must delete them explicitly or the fixture isn't idempotent (cost a debugging round: FK violation on re-run).
+- `node --test` counts an EMPTY or unloadable test file as ONE PASSING test. A green checkmark is not proof. Always check the test COUNT, not the absence of red.
+- A passing local build does NOT mean files are committed. `dist/` survives branch switches while uncommitted source vanishes — the app kept running off stale compiled JS while the .ts source was gone from disk AND git. Verify with `git ls-files`, not by whether it runs.
+- git push ≠ merge. The PR must be merged with a button click on GitHub, then pulled. This has been missed 5 times.
+
+- `users` is GLOBAL (no tenant_id), so tests CANNOT scope user cleanup by tenant.
+  Every test must delete ONLY users it created, matched by a distinctive
+  file-scoped email domain (e.g. '%@appr.t', '%@sess.t'). A loose pattern like
+  '%@test%' will destroy the dev login users (testco) and silently break login.
+  Symptom: "login fails after running the test suite."
+
+- NEVER write an unscoped DELETE in a test. `users`, `employees`, and `audit_log`
+  were all being wiped globally by isolation.test.mjs, silently destroying the
+  dev fixtures (testco) on EVERY test run. Symptom: login breaks after running
+  tests; re-seeding "fixes" it until the next run. Scope every cleanup by the
+  file's own tenant slugs or a file-specific email domain. Cost: several hours
+  across multiple sessions.
+
+  - Every workspace package that app code (or a transpiled package) imports MUST be
+  listed in next.config.ts `transpilePackages`. @wola/engine was missing → server
+  actions failed with the misleading "Invalid Server Actions request". Symptom
+  points at origins/config; cause is module resolution.
+- NEVER write an unscoped DELETE in a test. isolation.test.mjs had bare
+  `DELETE FROM users` / `DELETE FROM employees`, silently wiping the dev fixtures
+  (testco) on EVERY test run. Symptom: login "randomly" breaks; re-seeding fixes it
+  until the next run. Scope all cleanup by the file's own tenant slugs / email domain.
+- next.config.ts changes do NOT hot-reload. Restart the dev server.
+
+
+## Auth / Next 16 traps (cost ~2h)
+- redirect() inside a server action can DISCARD the Set-Cookie header. The cookie
+  is only committed when the action RETURNS normally. Pattern: action returns
+  {ok:true}, client component uses useActionState + router.replace(). Symptom:
+  POST 303 → GET / 307 → back to /login, with valid sessions in the DB.
+- Browsers do not reliably store host-only cookies on .localhost SUBDOMAINS
+  (testco.localhost). Dev now uses .local hostnames via the Windows hosts file
+  (127.0.0.1 testco.local / other.local) + WOLA_BASE_DOMAIN=local. Real hostnames
+  get normal cookie scoping, which is what preserves cross-tenant isolation.
+- next.config.ts needs allowedDevOrigins for custom dev hosts, AND every workspace
+  package the app imports must be in transpilePackages (@wola/engine was missing →
+  misleading "Invalid Server Actions request").
