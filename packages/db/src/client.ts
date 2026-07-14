@@ -12,6 +12,8 @@ export type Tx = postgres.TransactionSql;
 
 export * from "./employee-financials";
 export * from "./schedules";
+export * from "./approvals";
+
 
 export function makeDb(url = process.env.DATABASE_URL!): Sql {
   // Connects as wola_app: no BYPASSRLS, no DDL, no audit UPDATE/DELETE.
