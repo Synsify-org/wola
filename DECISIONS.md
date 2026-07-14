@@ -88,3 +88,7 @@
 - next.config.ts needs allowedDevOrigins for custom dev hosts, AND every workspace
   package the app imports must be in transpilePackages (@wola/engine was missing →
   misleading "Invalid Server Actions request").
+
+  - RESOLVED 2026-07-14: car cap is 40% × take-home × 30 (=96m for the spec example).
+  Confirmed with MUA HR. The 240m briefing figure was an error in the briefing.
+  CAR_TAKEHOME_FACTOR = 0.40. Do not change without written confirmation.

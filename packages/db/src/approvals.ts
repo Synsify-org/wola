@@ -172,14 +172,11 @@ export async function decide(
 }
 
 /** Applications awaiting THIS actor's decision — their approval inbox. */
-export async function inboxFor(
-  tx: Tx, actor: Actor,
-): Promise<Array<ApplicationForApproval & { stageRole: string; employeeName: string; productName: string }>> {
+export async function inboxFor(tx: Tx, tenantId: string, actor: Actor) {
   const rows = await tx`
-    SELECT la.id
-    FROM loan_applications la
-    WHERE la.status IN ('submitted','in_review')`;
-
+    SELECT la.id FROM loan_applications la
+    WHERE la.tenant_id = ${tenantId}
+      AND la.status IN ('submitted','in_review')`;
   const out = [];
   for (const r of rows) {
     const loaded = await routeApplication(tx, r.id as string);
