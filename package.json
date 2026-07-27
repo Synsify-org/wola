@@ -16,5 +16,10 @@
   "devDependencies": {
     "dotenv": "^17.4.2",
     "tsx": "^4.23.0"
+  },
+  "allowScripts": {
+    "argon2@0.44.0": true,
+    "esbuild@0.28.1": true,
+    "sharp@0.34.5": true
   }
 }

@@ -1,8 +1,4 @@
 ﻿@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-
-@custom-variant dark (&:is(.dark *));
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    Wola â€” design tokens.
@@ -49,30 +45,6 @@
   /* â”€â”€ Rhythm: 8px base â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   --radius-DEFAULT: 0.25rem;
   --radius-lg:      0.5rem;
-
-    /* â”€â”€ Bridge: shadcn/Radix semantic names â†’ Wola tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-     shadcn components (button, dialog, tableâ€¦) resolve these names.
-     Point them at the real design system so every added component
-     inherits the forest-green brand and the untouchable state colours. */
-  --color-background:        var(--color-paper);
-  --color-foreground:        var(--color-ink);
-  --color-card:              var(--color-surface);
-  --color-card-foreground:   var(--color-ink);
-  --color-popover:           var(--color-surface);
-  --color-popover-foreground:var(--color-ink);
-  --color-primary: #064E3B;
-  --color-primary-foreground:var(--color-brand-ink);
-  --color-secondary:         var(--color-brand-wash);
-  --color-secondary-foreground: var(--color-brand-deep);
-  --color-muted:             var(--color-brand-wash);
-  --color-muted-foreground:  var(--color-ink-soft);
-  --color-accent:            var(--color-brand-wash);
-  --color-accent-foreground: var(--color-brand-deep);
-  --color-destructive:       var(--color-rejected);
-  --color-destructive-foreground: #FFFFFF;
-  --color-border:            var(--color-rule);
-  --color-input:             var(--color-rule);
-  --color-ring:              var(--color-brand);
 }
 
 @layer base {
@@ -86,15 +58,6 @@
   :focus-visible {
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
-  }
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
   }
 }
 
@@ -237,132 +200,89 @@
     font-size: 0.875rem;
   }
 }
+// apps/web/src/components/shell.tsx
+// The application frame: sidebar, tenant identity, user context, sign out.
+// Nav items are ROLE-AWARE â€” an ordinary employee has no approval inbox and
+// no register of everyone else's loans, so they never see those links.
+import { headers } from "next/headers";
+import NavLinks from "./nav-links";
 
-@theme inline {
-  --font-heading:        var(--font-sans);
-  --font-sans:        var(--font-sans);
-  --color-sidebar-ring:        var(--sidebar-ring);
-  --color-sidebar-border:        var(--sidebar-border);
-  --color-sidebar-accent-foreground:        var(--sidebar-accent-foreground);
-  --color-sidebar-accent:        var(--sidebar-accent);
-  --color-sidebar-primary-foreground:        var(--sidebar-primary-foreground);
-  --color-sidebar-primary:        var(--sidebar-primary);
-  --color-sidebar-foreground:        var(--sidebar-foreground);
-  --color-sidebar:        var(--sidebar);
-  --color-chart-5:        var(--chart-5);
-  --color-chart-4:        var(--chart-4);
-  --color-chart-3:        var(--chart-3);
-  --color-chart-2:        var(--chart-2);
-  --color-chart-1:        var(--chart-1);
-  --color-ring:        var(--ring);
-  --color-input:        var(--input);
-  --color-border:        var(--border);
-  --color-destructive:        var(--destructive);
-  --color-accent-foreground:        var(--accent-foreground);
-  --color-accent:        var(--accent);
-  --color-muted-foreground:        var(--muted-foreground);
-  --color-muted:        var(--muted);
-  --color-secondary-foreground:        var(--secondary-foreground);
-  --color-secondary:        var(--secondary);
-  --color-primary-foreground: var(--color-brand-ink);
-  
-  --color-popover-foreground:        var(--popover-foreground);
-  --color-popover:        var(--popover);
-  --color-card-foreground:        var(--card-foreground);
-  --color-card:        var(--card);
-  --color-foreground:         var(--color-ink);
-  --color-background:         var(--color-paper);
-  --radius-sm:        calc(var(--radius) * 0.6);
-  --radius-md:        calc(var(--radius) * 0.8);
-  --radius-lg:        var(--radius);
-  --radius-xl:        calc(var(--radius) * 1.4);
-  --radius-2xl:        calc(var(--radius) * 1.8);
-  --radius-3xl:        calc(var(--radius) * 2.2);
-  --radius-4xl:        calc(var(--radius) * 2.6);
+export interface ShellUser {
+  name: string;
+  email: string;
+  role: string;
+  canSeeAllLoans: boolean;
 }
 
-:root {
-  --background:        oklch(1 0 0);
-  --foreground:        oklch(0.145 0 0);
-  --card:        oklch(1 0 0);
-  --card-foreground:        oklch(0.145 0 0);
-  --popover:        oklch(1 0 0);
-  --popover-foreground:        oklch(0.145 0 0);
-  --primary:        oklch(0.205 0 0);
-  --primary-foreground:        oklch(0.985 0 0);
-  --secondary:        oklch(0.97 0 0);
-  --secondary-foreground:        oklch(0.205 0 0);
-  --muted:        oklch(0.97 0 0);
-  --muted-foreground:        oklch(0.556 0 0);
-  --accent:        oklch(0.97 0 0);
-  --accent-foreground:        oklch(0.205 0 0);
-  --destructive:        oklch(0.577 0.245 27.325);
-  --border:        oklch(0.922 0 0);
-  --input:        oklch(0.922 0 0);
-  --ring:        oklch(0.708 0 0);
-  --chart-1:        oklch(0.87 0 0);
-  --chart-2:        oklch(0.556 0 0);
-  --chart-3:        oklch(0.439 0 0);
-  --chart-4:        oklch(0.371 0 0);
-  --chart-5:        oklch(0.269 0 0);
-  --radius:        0.625rem;
-  --sidebar:        oklch(0.985 0 0);
-  --sidebar-foreground:        oklch(0.145 0 0);
-  --sidebar-primary:        oklch(0.205 0 0);
-  --sidebar-primary-foreground:        oklch(0.985 0 0);
-  --sidebar-accent:        oklch(0.97 0 0);
-  --sidebar-accent-foreground:        oklch(0.205 0 0);
-  --sidebar-border:        oklch(0.922 0 0);
-  --sidebar-ring:        oklch(0.708 0 0);
-}
+const roleLabel = (r: string) =>
+  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-.dark {
-  --background:        oklch(0.145 0 0);
-  --foreground:        oklch(0.985 0 0);
-  --card:        oklch(0.205 0 0);
-  --card-foreground:        oklch(0.985 0 0);
-  --popover:        oklch(0.205 0 0);
-  --popover-foreground:        oklch(0.985 0 0);
-  --primary:        oklch(0.922 0 0);
-  --primary-foreground:        oklch(0.205 0 0);
-  --secondary:        oklch(0.269 0 0);
-  --secondary-foreground:        oklch(0.985 0 0);
-  --muted:        oklch(0.269 0 0);
-  --muted-foreground:        oklch(0.708 0 0);
-  --accent:        oklch(0.269 0 0);
-  --accent-foreground:        oklch(0.985 0 0);
-  --destructive:        oklch(0.704 0.191 22.216);
-  --border:        oklch(1 0 0 / 10%);
-  --input:        oklch(1 0 0 / 15%);
-  --ring:        oklch(0.556 0 0);
-  --chart-1:        oklch(0.87 0 0);
-  --chart-2:        oklch(0.556 0 0);
-  --chart-3:        oklch(0.439 0 0);
-  --chart-4:        oklch(0.371 0 0);
-  --chart-5:        oklch(0.269 0 0);
-  --sidebar:        oklch(0.205 0 0);
-  --sidebar-foreground:        oklch(0.985 0 0);
-  --sidebar-primary:        oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground:        oklch(0.985 0 0);
-  --sidebar-accent:        oklch(0.269 0 0);
-  --sidebar-accent-foreground:        oklch(0.985 0 0);
-  --sidebar-border:        oklch(1 0 0 / 10%);
-  --sidebar-ring:        oklch(0.556 0 0);
-}
-@theme {
-  /* Bridge extension: remaining shadcn/Radix names → Wola tokens. */
-  --color-card:                 var(--color-surface);
-  --color-card-foreground:      var(--color-ink);
-  --color-popover:              var(--color-surface);
-  --color-popover-foreground:   var(--color-ink);
-  --color-secondary:            var(--color-brand-wash);
-  --color-secondary-foreground: var(--color-brand-deep);
-  --color-muted:                var(--color-brand-wash);
-  --color-muted-foreground:     var(--color-ink-soft);
-  --color-accent:               var(--color-brand-wash);
-  --color-accent-foreground:    var(--color-brand-deep);
-  --color-destructive:          var(--color-rejected);
-  --color-border:               var(--color-rule);
-  --color-input:                var(--color-rule);
-  --color-ring:                 var(--color-brand);
+export default async function Shell({
+  user,
+  tenantName,
+  children,
+}: {
+  user: ShellUser;
+  tenantName: string;
+  children: React.ReactNode;
+}) {
+  const slug = (await headers()).get("x-tenant-slug") ?? "";
+
+  return (
+    <div className="min-h-screen flex">
+      {/* â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <aside
+        className="hidden md:flex w-64 shrink-0 flex-col justify-between
+                   border-r border-rule bg-surface"
+      >
+        <div>
+          <div className="px-6 py-6 border-b border-rule">
+            <div className="text-lg font-bold text-brand leading-tight">
+              {tenantName}
+            </div>
+            <div className="caps mt-1">Staff Loan Portal</div>
+          </div>
+
+          <nav className="p-3">
+            <NavLinks canSeeAllLoans={user.canSeeAllLoans} />
+          </nav>
+        </div>
+
+        <div className="p-3 border-t border-rule">
+          <div className="px-3 py-2">
+            <div className="text-sm font-semibold truncate">{user.name}</div>
+            <div className="text-xs text-ink-soft truncate">{user.email}</div>
+            <div className="caps mt-1">{roleLabel(user.role)}</div>
+          </div>
+          <form action="/api/logout" method="post" className="px-3 pt-2">
+            <button type="submit" className="text-sm text-ink-soft hover:text-ink">
+              Sign out
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      {/* â”€â”€ Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="flex-1 min-w-0">
+        {/* Mobile bar â€” the sidebar collapses; identity stays visible. */}
+        <header className="md:hidden flex items-center justify-between
+                           px-4 py-3 border-b border-rule bg-surface">
+          <span className="font-bold text-brand">{tenantName}</span>
+          <form action="/api/logout" method="post">
+            <button type="submit" className="text-sm text-ink-soft">Sign out</button>
+          </form>
+        </header>
+
+        <main className="max-w-5xl mx-auto px-4 md:px-10 py-8 pb-24 md:pb-8">
+          {children}
+        </main>
+
+        {/* Mobile nav â€” a bottom bar, because staff apply on cheap phones. */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 border-t border-rule
+                        bg-surface flex justify-around py-2">
+          <NavLinks canSeeAllLoans={user.canSeeAllLoans} compact />
+        </nav>
+      </div>
+    </div>
+  );
 }

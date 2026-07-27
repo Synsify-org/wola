@@ -7,8 +7,11 @@
 // a header colour.
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Hanken_Grotesk, JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const hanken = Hanken_Grotesk({
   subsets: ["latin"],
@@ -45,7 +48,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${hanken.variable} ${jetbrains.variable}`}
+      className={cn(hanken.variable, jetbrains.variable, "font-sans", inter.variable)}
       suppressHydrationWarning
     >
       <body
