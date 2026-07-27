@@ -61,9 +61,14 @@ before(async () => {
   ids.eCfo = await emp(ids.uCfo, "C1", "CFO");
   ids.eCeo = await emp(ids.uCeo, "E1", "CEO");
 
+  // A rate index the interest-bearing product points at. Without this,
+  // resolveRate refuses to approve (interest applies but no rate configured).
+  const [ri] = await admin`INSERT INTO rate_indices (tenant_id,name,current_value)
+    VALUES (${T},'CBR',9.500) RETURNING id`;
+
   // Product + default pipeline: dept_head -> hr -> cfo -> ceo
-  const [p] = await admin`INSERT INTO loan_products (tenant_id,name,kind)
-    VALUES (${T},'Dev Loan','term') RETURNING id`;
+  const [p] = await admin`INSERT INTO loan_products (tenant_id,name,kind,rate_index_id)
+    VALUES (${T},'Dev Loan','term',${ri.id}) RETURNING id`;
   ids.product = p.id;
   const [pl] = await admin`INSERT INTO approval_pipelines (tenant_id,loan_product_id,applies_to)
     VALUES (${T},${p.id},'default') RETURNING id`;
@@ -120,13 +125,25 @@ test("full chain: dept_head -> hr -> cfo -> ceo approves the application", async
   await step(ids.uHead, ids.eHead, "dept_head");
   await step(ids.uHr, ids.eHr, "hr");
   await step(ids.uCfo, ids.eCfo, "cfo");
-  const last = await step(ids.uCeo, ids.eCeo, "ceo");
+  // Final approval now materialises a loan, so it needs a disbursement date.
+  const last = await inTenant((tx) => decide(tx, {
+    tenantId: T, applicationId: appId,
+    actor: actor(ids.uCeo, ids.eCeo, "ceo"), decision: "approved",
+    startDate: new Date("2026-08-01"),
+  }));
+  if (!last.ok) console.log("APPROVAL FAILED:", last.error);
   assert.equal(last.ok, true);
   assert.equal(last.routing.state, "approved");
-
+  assert.ok(last.loanId, "final approval should create a loan");
   const [row] = await admin`SELECT status FROM loan_applications WHERE id=${appId}`;
   assert.equal(row.status, "approved");
+  // The loan and its schedule must actually exist — not just the status flip.
+  const [loan] = await admin`SELECT id, status FROM loans WHERE application_id=${appId}`;
+  assert.ok(loan, "a loan row should exist for the approved application");
+  const [sched] = await admin`SELECT id FROM loan_schedules WHERE loan_id=${loan.id} AND is_active`;
+  assert.ok(sched, "an active schedule should exist for the loan");
 });
+
 
 test("NO SELF-APPROVAL: the CFO's own application skips the CFO stage", async () => {
   const appId = await newApplication(ids.eCfo);
@@ -143,7 +160,13 @@ test("NO SELF-APPROVAL: the CFO's own application skips the CFO stage", async ()
   }));
   await step(ids.uHead, ids.eHead, "dept_head");
   await step(ids.uHr, ids.eHr, "hr");
-  const last = await step(ids.uCeo, ids.eCeo, "ceo");   // CEO, not CFO
+  const last = await inTenant((tx) => decide(tx, {
+    tenantId: T, applicationId: appId,
+    actor: actor(ids.uCeo, ids.eCeo, "ceo"), decision: "approved",
+    startDate: new Date("2026-08-01"),
+  }));   // CEO, not CFO
+  if (!last.ok) console.log("APPROVAL FAILED:", last.error);
+  assert.equal(last.ok, true);
   assert.equal(last.routing.state, "approved");
 });
 
