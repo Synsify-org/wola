@@ -1,8 +1,8 @@
-// apps/web/src/app/layout.tsx
+﻿// apps/web/src/app/layout.tsx
 // Loads the type and injects the TENANT BRAND.
 //
 // Only --color-brand moves per tenant. State colours (approved / rejected /
-// awaiting) are system-owned and defined in globals.css — a tenant cannot
+// awaiting) are system-owned and defined in globals.css â€” a tenant cannot
 // brand them, because an approver must never misread a rejected document as
 // a header colour.
 import type { Metadata } from "next";
@@ -11,7 +11,7 @@ import { Hanken_Grotesk, JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 const hanken = Hanken_Grotesk({
   subsets: ["latin"],
@@ -42,13 +42,13 @@ export default async function RootLayout({
 
   // TODO(0008): read tenants.brand_color and set it here. Until that column
   // exists every tenant gets the default. The token architecture is already
-  // in place — this is the only line that changes.
+  // in place â€” this is the only line that changes.
   const brand: string | null = null;
 
   return (
     <html
       lang="en"
-      className={cn(hanken.variable, jetbrains.variable, "font-sans", inter.variable)}
+      className={cn(inter.variable, jetbrains.variable, "font-sans")}
       suppressHydrationWarning
     >
       <body

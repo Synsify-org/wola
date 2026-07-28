@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 type Item = { href: string; label: string; adminOnly?: boolean };
@@ -18,7 +19,6 @@ export default function NavLinks({
   compact?: boolean;
 }) {
   const path = usePathname();
-
   const items = ITEMS.filter((i) => !i.adminOnly || canSeeAllLoans);
 
   return (
@@ -27,16 +27,34 @@ export default function NavLinks({
         const active =
           item.href === "/" ? path === "/" : path.startsWith(item.href);
 
-        const cls = compact
-          ? (active ? "px-3 py-1 text-xs font-semibold text-brand"
-                    : "px-3 py-1 text-xs font-semibold text-ink-faint")
-          : (active ? "block px-3 py-2 rounded text-sm font-medium bg-brand text-brand-ink"
-                    : "block px-3 py-2 rounded text-sm font-medium text-ink-soft hover:bg-paper hover:text-ink");
+        if (compact) {
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={
+                active
+                  ? "px-3 py-1 text-xs font-semibold text-brand"
+                  : "px-3 py-1 text-xs font-semibold text-ink-faint"
+              }
+            >
+              {item.label}
+            </Link>
+          );
+        }
 
         return (
-          <a key={item.href} href={item.href} className={cls}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className={
+              active
+                ? "flex items-center gap-2 rounded-md border-l-2 border-brand bg-brand-wash px-3 py-2 text-sm font-medium text-brand"
+                : "flex items-center gap-2 rounded-md border-l-2 border-transparent px-3 py-2 text-sm font-medium text-ink-soft hover:bg-paper hover:text-ink"
+            }
+          >
             {item.label}
-          </a>
+          </Link>
         );
       })}
     </>
