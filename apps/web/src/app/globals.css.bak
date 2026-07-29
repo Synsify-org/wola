@@ -1,0 +1,368 @@
+﻿@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   Wola â€” design tokens.
+
+   TWO CLASSES OF COLOUR, and the distinction is load-bearing:
+
+   STATE colours encode financial fact (approved / rejected / awaiting).
+   They are SYSTEM-OWNED and can never be branded. If a SACCO could brand
+   their header red, and rejection is also red, an approver misreads a
+   document. State must look identical in every tenant, forever.
+
+   BRAND colours are the tenant's own. They colour chrome only: sidebar,
+   headers, primary actions, links. Injected at runtime from the tenants
+   table; --brand is the single axis a customer can move.
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+@theme {
+  /* â”€â”€ Brand (tenant-overridable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  --color-brand:        #064E3B;   /* deep forest green â€” default */
+  --color-brand-deep:   #003527;
+  --color-brand-ink:    #FFFFFF;
+  --color-brand-wash:   #EAF1EE;
+
+  /* â”€â”€ State (NEVER brandable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  --color-approved:      #1B5E4B;
+  --color-approved-wash: #E8F2ED;
+  --color-rejected:      #A0342B;
+  --color-rejected-wash: #F8EDEC;
+  --color-awaiting:      #B57C1E;
+  --color-awaiting-wash: #FBF3E5;
+
+  /* â”€â”€ Surfaces & ink â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  --color-paper:      #F6F7F9;   /* cool near-white ground */
+  --color-surface:    #FFFFFF;
+  --color-rule:       #E4E7EC;
+  --color-ink:        #111827;
+  --color-ink-soft:   #5A6270;
+  --color-ink-faint:  #949AA5;
+
+  /* â”€â”€ Type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* â”€â”€ Rhythm: 8px base â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  --radius-DEFAULT: 0.25rem;
+  --radius-lg:      0.5rem;
+
+    /* â”€â”€ Bridge: shadcn/Radix semantic names â†’ Wola tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+     shadcn components (button, dialog, tableâ€¦) resolve these names.
+     Point them at the real design system so every added component
+     inherits the forest-green brand and the untouchable state colours. */
+  --color-background:        var(--color-paper);
+  --color-foreground:        var(--color-ink);
+  --color-card:              var(--color-surface);
+  --color-card-foreground:   var(--color-ink);
+  --color-popover:           var(--color-surface);
+  --color-popover-foreground:var(--color-ink);
+  --color-primary: #064E3B;
+  --color-primary-foreground:var(--color-brand-ink);
+  --color-secondary:         var(--color-brand-wash);
+  --color-secondary-foreground: var(--color-brand-deep);
+  --color-muted:             var(--color-brand-wash);
+  --color-muted-foreground:  var(--color-ink-soft);
+  --color-accent:            var(--color-brand-wash);
+  --color-accent-foreground: var(--color-brand-deep);
+  --color-destructive:       var(--color-rejected);
+  --color-destructive-foreground: #FFFFFF;
+  --color-border:            var(--color-rule);
+  --color-input:             var(--color-rule);
+  --color-ring:              var(--color-brand);
+}
+
+@layer base {
+  html, body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  /* Money, staff numbers, schedule columns. Tabular figures are not
+     optional â€” every screen has UGX 13,800,000 in a column that must align. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .caps {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-ink-soft);
+  }
+
+  /* â”€â”€ Ledger table. Compact rows, hairline rules. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .ledger { width: 100%; border-collapse: collapse; }
+  .ledger th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-ink);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-ink-soft);
+    white-space: nowrap;
+  }
+  .ledger td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .ledger .r { text-align: right; }
+  .ledger tbody tr:hover { background: #FAFBFC; }
+
+  /* â”€â”€ Status chips. Pill shape â€” never confusable with a button. â”€â”€ */
+  .chip {
+    display: inline-block;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .chip--approved { background: var(--color-approved-wash); color: var(--color-approved); }
+  .chip--rejected { background: var(--color-rejected-wash); color: var(--color-rejected); }
+  .chip--awaiting { background: var(--color-awaiting-wash); color: var(--color-awaiting); }
+
+  /* â”€â”€ Approval chain. Completed / in-hand / not yet reached. â”€â”€ */
+  .trail { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    white-space: nowrap;
+  }
+  .stage--done {
+    border-color: var(--color-approved);
+    background: var(--color-approved-wash);
+    color: var(--color-approved);
+  }
+  .stage--now {
+    border-color: var(--color-awaiting);
+    background: var(--color-awaiting-wash);
+    color: var(--color-awaiting);
+    border-style: dashed;
+  }
+  .stage--void {
+    border-color: var(--color-rejected);
+    background: var(--color-rejected-wash);
+    color: var(--color-rejected);
+  }
+  .trail .arrow { color: var(--color-rule); }
+
+  /* â”€â”€ Cards: tonal layers, no heavy shadow. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+  }
+
+  /* â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font: inherit;
+    font-weight: 600;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.25rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn--primary { background: var(--color-brand); color: var(--color-brand-ink); }
+  .btn--primary:hover { background: var(--color-brand-deep); }
+  .btn--ghost {
+    background: transparent;
+    color: var(--color-brand);
+    border-color: var(--color-brand);
+  }
+  .btn--danger {
+    background: transparent;
+    color: var(--color-rejected);
+    border-color: var(--color-rejected);
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .field {
+    width: 100%;
+    font: inherit;
+    padding: 0.625rem 0.75rem;
+    background: var(--color-surface);
+    border: 1px solid #D1D5DB;
+    border-radius: 0.25rem;
+  }
+  .field:focus { border-color: var(--color-brand); outline: none; }
+
+  .notice {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-rejected);
+    background: var(--color-rejected-wash);
+    color: var(--color-rejected);
+    font-size: 0.875rem;
+  }
+}
+
+@theme inline {
+  --font-heading:        var(--font-sans);
+  
+  --color-sidebar-ring:        var(--sidebar-ring);
+  --color-sidebar-border:        var(--sidebar-border);
+  --color-sidebar-accent-foreground:        var(--sidebar-accent-foreground);
+  --color-sidebar-accent:        var(--sidebar-accent);
+  --color-sidebar-primary-foreground:        var(--sidebar-primary-foreground);
+  --color-sidebar-primary:        var(--sidebar-primary);
+  --color-sidebar-foreground:        var(--sidebar-foreground);
+  --color-sidebar:        var(--sidebar);
+  --color-chart-5:        var(--chart-5);
+  --color-chart-4:        var(--chart-4);
+  --color-chart-3:        var(--chart-3);
+  --color-chart-2:        var(--chart-2);
+  --color-chart-1:        var(--chart-1);
+  --color-ring:        var(--ring);
+  --color-input:        var(--input);
+  --color-border:        var(--border);
+  --color-destructive:        var(--destructive);
+  --color-accent-foreground:        var(--accent-foreground);
+  --color-accent:        var(--accent);
+  --color-muted-foreground:        var(--muted-foreground);
+  --color-muted:        var(--muted);
+  --color-secondary-foreground:        var(--secondary-foreground);
+  --color-secondary:        var(--secondary);
+  --color-primary-foreground: var(--color-brand-ink);
+  
+  --color-popover-foreground:        var(--popover-foreground);
+  --color-popover:        var(--popover);
+  --color-card-foreground:        var(--card-foreground);
+  --color-card:        var(--card);
+  --color-foreground:         var(--color-ink);
+  --color-background:         var(--color-paper);
+  --radius-sm:        calc(var(--radius) * 0.6);
+  --radius-md:        calc(var(--radius) * 0.8);
+  --radius-lg:        var(--radius);
+  --radius-xl:        calc(var(--radius) * 1.4);
+  --radius-2xl:        calc(var(--radius) * 1.8);
+  --radius-3xl:        calc(var(--radius) * 2.2);
+  --radius-4xl:        calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background:        oklch(1 0 0);
+  --foreground:        oklch(0.145 0 0);
+  --card:        oklch(1 0 0);
+  --card-foreground:        oklch(0.145 0 0);
+  --popover:        oklch(1 0 0);
+  --popover-foreground:        oklch(0.145 0 0);
+  --primary:        oklch(0.205 0 0);
+  --primary-foreground:        oklch(0.985 0 0);
+  --secondary:        oklch(0.97 0 0);
+  --secondary-foreground:        oklch(0.205 0 0);
+  --muted:        oklch(0.97 0 0);
+  --muted-foreground:        oklch(0.556 0 0);
+  --accent:        oklch(0.97 0 0);
+  --accent-foreground:        oklch(0.205 0 0);
+  --destructive:        oklch(0.577 0.245 27.325);
+  --border:        oklch(0.922 0 0);
+  --input:        oklch(0.922 0 0);
+  --ring:        oklch(0.708 0 0);
+  --chart-1:        oklch(0.87 0 0);
+  --chart-2:        oklch(0.556 0 0);
+  --chart-3:        oklch(0.439 0 0);
+  --chart-4:        oklch(0.371 0 0);
+  --chart-5:        oklch(0.269 0 0);
+  --radius:        0.625rem;
+  --sidebar:        oklch(0.985 0 0);
+  --sidebar-foreground:        oklch(0.145 0 0);
+  --sidebar-primary:        oklch(0.205 0 0);
+  --sidebar-primary-foreground:        oklch(0.985 0 0);
+  --sidebar-accent:        oklch(0.97 0 0);
+  --sidebar-accent-foreground:        oklch(0.205 0 0);
+  --sidebar-border:        oklch(0.922 0 0);
+  --sidebar-ring:        oklch(0.708 0 0);
+}
+
+.dark {
+  --background:        oklch(0.145 0 0);
+  --foreground:        oklch(0.985 0 0);
+  --card:        oklch(0.205 0 0);
+  --card-foreground:        oklch(0.985 0 0);
+  --popover:        oklch(0.205 0 0);
+  --popover-foreground:        oklch(0.985 0 0);
+  --primary:        oklch(0.922 0 0);
+  --primary-foreground:        oklch(0.205 0 0);
+  --secondary:        oklch(0.269 0 0);
+  --secondary-foreground:        oklch(0.985 0 0);
+  --muted:        oklch(0.269 0 0);
+  --muted-foreground:        oklch(0.708 0 0);
+  --accent:        oklch(0.269 0 0);
+  --accent-foreground:        oklch(0.985 0 0);
+  --destructive:        oklch(0.704 0.191 22.216);
+  --border:        oklch(1 0 0 / 10%);
+  --input:        oklch(1 0 0 / 15%);
+  --ring:        oklch(0.556 0 0);
+  --chart-1:        oklch(0.87 0 0);
+  --chart-2:        oklch(0.556 0 0);
+  --chart-3:        oklch(0.439 0 0);
+  --chart-4:        oklch(0.371 0 0);
+  --chart-5:        oklch(0.269 0 0);
+  --sidebar:        oklch(0.205 0 0);
+  --sidebar-foreground:        oklch(0.985 0 0);
+  --sidebar-primary:        oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground:        oklch(0.985 0 0);
+  --sidebar-accent:        oklch(0.269 0 0);
+  --sidebar-accent-foreground:        oklch(0.985 0 0);
+  --sidebar-border:        oklch(1 0 0 / 10%);
+  --sidebar-ring:        oklch(0.556 0 0);
+}
+@theme {
+  /* Bridge extension: remaining shadcn/Radix names → Wola tokens. */
+  --color-card:                 var(--color-surface);
+  --color-card-foreground:      var(--color-ink);
+  --color-popover:              var(--color-surface);
+  --color-popover-foreground:   var(--color-ink);
+  --color-secondary:            var(--color-brand-wash);
+  --color-secondary-foreground: var(--color-brand-deep);
+  --color-muted:                var(--color-brand-wash);
+  --color-muted-foreground:     var(--color-ink-soft);
+  --color-accent:               var(--color-brand-wash);
+  --color-accent-foreground:    var(--color-brand-deep);
+  --color-destructive:          var(--color-rejected);
+  --color-border:               var(--color-rule);
+  --color-input:                var(--color-rule);
+  --color-ring:                 var(--color-brand);
+}
