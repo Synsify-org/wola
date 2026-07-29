@@ -16,7 +16,7 @@ export default function PipelinePanel({ data }: { data: PipelineRow[] }) {
   const total = data.reduce((s, r) => s + r.n, 0);
 
   return (
-    <div className="rounded-lg border border-rule bg-surface p-5 shadow-sm">
+    <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
       <div className="caps mb-4">Application pipeline</div>
       {total === 0 ? (
         <p className="text-sm text-ink-soft">No applications yet.</p>
@@ -31,7 +31,7 @@ export default function PipelinePanel({ data }: { data: PipelineRow[] }) {
                   <span className="text-ink">{s.label}</span>
                   <span className="num font-medium text-ink">{n}</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-paper">
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
                   <div
                     className={"h-full rounded-full " + s.cls}
                     style={{ width: Math.max(pct, n > 0 ? 3 : 0) + "%" }}

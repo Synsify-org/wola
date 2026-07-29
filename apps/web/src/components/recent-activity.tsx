@@ -21,7 +21,7 @@ type Item = {
 
 export default function RecentActivity({ data }: { data: Item[] }) {
   return (
-    <div className="rounded-lg border border-rule bg-surface p-5 shadow-sm">
+    <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
       <div className="mb-4 flex items-center justify-between">
         <div className="caps">Recent activity</div>
         <Link href="/loans" className="text-xs font-medium text-brand hover:underline">

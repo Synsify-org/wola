@@ -78,10 +78,22 @@ export default async function Dashboard() {
       date: r.start_date ? new Date(r.start_date as string).toISOString() : null,
     }));
 
-    return { user, mine, book, inbox, mix, pipeline, recent };
+      // Sparkline: cumulative principal disbursed by month (real book growth).
+    const growthRows = await tx`
+      SELECT date_trunc('month', l.start_date) AS m, sum(l.principal) AS p
+      FROM loans l
+      WHERE l.status = 'active' AND l.start_date IS NOT NULL
+      GROUP BY 1 ORDER BY 1`;
+    let cum = 0;
+    const exposureTrend = growthRows.map((r) => {
+      cum += Number(r.p);
+      return cum;
+    });
+
+    return { user, mine, book, inbox, mix, pipeline, recent, exposureTrend };
   });
 
-  const { user, mine, book, inbox, mix, pipeline, recent } = data;
+  const { user, mine, book, inbox, mix, pipeline, recent, exposureTrend } = data;
 
   return (
     <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
@@ -92,6 +104,7 @@ export default async function Dashboard() {
           mix={mix as never[]}
           pipeline={pipeline}
           recent={recent}
+          exposureTrend={exposureTrend ?? []}
         />
       ) : (
         <DashboardEmployee mine={mine} />

@@ -4,6 +4,7 @@ import { Clock, Wallet, Banknote, TrendingUp } from "lucide-react";
 import ProductBars from "./product-bars";
 import PipelinePanel from "./pipeline-panel";
 import RecentActivity from "./recent-activity";
+import FeaturedMetric from "./featured-metric";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
@@ -41,45 +42,51 @@ export default function DashboardCFO({
   mix,
   pipeline,
   recent,
+  exposureTrend,
 }: {
   book: Book;
   inbox: InboxItem[];
   mix: MixRow[];
   pipeline: PipelineRow[];
   recent: RecentRow[];
+  exposureTrend: number[];
 }) {
   return (
     <div className="space-y-6">
-      {/* KPI row - executive metrics with border-left status accents */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Metric
-          label="Awaiting you"
-          value={String(book.awaitingMe)}
-          sub={book.awaitingMe > 0 ? "Needs your decision" : "Nothing pending"}
-          accent={book.awaitingMe > 0 ? "awaiting" : "approved"}
-          icon={Clock}
-        />
-        <Metric
-          label="Total exposure"
-          value={ugx(book.totalExposure)}
-          sub={"Across " + book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
-          accent="brand"
-          icon={Wallet}
-        />
-        <Metric
-          label="Principal disbursed"
-          value={ugx(book.principalDisbursed)}
-          sub="Total lent out"
-          accent="brand"
-          icon={Banknote}
-        />
-        <Metric
-          label="Interest book"
-          value={ugx(book.interestBook)}
-          sub="If every loan runs to term"
-          accent="brand"
-          icon={TrendingUp}
-        />
+      {/* Featured exposure + metric grid */}
+      <section className="grid gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <FeaturedMetric
+            label="Total exposure"
+            value={ugx(book.totalExposure)}
+            sub={"Across " + book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
+            icon={Wallet}
+            trend={exposureTrend}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:col-span-3">
+          <Metric
+            label="Awaiting you"
+            value={String(book.awaitingMe)}
+            sub={book.awaitingMe > 0 ? "Needs your decision" : "Nothing pending"}
+            accent={book.awaitingMe > 0 ? "awaiting" : "approved"}
+            icon={Clock}
+          />
+          <Metric
+            label="Principal disbursed"
+            value={ugx(book.principalDisbursed)}
+            sub="Total lent out"
+            accent="brand"
+            icon={Banknote}
+          />
+          <Metric
+            label="Interest book"
+            value={ugx(book.interestBook)}
+            sub="If every loan runs to term"
+            accent="brand"
+            icon={TrendingUp}
+          />
+        </div>
       </section>
 
       {/* Hero: needs your decision */}
@@ -93,11 +100,11 @@ export default function DashboardCFO({
           ) : null}
         </div>
         {inbox.length === 0 ? (
-          <div className="rounded-lg border border-rule bg-surface p-6 text-center shadow-sm">
+          <div className="rounded-xl border border-rule bg-surface p-6 text-center shadow-theme-sm">
             <p className="text-sm text-ink-soft">Nothing is waiting on you. The queue is clear.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-rule bg-surface shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
             <table className="ledger">
               <thead>
                 <tr>
