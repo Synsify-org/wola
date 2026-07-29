@@ -142,3 +142,15 @@
 1. Consolidate globals.css @theme (kill duplicate blocks, circular vars, doubled --color-primary) FIRST
 2. Coordinate recentLoans query with Willy (backend — borrower/next-due/status for the book table)
 3. Then build Meridian layout: horizontal bars (not donut), delta chips, side-panel worklist
+
+## NEXT SESSION (priority): Design-system consolidation pass
+The recurring "looks amateur" + recurring token bugs (black button, serif font,
+duplicate --color-primary) are all symptoms of an un-consolidated globals.css.
+Do ONE focused pass, fresh, with the whole file in view:
+1. Consolidate: kill duplicate @theme blocks + circular vars (--font-sans, leftover @theme inline)
+2. Add an ELEVATION scale: 2-3 shadow levels so cards lift off the page (biggest "pro" win)
+3. Define a SPACING rhythm + consistent radii, applied everywhere
+4. Define THE table treatment (header/row/hover) as the one pattern all tables use
+5. Add card shadows to dashboard + table cards
+This fixes EVERY screen at once instead of reactive screen-by-screen tweaks.
+Then: applications detail page (underwriting checklist + status timeline from LoanOrigin ref).
