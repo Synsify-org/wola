@@ -1,22 +1,33 @@
 ﻿"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  FilePlus,
+  FileText,
+  Wallet,
+  CheckSquare,
+  type LucideIcon,
+} from "lucide-react";
 
-type Item = { href: string; label: string; adminOnly?: boolean };
+type Item = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean };
 
 const ITEMS: Item[] = [
-  { href: "/", label: "Dashboard" },
-  { href: "/apply", label: "Apply" },
-  { href: "/loans", label: "Loans" },
-  { href: "/approvals", label: "Approvals", adminOnly: true },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/apply", label: "Apply", icon: FilePlus },
+  { href: "/applications", label: "Applications", icon: FileText, adminOnly: true },
+  { href: "/loans", label: "Loans", icon: Wallet },
+  { href: "/approvals", label: "Approvals", icon: CheckSquare, adminOnly: true },
 ];
 
 export default function NavLinks({
   canSeeAllLoans,
   compact = false,
+  collapsed = false,
 }: {
   canSeeAllLoans: boolean;
   compact?: boolean;
+  collapsed?: boolean;
 }) {
   const path = usePathname();
   const items = ITEMS.filter((i) => !i.adminOnly || canSeeAllLoans);
@@ -26,6 +37,7 @@ export default function NavLinks({
       {items.map((item) => {
         const active =
           item.href === "/" ? path === "/" : path.startsWith(item.href);
+        const Icon = item.icon;
 
         if (compact) {
           return (
@@ -34,10 +46,11 @@ export default function NavLinks({
               href={item.href}
               className={
                 active
-                  ? "px-3 py-1 text-xs font-semibold text-brand"
-                  : "px-3 py-1 text-xs font-semibold text-ink-faint"
+                  ? "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-brand"
+                  : "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-ink-faint"
               }
             >
+              <Icon className="h-5 w-5" />
               {item.label}
             </Link>
           );
@@ -47,13 +60,17 @@ export default function NavLinks({
           <Link
             key={item.href}
             href={item.href}
+            title={collapsed ? item.label : undefined}
             className={
-              active
-                ? "flex items-center gap-2 rounded-md border-l-2 border-brand bg-brand-wash px-3 py-2 text-sm font-medium text-brand"
-                : "flex items-center gap-2 rounded-md border-l-2 border-transparent px-3 py-2 text-sm font-medium text-ink-soft hover:bg-paper hover:text-ink"
+              (active
+                ? "border-l-2 border-brand bg-brand-wash text-brand"
+                : "border-l-2 border-transparent text-ink-soft hover:bg-paper hover:text-ink") +
+              " flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium " +
+              (collapsed ? "justify-center" : "")
             }
           >
-            {item.label}
+            <Icon className="h-4.5 w-4.5 shrink-0" />
+            {collapsed ? null : <span>{item.label}</span>}
           </Link>
         );
       })}

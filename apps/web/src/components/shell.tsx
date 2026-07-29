@@ -43,7 +43,7 @@ export default function Shell({
           <span className="truncate text-xs text-ink-soft">{tenantName}</span>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 md:px-8 md:pb-8">
+        <main className="w-full flex-1 px-4 py-8 pb-24 md:px-8 md:pb-8">
           {children}
         </main>
 

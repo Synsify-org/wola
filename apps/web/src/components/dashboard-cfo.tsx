@@ -1,6 +1,8 @@
 ﻿import Link from "next/link";
 import Metric from "./metric";
-import ProductMixChart from "./product-mix-chart";
+import ProductBars from "./product-bars";
+import PipelinePanel from "./pipeline-panel";
+import RecentActivity from "./recent-activity";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
@@ -11,7 +13,6 @@ type Book = {
   principalDisbursed: number;
   interestBook: number;
 };
-
 type InboxItem = {
   applicationId: string;
   employeeName: string;
@@ -20,8 +21,15 @@ type InboxItem = {
   tenorMonths: number;
   stageRole: string;
 };
-
 type MixRow = { name: string; kind: string; n: number; principal: number };
+type PipelineRow = { status: string; n: number };
+type RecentRow = {
+  id: string;
+  borrower: string;
+  product: string;
+  principal: number;
+  date: string | null;
+};
 
 const roleLabel = (r: string) =>
   r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -30,60 +38,61 @@ export default function DashboardCFO({
   book,
   inbox,
   mix,
+  pipeline,
+  recent,
 }: {
   book: Book;
   inbox: InboxItem[];
   mix: MixRow[];
+  pipeline: PipelineRow[];
+  recent: RecentRow[];
 }) {
   return (
-    <div className="space-y-8">
-      {/* Stats strip */}
+    <div className="space-y-6">
+      {/* KPI row - executive metrics with border-left status accents */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Metric
           label="Awaiting you"
           value={String(book.awaitingMe)}
           sub={book.awaitingMe > 0 ? "Needs your decision" : "Nothing pending"}
-          accent={book.awaitingMe > 0 ? "awaiting" : undefined}
+          accent={book.awaitingMe > 0 ? "awaiting" : "approved"}
         />
         <Metric
           label="Total exposure"
           value={ugx(book.totalExposure)}
           sub={"Across " + book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
+          accent="approved"
         />
         <Metric
           label="Principal disbursed"
           value={ugx(book.principalDisbursed)}
           sub="Total lent out"
+          accent="approved"
         />
         <Metric
           label="Interest book"
           value={ugx(book.interestBook)}
           sub="If every loan runs to term"
+          accent="approved"
         />
       </section>
 
-      {/* Worklist: needs your decision */}
+      {/* Hero: needs your decision */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink">Needs your decision</h2>
           {inbox.length > 0 ? (
-            <Link
-              href="/approvals"
-              className="text-xs font-medium text-brand hover:underline"
-            >
+            <Link href="/approvals" className="text-xs font-medium text-brand hover:underline">
               View all
             </Link>
           ) : null}
         </div>
-
         {inbox.length === 0 ? (
-          <div className="rounded-lg border border-rule bg-surface p-6 text-center">
-            <p className="text-sm text-ink-soft">
-              Nothing is waiting on you. The queue is clear.
-            </p>
+          <div className="rounded-lg border border-rule bg-surface p-6 text-center shadow-sm">
+            <p className="text-sm text-ink-soft">Nothing is waiting on you. The queue is clear.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-rule bg-surface">
+          <div className="overflow-hidden rounded-lg border border-rule bg-surface shadow-sm">
             <table className="ledger">
               <thead>
                 <tr>
@@ -103,9 +112,7 @@ export default function DashboardCFO({
                     <td className="r num">{ugx(item.amount)}</td>
                     <td className="r num">{item.tenorMonths} mo</td>
                     <td>
-                      <span className="chip chip--awaiting">
-                        {roleLabel(item.stageRole)}
-                      </span>
+                      <span className="chip chip--awaiting">{roleLabel(item.stageRole)}</span>
                     </td>
                     <td className="r">
                       <Link
@@ -123,40 +130,20 @@ export default function DashboardCFO({
         )}
       </section>
 
-      {/* Book at a glance: chart + product table */}
-      {mix.length > 0 ? (
-        <section className="grid gap-4 lg:grid-cols-2">
-          <ProductMixChart data={mix} />
-          <div className="overflow-hidden rounded-lg border border-rule bg-surface">
-            <div className="caps px-4 pt-4">Active loans by product</div>
-            <table className="ledger mt-2">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th className="r">Loans</th>
-                  <th className="r">Principal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mix.map((m) => (
-                  <tr key={m.name}>
-                    <td className="font-medium text-ink">{m.name}</td>
-                    <td className="r num">{m.n}</td>
-                    <td className="r num">{ugx(Number(m.principal))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
+      {/* Book: product bars + application pipeline, side by side */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        {mix.length > 0 ? <ProductBars data={mix} /> : null}
+        <PipelinePanel data={pipeline} />
+      </section>
 
-      {/* Personal loans: demoted to a link */}
+      {/* Recent activity */}
+      <section>
+        <RecentActivity data={recent} />
+      </section>
+
+      {/* Personal loans: demoted */}
       <section className="border-t border-rule pt-6">
-        <Link
-          href="/loans?mine=1"
-          className="text-sm text-ink-soft hover:text-ink"
-        >
+        <Link href="/loans?mine=1" className="text-sm text-ink-soft hover:text-ink">
           View my own loans and applications &rarr;
         </Link>
       </section>
