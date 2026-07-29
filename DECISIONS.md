@@ -138,3 +138,7 @@
   omitted the 40% and was wrong. Seeded as takehome_factor=0.4,
   takehome_multiplier=30. Pinned by test. Do not change without written
   confirmation from the customer.
+## Next: Meridian-style dashboard rebuild
+1. Consolidate globals.css @theme (kill duplicate blocks, circular vars, doubled --color-primary) FIRST
+2. Coordinate recentLoans query with Willy (backend — borrower/next-due/status for the book table)
+3. Then build Meridian layout: horizontal bars (not donut), delta chips, side-panel worklist

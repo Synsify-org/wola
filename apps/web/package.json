@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "@wola/db": "*",
     "argon2": "^0.44.0",
     "class-variance-authority": "^0.7.1",

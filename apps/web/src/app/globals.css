@@ -35,9 +35,9 @@
   --color-awaiting-wash: #FBF3E5;
 
   /* â”€â”€ Surfaces & ink â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  --color-paper:      #F9F7F2;   /* warm â€” the paper-like ground */
+  --color-paper:      #F6F7F9;   /* cool near-white ground */
   --color-surface:    #FFFFFF;
-  --color-rule:       #E5E7EB;
+  --color-rule:       #E4E7EC;
   --color-ink:        #111827;
   --color-ink-soft:   #5A6270;
   --color-ink-faint:  #949AA5;
@@ -133,7 +133,7 @@
     border-bottom: 1px solid var(--color-rule);
   }
   .ledger .r { text-align: right; }
-  .ledger tbody tr:hover { background: var(--color-paper); }
+  .ledger tbody tr:hover { background: #FAFBFC; }
 
   /* â”€â”€ Status chips. Pill shape â€” never confusable with a button. â”€â”€ */
   .chip {
