@@ -1,11 +1,15 @@
-// apps/web/src/app/loans/page.tsx — loan register.
-// Role-based: admin roles (CFO/HR/CEO/dept head) see all loans in the tenant;
-// ordinary employees see ONLY their own. Fail closed — unknown role = employee.
-//
-// NOTE ON "OUTSTANDING": scheduled balance (closing balance of the last period
-// whose due date has passed, else full principal). Assumes on-schedule payment.
+﻿// apps/web/src/app/loans/page.tsx - loan register.
+// Role-based: admin roles see all loans; employees see only their own.
+// NOTE ON "OUTSTANDING": scheduled balance (assumes on-schedule payment).
 // TRUE outstanding needs the repayments table. Revisit when that exists.
 import { requireSession } from "@/lib/guard";
+import { resolveTenant } from "@wola/db";
+import { db } from "@/lib/tenant";
+import { headers } from "next/headers";
+import Shell from "@/components/shell";
+import Link from "next/link";
+import Metric from "@/components/metric";
+import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
 
 type Row = {
   id: string;
@@ -20,14 +24,14 @@ type Row = {
   outstanding: string | null;
 };
 
-const fmt = (n: number | string) => "UGX " + Math.round(Number(n)).toLocaleString();
-const cell: React.CSSProperties = { padding: "10px 8px" };
-const cellRight: React.CSSProperties = { padding: "10px 8px", textAlign: "right" };
-const head: React.CSSProperties = { padding: "8px", color: "#666", fontWeight: 600 };
-const headRight: React.CSSProperties = { padding: "8px", color: "#666", fontWeight: 600, textAlign: "right" };
+const ugx = (n: number | string) => "UGX " + Math.round(Number(n)).toLocaleString();
 
 export default async function LoanRegister() {
-  const { loans, canSeeAll } = await requireSession(async (tx, ctx) => {
+  const slug = (await headers()).get("x-tenant-slug") ?? "";
+  const tenant = slug ? await resolveTenant(db, slug) : null;
+
+  const { loans, canSeeAll, user } = await requireSession(async (tx, ctx) => {
+    const [me] = await tx`SELECT e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
     const rows = (await tx`
       SELECT l.id, l.principal, l.annual_rate, l.tenor_months, l.status, l.start_date,
              e.full_name AS employee_name, e.employee_no,
@@ -45,74 +49,103 @@ export default async function LoanRegister() {
       JOIN loan_applications la ON la.id = l.application_id
       JOIN employees e ON e.id = la.employee_id
       JOIN loan_products lp ON lp.id = la.loan_product_id
-      -- Employees see only loans tied to THEIR employee record.
       WHERE ${ctx.canSeeAllLoans ? tx`TRUE` : tx`e.user_id = ${ctx.userId}`}
       ORDER BY l.created_at DESC`) as unknown as Row[];
-    return { loans: rows, canSeeAll: ctx.canSeeAllLoans };
+    return {
+      loans: rows,
+      canSeeAll: ctx.canSeeAllLoans,
+      user: {
+        name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
+        email: (me?.email as string) ?? "",
+        role: ctx.role,
+        canSeeAllLoans: ctx.canSeeAllLoans,
+      },
+    };
   });
 
   const totalPrincipal = loans.reduce((s, l) => s + Number(l.principal), 0);
   const totalOutstanding = loans.reduce((s, l) => s + Number(l.outstanding ?? 0), 0);
   const activeCount = loans.filter((l) => l.status === "active").length;
 
+  const Stat = ({ label, value }: { label: string; value: string }) => (
+    <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
+      <div className="caps">{label}</div>
+      <div className="num mt-2 text-xl font-bold text-ink">{value}</div>
+    </div>
+  );
+
   return (
-    <main style={{ maxWidth: 1000, margin: "5vh auto", fontFamily: "system-ui", padding: "0 16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 style={{ marginBottom: 4 }}>{canSeeAll ? "Loan register" : "My loans"}</h1>
-          {!canSeeAll && <p style={{ color: "#666", fontSize: 13, margin: 0 }}>Showing your loans only.</p>}
+          <h1 className="text-xl font-semibold text-ink">{canSeeAll ? "Loan register" : "My loans"}</h1>
+          <p className="mt-1 text-sm text-ink-soft">
+            {canSeeAll ? "All active loans across the book." : "Showing your loans only."}
+          </p>
         </div>
-        <a href="/apply" style={{ fontSize: 14 }}>+ New application</a>
+        <Link href="/apply" className="btn btn--primary rounded-lg text-sm">+ New application</Link>
       </div>
 
-      <div style={{ display: "flex", gap: 32, margin: "16px 0 24px", fontSize: 14 }}>
-        <div><strong style={{ fontSize: 20 }}>{loans.length}</strong><div style={{ color: "#666" }}>Total loans</div></div>
-        <div><strong style={{ fontSize: 20 }}>{activeCount}</strong><div style={{ color: "#666" }}>Active</div></div>
-        <div><strong style={{ fontSize: 20 }}>{fmt(totalPrincipal)}</strong><div style={{ color: "#666" }}>Principal</div></div>
-        <div><strong style={{ fontSize: 20 }}>{fmt(totalOutstanding)}</strong><div style={{ color: "#666" }}>Outstanding (scheduled)</div></div>
+      {/* Summary stats */}
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Metric label="Total loans" value={String(loans.length)} icon={Layers} accent="brand" />
+        <Metric label="Active" value={String(activeCount)} icon={CheckCircle} accent="approved" />
+        <Metric label="Principal" value={ugx(totalPrincipal)} icon={Banknote} accent="brand" />
+        <Metric label="Outstanding" value={ugx(totalOutstanding)} sub="Scheduled" icon={Wallet} accent="brand" />
       </div>
 
       {loans.length === 0 ? (
-        <p style={{ color: "#666" }}>No loans yet. <a href="/apply">Apply for one</a>.</p>
+        <div className="rounded-xl border border-rule bg-surface p-12 text-center shadow-theme-sm">
+          <p className="text-sm text-ink-soft">No loans yet.</p>
+          <Link href="/apply" className="mt-3 inline-block text-sm font-medium text-brand hover:underline">
+            Apply for one
+          </Link>
+        </div>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid #eee" }}>
-              {canSeeAll && <th style={{ ...head, textAlign: "left" }}>Employee</th>}
-              <th style={{ ...head, textAlign: "left" }}>Product</th>
-              <th style={headRight}>Principal</th>
-              <th style={headRight}>Rate</th>
-              <th style={headRight}>Term</th>
-              <th style={headRight}>Outstanding</th>
-              <th style={{ ...head, textAlign: "left" }}>Status</th>
-              <th style={head}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {loans.map((l) => (
-              <tr key={l.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                {canSeeAll && (
-                  <td style={cell}>
-                    {l.employee_name}
-                    <div style={{ color: "#999", fontSize: 12 }}>{l.employee_no}</div>
-                  </td>
-                )}
-                <td style={cell}>{l.product_name}</td>
-                <td style={cellRight}>{fmt(l.principal)}</td>
-                <td style={cellRight}>{(Number(l.annual_rate) * 100).toFixed(1)}%</td>
-                <td style={cellRight}>{l.tenor_months} mo</td>
-                <td style={cellRight}>{l.outstanding !== null ? fmt(l.outstanding) : "—"}</td>
-                <td style={cell}>
-                  <span style={{ color: l.status === "active" ? "#137333" : "#666" }}>{l.status}</span>
-                </td>
-                <td style={cell}>
-                  <a href={`/loans/${l.id}`} style={{ fontSize: 12, whiteSpace: "nowrap" }}>Schedule →</a>
-                </td>
+        <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+          <table className="ledger">
+            <thead>
+              <tr>
+                {canSeeAll ? <th>Borrower</th> : null}
+                <th>Product</th>
+                <th className="r">Principal</th>
+                <th className="r">Rate</th>
+                <th className="r">Term</th>
+                <th className="r">Outstanding</th>
+                <th>Status</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loans.map((l) => (
+                <tr key={l.id}>
+                  {canSeeAll ? (
+                    <td>
+                      <div className="font-medium text-ink">{l.employee_name}</div>
+                      <div className="num text-xs text-ink-faint">{l.employee_no}</div>
+                    </td>
+                  ) : null}
+                  <td className="text-ink-soft">{l.product_name}</td>
+                  <td className="r num font-semibold text-brand-700">{ugx(l.principal)}</td>
+                  <td className="r num text-ink-soft">{Number(l.annual_rate).toFixed(1)}%</td>
+                  <td className="r num text-ink-soft">{l.tenor_months} mo</td>
+                  <td className="r num text-ink">{l.outstanding !== null ? ugx(l.outstanding) : "-"}</td>
+                  <td>
+                    <span className={l.status === "active" ? "chip chip--approved" : "chip"}>
+                      {l.status.charAt(0).toUpperCase() + l.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="r">
+                    <Link href={"/loans/" + l.id} className="text-xs font-medium text-brand-700 hover:underline">
+                      Schedule &rarr;
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </main>
+    </Shell>
   );
 }

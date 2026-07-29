@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  BarChart3,
   FilePlus,
   FileText,
   Wallet,
@@ -18,6 +19,7 @@ const ITEMS: Item[] = [
   { href: "/applications", label: "Applications", icon: FileText, adminOnly: true },
   { href: "/loans", label: "Loans", icon: Wallet },
   { href: "/approvals", label: "Approvals", icon: CheckSquare, adminOnly: true },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, adminOnly: true },
 ];
 
 export default function NavLinks({

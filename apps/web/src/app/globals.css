@@ -15,6 +15,7 @@
   --color-brand-50:   #e6f2ec;
   --color-brand-100:  #c2ddd0;
   --color-brand-200:  #9ec9b4;
+  --color-brand-200:  #9ec9b4;
   --color-brand-300:  #6fae90;
   --color-brand-400:  #40916c;
   --color-brand-500:  #1b6b4a;
@@ -56,6 +57,7 @@
   --color-success-600: #039855;
   --color-success-700: #027a48;
   --color-error-100:   #fee4e2;
+  --color-error-200:   #fecdca;
   --color-error-500:   #f04438;
   --color-error-600:   #d92d20;
   --color-error-700:   #b42318;

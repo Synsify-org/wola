@@ -196,7 +196,10 @@ export default async function ApplicationDetail({
 
           {/* Repayment schedule (approved loans) */}
           {schedule.length > 0 ? (
-            <ScheduleTable schedule={schedule} annualRate={loan ? Number(loan.annual_rate) / 100 : null} />
+            <ScheduleTable
+              schedule={schedule}
+              annualRate={loan ? Number(loan.annual_rate) / 100 : null}
+            />
           ) : null}
 
           {/* Decisions history */}
