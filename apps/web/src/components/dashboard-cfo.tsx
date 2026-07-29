@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import Metric from "./metric";
+import { Clock, Wallet, Banknote, TrendingUp } from "lucide-react";
 import ProductBars from "./product-bars";
 import PipelinePanel from "./pipeline-panel";
 import RecentActivity from "./recent-activity";
@@ -56,24 +57,28 @@ export default function DashboardCFO({
           value={String(book.awaitingMe)}
           sub={book.awaitingMe > 0 ? "Needs your decision" : "Nothing pending"}
           accent={book.awaitingMe > 0 ? "awaiting" : "approved"}
+          icon={Clock}
         />
         <Metric
           label="Total exposure"
           value={ugx(book.totalExposure)}
           sub={"Across " + book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
-          accent="approved"
+          accent="brand"
+          icon={Wallet}
         />
         <Metric
           label="Principal disbursed"
           value={ugx(book.principalDisbursed)}
           sub="Total lent out"
-          accent="approved"
+          accent="brand"
+          icon={Banknote}
         />
         <Metric
           label="Interest book"
           value={ugx(book.interestBook)}
           sub="If every loan runs to term"
-          accent="approved"
+          accent="brand"
+          icon={TrendingUp}
         />
       </section>
 

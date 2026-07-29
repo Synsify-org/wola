@@ -1,7 +1,8 @@
 ﻿// apps/web/src/components/shell.tsx
-// The application frame: sidebar (desktop), topbar with user menu, and a
-// mobile bottom-nav (staff apply on cheap phones). Nav is role-aware.
+// The application frame: collapsible sidebar (desktop), topbar with user menu,
+// and a mobile bottom-nav (staff apply on cheap phones). Nav is role-aware.
 import NavLinks from "./nav-links";
+import Sidebar from "./sidebar";
 import Topbar from "./topbar";
 
 export interface ShellUser {
@@ -22,18 +23,13 @@ export default function Shell({
 }) {
   return (
     <div className="flex min-h-screen bg-paper">
-      {/* Sidebar (desktop) */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-rule bg-surface md:flex">
-        <div className="border-b border-rule px-6 py-5">
-          <div className="text-lg font-bold leading-tight text-brand">Wola</div>
-          <div className="truncate text-xs text-ink-soft">{tenantName}</div>
-        </div>
-        <nav className="flex-1 space-y-1 p-3">
-          <NavLinks canSeeAllLoans={user.canSeeAllLoans} />
-        </nav>
-      </aside>
+      <Sidebar
+        canSeeAllLoans={user.canSeeAllLoans}
+        tenantName={tenantName}
+        userName={user.name}
+        userRole={user.role}
+      />
 
-      {/* Right column: topbar + content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar userName={user.name} userEmail={user.email} role={user.role} />
 

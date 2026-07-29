@@ -63,9 +63,9 @@ export default function NavLinks({
             title={collapsed ? item.label : undefined}
             className={
               (active
-                ? "border-l-2 border-brand bg-brand-wash text-brand"
-                : "border-l-2 border-transparent text-ink-soft hover:bg-paper hover:text-ink") +
-              " flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium " +
+                ? "bg-brand-50 text-brand-700 font-semibold"
+                : "text-ink-soft hover:bg-gray-50 hover:text-ink font-medium") +
+              " flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors " +
               (collapsed ? "justify-center" : "")
             }
           >
