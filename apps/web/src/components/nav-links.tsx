@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   BarChart3,
+  FileBarChart,
   FilePlus,
   FileText,
   Wallet,
@@ -20,6 +21,7 @@ const ITEMS: Item[] = [
   { href: "/loans", label: "Loans", icon: Wallet },
   { href: "/approvals", label: "Approvals", icon: CheckSquare, adminOnly: true },
   { href: "/analytics", label: "Analytics", icon: BarChart3, adminOnly: true },
+  { href: "/reports", label: "Reports", icon: FileBarChart, adminOnly: true },
 ];
 
 export default function NavLinks({

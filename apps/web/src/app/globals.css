@@ -251,3 +251,33 @@
   }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 }
+
+
+/* ── Print: format the reports page as a clean PDF ─────────── */
+@media print {
+  /* Hide app chrome */
+  aside, header, nav, .no-print { display: none !important; }
+
+  /* Full-width content, no shell padding */
+  main { padding: 0 !important; }
+  body { background: #fff !important; }
+
+  /* Force color printing (chips, brand figures) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Cards: flatten shadows, keep borders, avoid breaking mid-table */
+  .card, [class*="shadow-theme"] {
+    box-shadow: none !important;
+  }
+  section, table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+
+  /* Tighten for paper */
+  .ledger td, .ledger th { padding: 6px 8px !important; }
+
+  @page { margin: 1.5cm; }
+}
