@@ -1,12 +1,12 @@
 -- scripts/seed-dev.sql — repeatable dev seed. Run after migrate.
 -- Non-reserved slug 'testco' so tests don't wipe it.
-INSERT INTO tenants (slug,name,status) VALUES ('testco','Test Co','active')
+INSERT INTO tenants (slug,name,status) VALUES ('testco','Kampala Steelworks Ltd','active')
   ON CONFLICT (slug) DO NOTHING;
-INSERT INTO tenants (slug,name,status) VALUES ('other','Other Org','active')
+INSERT INTO tenants (slug,name,status) VALUES ('other','Nile Textiles Ltd','active')
   ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO users (email,name,status,password_hash)
-VALUES ('cfo@testco.io','Test CFO','active',
+VALUES ('cfo@testco.io','Daniel Ssebunya','active',
   '$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI')
   ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
@@ -18,7 +18,7 @@ WHERE t.slug='testco' AND u.email='cfo@testco.io'
 INSERT INTO employees
   (tenant_id, user_id, employee_no, full_name, department, title,
    department_head, gross_salary, net_salary, is_post_probation, on_final_warning)
-SELECT t.id, u.id, 'ST001', 'Test CFO', 'Finance', 'Chief Financial Officer',
+SELECT t.id, u.id, 'ST001', 'Daniel Ssebunya', 'Finance', 'Chief Financial Officer',
        'Managing Director', 10000000, 8000000, true, false
 FROM tenants t, users u
 WHERE t.slug='testco' AND u.email='cfo@testco.io'
@@ -88,9 +88,9 @@ ON CONFLICT (tenant_id, pipeline_id, position) DO NOTHING;
 -- ── Approvers so the pipeline actually has people in it ──────────────────
 -- HR, CEO, and a department head. Password for all: test1234
 INSERT INTO users (email,name,status,password_hash) VALUES
-  ('hr@testco.io','HR Manager','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI'),
-  ('ceo@testco.io','Chief Executive','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI'),
-  ('head@testco.io','Ops Manager','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI')
+  ('hr@testco.io','Grace Namuli','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI'),
+  ('ceo@testco.io','Patrick Mukasa','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI'),
+  ('head@testco.io','Isaac Wanyama','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI')
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO memberships (tenant_id,user_id,role)
@@ -104,24 +104,16 @@ INSERT INTO employees
 SELECT t.id, u.id, v.no, v.name, v.dept, v.title, v.gross, v.net, true
 FROM tenants t, users u,
   (VALUES
-    ('hr@testco.io','ST003','HR Manager','People','HR Manager',7000000,5600000),
-    ('ceo@testco.io','ST004','Chief Executive','Executive','CEO',20000000,16000000),
-    ('head@testco.io','ST005','Ops Manager','Operations','Head of Operations',9000000,7200000)
+    ('hr@testco.io','ST003','Grace Namuli','People','HR Manager',7000000,5600000),
+    ('ceo@testco.io','ST004','Patrick Mukasa','Executive','CEO',20000000,16000000),
+    ('head@testco.io','ST005','Isaac Wanyama','Operations','Head of Operations',9000000,7200000)
   ) AS v(email, no, name, dept, title, gross, net)
 WHERE t.slug='testco' AND u.email = v.email
 ON CONFLICT (tenant_id, employee_no) DO NOTHING;
 
--- Link staff + CFO to their department head (ST005 = Ops Manager)
-UPDATE employees e SET department_head_id = h.id
-FROM employees h
-WHERE e.tenant_id = h.tenant_id
-  AND h.employee_no = 'ST005'
-  AND e.employee_no IN ('ST001','ST002')
-  AND e.tenant_id = (SELECT id FROM tenants WHERE slug='testco');
-
   -- An ordinary employee (no approver role) — the normal-path applicant.
 INSERT INTO users (email,name,status,password_hash)
-VALUES ('staff@testco.io','Staff Member','active',
+VALUES ('staff@testco.io','Brenda Nakato','active',
   '$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI')
   ON CONFLICT (email) DO NOTHING;
 
@@ -133,18 +125,53 @@ WHERE t.slug='testco' AND u.email='staff@testco.io'
 INSERT INTO employees
   (tenant_id, user_id, employee_no, full_name, department, title,
    gross_salary, net_salary, is_post_probation)
-SELECT t.id, u.id, 'ST002', 'Staff Member', 'Operations', 'Officer',
+SELECT t.id, u.id, 'ST002', 'Brenda Nakato', 'Operations', 'Officer',
        4000000, 3200000, true
 FROM tenants t, users u
 WHERE t.slug='testco' AND u.email='staff@testco.io'
   ON CONFLICT (tenant_id, employee_no) DO NOTHING;
 
--- Everyone except the Ops Manager and the CEO reports to the Ops Manager (ST005).
+-- Three more Operations staff so the Ops Head's DEPARTMENT view has real size
+-- (and so scoping is visibly a subset, not the whole book). Ordinary employees.
+INSERT INTO users (email,name,status,password_hash) VALUES
+  ('musoke@testco.io','David Musoke','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI'),
+  ('achieng@testco.io','Faith Achieng','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI'),
+  ('okello@testco.io','Samuel Okello','active','$argon2id$v=19$m=65536,t=3,p=4$TJugSRYYjCh+ItJC9fww6A$tIUgIWP0edcSBp3DKceixC+tPseBl6zhaRoOlMbjWvI')
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO memberships (tenant_id,user_id,role)
+SELECT t.id, u.id, 'employee' FROM tenants t, users u
+WHERE t.slug='testco' AND u.email IN ('musoke@testco.io','achieng@testco.io','okello@testco.io')
+  ON CONFLICT DO NOTHING;
+
+INSERT INTO employees
+  (tenant_id, user_id, employee_no, full_name, department, title,
+   gross_salary, net_salary, is_post_probation)
+SELECT t.id, u.id, v.no, v.name, 'Operations', v.title, v.gross, v.net, true
+FROM tenants t, users u,
+  (VALUES
+    ('musoke@testco.io','ST006','David Musoke','Line Supervisor',5000000,4000000),
+    ('achieng@testco.io','ST007','Faith Achieng','Machinist',3500000,2800000),
+    ('okello@testco.io','ST008','Samuel Okello','Welder',3000000,2400000)
+  ) AS v(email, no, name, title, gross, net)
+WHERE t.slug='testco' AND u.email = v.email
+ON CONFLICT (tenant_id, employee_no) DO NOTHING;
+
+-- Realistic reporting: only Operations staff report to the Ops Head (ST005).
+-- Daniel (CFO/Finance) and Grace (HR/People) head their own functions and do
+-- NOT report to Operations. This makes a dept head's view a STRICT SUBSET of
+-- the company book, so department scoping is visibly demonstrable (their view
+-- excludes Finance/People loans they must not see).
+-- Reset first so re-running fixes any prior (backwards) links, THEN set only
+-- the real Operations reports. Idempotent: correct state regardless of history.
+UPDATE employees SET department_head_id = NULL
+WHERE tenant_id = (SELECT id FROM tenants WHERE slug='testco');
+
 UPDATE employees e SET department_head_id = h.id
 FROM employees h
 WHERE e.tenant_id = h.tenant_id
   AND h.employee_no = 'ST005'
-  AND e.employee_no IN ('ST001','ST002','ST003')
+  AND e.employee_no IN ('ST002','ST006','ST007','ST008')
   AND e.tenant_id = (SELECT id FROM tenants WHERE slug='testco');
 -- ── MUA benefit scheme, as CONFIGURATION ────────────────────────────────
 -- These are rows, not code. A SACCO seeds different numbers and Wola works

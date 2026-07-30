@@ -1,37 +1,22 @@
-// apps/web/src/app/page.tsx — the dashboard.
-// Role-aware: an employee sees their own position; an approver sees the book
-// and their queue. Same route, different truth — enforced by ctx.canSeeAllLoans,
-// the same flag that governs the loan register.
+﻿// apps/web/src/app/page.tsx - the dashboard.
+// Thin: fetch role-aware data, then render the matching dashboard component.
+// An approver sees the book + worklist; an employee sees their own position.
+//
+// NOTE: the pipeline + recent queries below are inline stopgaps. TODO: move to
+// @wola/db (Willy) as applicationPipeline() and recentApprovedLoans().
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { resolveTenant, employeeMetrics, approverMetrics, loansByProduct, inboxFor } from "@wola/db";
+import {
+  resolveTenant,
+  employeeMetrics,
+  approverMetrics,
+  loansByProduct,
+  inboxFor,
+} from "@wola/db";
 import { db } from "@/lib/tenant";
 import Shell from "@/components/shell";
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
-const shortDate = (d: string) =>
-  new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-
-function Metric({
-  label, value, sub, accent,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: "awaiting" | "approved";
-}) {
-  const tone =
-    accent === "awaiting" ? "text-awaiting"
-    : accent === "approved" ? "text-approved"
-    : "text-ink";
-  return (
-    <div className="card rounded-xl">
-      <div className="caps">{label}</div>
-      <div className={`num text-2xl font-bold mt-2 ${tone}`}>{value}</div>
-      {sub && <div className="text-xs text-ink-soft mt-1">{sub}</div>}
-    </div>
-  );
-}
+import DashboardCFO, { type InboxItem, type MixRow } from "@/components/dashboard-cfo";
+import DashboardEmployee from "@/components/dashboard-employee";
 
 export default async function Dashboard() {
   const slug = (await headers()).get("x-tenant-slug") ?? "";
@@ -45,147 +30,187 @@ export default async function Dashboard() {
       WHERE u.id = ${ctx.userId}`;
 
     const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "—",
+      name: (me?.full_name as string) ?? (me?.email as string) ?? "User",
       email: (me?.email as string) ?? "",
       role: ctx.role,
       canSeeAllLoans: ctx.canSeeAllLoans,
+      canApprove: ctx.canApprove,
     };
 
-    // Mine, always — even a CFO has their own loans.
     const mine = await employeeMetrics(tx, ctx.userId);
 
-    if (!ctx.canSeeAllLoans) {
-      return { user, mine, book: null, mix: [] };
+    // Employees see only their personal dashboard.
+    if (ctx.scope === "own") {
+      return { user, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [] };
     }
 
-    // "Awaiting me" must be routed through the approval engine — the dept_head
-    // rule cannot be expressed in SQL without duplicating engine logic, and
-    // duplicated rules drift apart. Correctness over cleverness.
+    // Approver worklist. For a dept head this is already limited by the
+    // approval engine (canAct) to applications at their stage.
     const inbox = await inboxFor(tx, ctx.tenantId, {
       userId: ctx.userId,
       employeeId: (me?.id as string) ?? null,
       role: ctx.role,
     });
 
+    // DEPARTMENT scope: a dept head sees the CFO-shaped dashboard, but every
+    // figure is limited to employees who report to them (scopeEmployeeIds).
+    // We reuse dashboard-cfo but feed it department-filtered book/mix/recent.
+    if (ctx.scope === "department") {
+      const ids = ctx.scopeEmployeeIds;
+      // Fail closed: no reports => empty book, not the whole company.
+      const scoped = ids.length > 0;
+
+      const [bookRow] = scoped
+        ? await tx`
+            SELECT count(*)::int AS active_loans,
+                   COALESCE(sum(l.principal), 0) AS principal
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})`
+        : [{ active_loans: 0, principal: 0 }];
+
+      const [expRow] = scoped
+        ? await tx`
+            SELECT COALESCE(sum(
+              COALESCE((SELECT sl.closing_balance FROM schedule_lines sl
+                        JOIN loan_schedules s ON s.id = sl.schedule_id
+                        WHERE s.loan_id = l.id AND s.is_active
+                          AND sl.due_date <= CURRENT_DATE
+                        ORDER BY sl.period_no DESC LIMIT 1), l.principal)
+            ), 0) AS outstanding
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})`
+        : [{ outstanding: 0 }];
+
+      const [flightRow] = scoped
+        ? await tx`
+            SELECT count(*)::int AS n FROM loan_applications
+            WHERE status IN ('submitted','in_review') AND employee_id = ANY(${ids})`
+        : [{ n: 0 }];
+      const [rejRow] = scoped
+        ? await tx`
+            SELECT count(*)::int AS n FROM loan_applications
+            WHERE status = 'rejected'
+              AND created_at >= date_trunc('year', CURRENT_DATE)
+              AND employee_id = ANY(${ids})`
+        : [{ n: 0 }];
+
+      const book = {
+        kind: "approver" as const,
+        totalExposure: Number(expRow?.outstanding ?? 0),
+        activeLoans: Number(bookRow?.active_loans ?? 0),
+        principalDisbursed: Number(bookRow?.principal ?? 0),
+        awaitingMe: inbox.length,
+        interestBook: 0, // department heads don't see interest projections
+        applicationsInFlight: Number(flightRow?.n ?? 0),
+        rejectedThisYear: Number(rejRow?.n ?? 0),
+      };
+
+      const mix = scoped
+        ? await tx`
+            SELECT lp.name, lp.kind, count(*)::int AS n,
+                   COALESCE(sum(l.principal), 0) AS principal
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            JOIN loan_products lp ON lp.id = la.loan_product_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})
+            GROUP BY lp.name, lp.kind ORDER BY principal DESC`
+        : [];
+
+      const pipelineRows = scoped
+        ? await tx`
+            SELECT la.status, count(*)::int AS n
+            FROM loan_applications la
+            WHERE la.employee_id = ANY(${ids})
+            GROUP BY la.status`
+        : [];
+      const pipeline = pipelineRows.map((r) => ({ status: r.status as string, n: Number(r.n) }));
+
+      const recentRows = scoped
+        ? await tx`
+            SELECT l.id, e.full_name, lp.name AS product, l.principal, l.start_date
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            JOIN employees e ON e.id = la.employee_id
+            JOIN loan_products lp ON lp.id = la.loan_product_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})
+            ORDER BY l.start_date DESC LIMIT 5`
+        : [];
+      const recent = recentRows.map((r) => ({
+        id: r.id as string,
+        borrower: r.full_name as string,
+        product: r.product as string,
+        principal: Number(r.principal),
+        date: r.start_date ? new Date(r.start_date as string).toISOString() : null,
+      }));
+
+      return { user, mine, book, inbox, mix, pipeline, recent, exposureTrend: [] };
+    }
+
+    // From here: full-book roles (scope === "all").
     const book = await approverMetrics(tx, inbox.length);
     const mix = await loansByProduct(tx);
-    return { user, mine, book, mix };
+
+    // Pipeline: application counts by status (real).
+    const pipelineRows = await tx`
+      SELECT status, count(*)::int AS n
+      FROM loan_applications
+      GROUP BY status`;
+    const pipeline = pipelineRows.map((r) => ({
+      status: r.status as string,
+      n: Number(r.n),
+    }));
+
+    // Recent activity: last approved loans with borrower + product + date.
+    const recentRows = await tx`
+      SELECT l.id, e.full_name, lp.name AS product, l.principal, l.start_date
+      FROM loans l
+      JOIN loan_applications la ON la.id = l.application_id
+      JOIN employees e ON e.id = la.employee_id
+      JOIN loan_products lp ON lp.id = la.loan_product_id
+      WHERE l.status = 'active'
+      ORDER BY l.start_date DESC
+      LIMIT 5`;
+    const recent = recentRows.map((r) => ({
+      id: r.id as string,
+      borrower: r.full_name as string,
+      product: r.product as string,
+      principal: Number(r.principal),
+      date: r.start_date ? new Date(r.start_date as string).toISOString() : null,
+    }));
+
+      // Sparkline: cumulative principal disbursed by month (real book growth).
+    const growthRows = await tx`
+      SELECT date_trunc('month', l.start_date) AS m, sum(l.principal) AS p
+      FROM loans l
+      WHERE l.status = 'active' AND l.start_date IS NOT NULL
+      GROUP BY 1 ORDER BY 1`;
+    let cum = 0;
+    const exposureTrend = growthRows.map((r) => {
+      cum += Number(r.p);
+      return cum;
+    });
+
+    return { user, mine, book, inbox, mix, pipeline, recent, exposureTrend };
   });
 
-  const { user, mine, book, mix } = data;
+  const { user, mine, book, inbox, mix, pipeline, recent, exposureTrend } = data;
 
   return (
     <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
-      <h1 className="text-2xl">Dashboard</h1>
-      <p className="text-ink-soft mt-1 mb-8">
-        {book ? "The staff loan book at a glance." : "Your loans and applications."}
-      </p>
-
-      {/* ── The book. Approvers only. ─────────────────────────── */}
-      {book && (
-        <section className="mb-10">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Metric
-              label="Awaiting you"
-              value={String(book.awaitingMe)}
-              sub={book.awaitingMe > 0 ? "Needs your decision" : "Nothing pending"}
-              accent={book.awaitingMe > 0 ? "awaiting" : undefined}
-            />
-            <Metric
-              label="Total exposure"
-              value={ugx(book.totalExposure)}
-              sub="Scheduled outstanding"
-            />
-            <Metric
-              label="Active loans"
-              value={String(book.activeLoans)}
-              sub={ugx(book.principalDisbursed) + " disbursed"}
-            />
-            <Metric
-              label="Interest book"
-              value={ugx(book.interestBook)}
-              sub="If every loan runs to term"
-            />
-          </div>
-
-          {book.awaitingMe > 0 && (
-            <a href="/approvals" className="btn btn--primary rounded-full mt-5">
-              Review {book.awaitingMe} application{book.awaitingMe === 1 ? "" : "s"}
-            </a>
-          )}
-        </section>
+      {book ? (
+        <DashboardCFO
+          book={book}
+          inbox={inbox as unknown as InboxItem[]}
+          mix={mix as unknown as MixRow[]}
+          pipeline={pipeline}
+          recent={recent}
+          exposureTrend={exposureTrend ?? []}
+        />
+      ) : (
+        <DashboardEmployee mine={mine} />
       )}
-
-      {/* ── Product mix ───────────────────────────────────────── */}
-      {book && mix.length > 0 && (
-        <section className="mb-10">
-          <h2 className="text-lg mb-3">By product</h2>
-          <table className="ledger">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th className="r">Loans</th>
-                <th className="r">Principal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mix.map((m) => (
-                <tr key={m.name as string}>
-                  <td className="font-medium">{m.name as string}</td>
-                  <td className="r num">{String(m.n)}</td>
-                  <td className="r num">{ugx(Number(m.principal))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {/* ── Your own position. Everyone, including the CFO. ───── */}
-      <section>
-        <h2 className="text-lg mb-3">{book ? "Your own loans" : "Your position"}</h2>
-
-        {mine.activeLoans === 0 && mine.applicationsInFlight === 0 ? (
-          <div className="card rounded-xl">
-            <p className="text-ink-soft">You have no loans or applications.</p>
-            <a href="/apply" className="btn btn--primary rounded-full mt-4">
-              Apply for a loan
-            </a>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Metric label="Active loans" value={String(mine.activeLoans)} />
-              <Metric
-                label="Outstanding"
-                value={ugx(mine.outstanding)}
-                sub="Scheduled"
-              />
-              <Metric
-                label="Monthly deduction"
-                value={ugx(mine.monthlyDeduction)}
-                sub="From payroll"
-              />
-              <Metric
-                label="Next due"
-                value={mine.nextDueDate ? shortDate(mine.nextDueDate) : "—"}
-              />
-            </div>
-
-            {mine.applicationsInFlight > 0 && (
-              <p className="text-sm text-awaiting mt-4">
-                {mine.applicationsInFlight} application
-                {mine.applicationsInFlight === 1 ? "" : "s"} in review.
-              </p>
-            )}
-
-            <div className="flex gap-3 mt-5">
-              <a href="/loans" className="btn btn--ghost rounded-full">View my loans</a>
-              <a href="/apply" className="btn btn--primary rounded-full">Apply again</a>
-            </div>
-          </>
-        )}
-      </section>
     </Shell>
   );
 }

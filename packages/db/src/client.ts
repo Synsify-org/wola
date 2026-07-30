@@ -13,6 +13,7 @@ export type Tx = postgres.TransactionSql;
 export * from "./employee-financials";
 export * from "./schedules";
 export * from "./approvals";
+export * from "./loans";
 
 
 export function makeDb(url = process.env.DATABASE_URL!): Sql {
