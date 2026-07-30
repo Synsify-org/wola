@@ -5,11 +5,13 @@ import { PanelLeftClose, PanelLeft, Landmark } from "lucide-react";
 
 export default function Sidebar({
   canSeeAllLoans,
+  canApprove,
   tenantName,
   userName,
   userRole,
 }: {
   canSeeAllLoans: boolean;
+  canApprove: boolean;
   tenantName: string;
   userName: string;
   userRole: string;
@@ -24,7 +26,7 @@ export default function Sidebar({
     <aside
       className={
         "hidden shrink-0 flex-col border-r border-rule bg-surface transition-all duration-300 md:flex " +
-        (collapsed ? "w-[76px]" : "w-64")
+        (collapsed ? "w-19" : "w-64")
       }
     >
       {/* Logo */}
@@ -48,7 +50,7 @@ export default function Sidebar({
           </div>
         )}
         <div className="space-y-1">
-          <NavLinks canSeeAllLoans={canSeeAllLoans} collapsed={collapsed} />
+          <NavLinks canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} collapsed={collapsed} />
         </div>
       </nav>
 

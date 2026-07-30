@@ -1,6 +1,3 @@
-export * from "./amortization";
-export * from "./eligibility";
-
-export * from "./amortization";
-export * from "./eligibility";
-export * from "./approval";
+export * from "./amortization.js";
+export * from "./eligibility.js";
+export * from "./approval.js";

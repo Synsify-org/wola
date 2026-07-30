@@ -2,7 +2,7 @@
 // The applications list. Server component: runs a read-only list query
 // (inline stopgap - TODO: move to @wola/db as listApplications() once Willy
 // formalizes it) and hands rows to the client table for sort/filter/search.
-import { requireSession } from "@/lib/guard";
+import { requireSession, scopePredicate } from "@/lib/guard";
 import { resolveTenant } from "@wola/db";
 import { db } from "@/lib/tenant";
 import { headers } from "next/headers";
@@ -37,28 +37,22 @@ export default async function ApplicationsPage() {
       email: (me?.email as string) ?? "",
       role: ctx.role,
       canSeeAllLoans: ctx.canSeeAllLoans,
+      canApprove: ctx.canApprove,
     };
 
-    // RLS scopes to the tenant. Approvers see all; an employee sees only
-    // their own applications.
-    const rows = ctx.canSeeAllLoans
-      ? await tx`
-          SELECT la.id, e.full_name, e.employee_no, lp.name AS product_name,
-                 lp.kind AS product_kind, la.purpose, la.amount, la.tenor_months,
-                 la.status, la.created_at
-          FROM loan_applications la
-          JOIN employees e ON e.id = la.employee_id
-          JOIN loan_products lp ON lp.id = la.loan_product_id
-          ORDER BY la.created_at DESC`
-      : await tx`
-          SELECT la.id, e.full_name, e.employee_no, lp.name AS product_name,
-                 lp.kind AS product_kind, la.purpose, la.amount, la.tenor_months,
-                 la.status, la.created_at
-          FROM loan_applications la
-          JOIN employees e ON e.id = la.employee_id
-          JOIN loan_products lp ON lp.id = la.loan_product_id
-          WHERE e.user_id = ${ctx.userId}
-          ORDER BY la.created_at DESC`;
+    // RLS scopes to the tenant; scopePredicate applies the per-role data
+    // boundary. Full-book roles see all applications; a dept head sees their
+    // department's; an employee sees only their own. Single query, one
+    // predicate — no duplicated branches to drift out of sync.
+    const rows = await tx`
+      SELECT la.id, e.full_name, e.employee_no, lp.name AS product_name,
+             lp.kind AS product_kind, la.purpose, la.amount, la.tenor_months,
+             la.status, la.created_at
+      FROM loan_applications la
+      JOIN employees e ON e.id = la.employee_id
+      JOIN loan_products lp ON lp.id = la.loan_product_id
+      WHERE ${scopePredicate(tx, ctx)}
+      ORDER BY la.created_at DESC`;
 
     const applications: ApplicationRow[] = rows.map((r) => ({
       id: r.id as string,

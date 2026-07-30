@@ -140,7 +140,7 @@
   confirmation from the customer.
 ## Next: Meridian-style dashboard rebuild
 1. Consolidate globals.css @theme (kill duplicate blocks, circular vars, doubled --color-primary) FIRST
-2. Coordinate recentLoans query with Willy (backend � borrower/next-due/status for the book table)
+2. Coordinate recentLoans query with Willy (backend � borrower/next-due/status for the book table)
 3. Then build Meridian layout: horizontal bars (not donut), delta chips, side-panel worklist
 
 ## NEXT SESSION (priority): Design-system consolidation pass
@@ -154,3 +154,47 @@ Do ONE focused pass, fresh, with the whole file in view:
 5. Add card shadows to dashboard + table cards
 This fixes EVERY screen at once instead of reactive screen-by-screen tweaks.
 Then: applications detail page (underwriting checklist + status timeline from LoanOrigin ref).
+
+---
+
+## Post-first-client backlog (flagged during demo prep, deliberately deferred)
+
+### Dept-head department scoping (SECURITY — highest priority of these)
+Symptom: a `dept_head` logging in saw the WHOLE tenant book — company-wide
+exposure, every employee's applications, analytics/reports. That violates the
+spec ("a dept head must never see applications outside their department or
+global financial metrics"). Root cause: `canSeeAllLoans` was a single boolean
+and `dept_head` was in the admin-roles list, so one flag granted both approval
+rights AND whole-book data.
+
+Demo-safe patch already applied: split the flag in `lib/guard.ts` into
+`canSeeAllLoans` (FULL_BOOK_ROLES: cfo/hr/ceo/md/coo/admin — dept_head REMOVED)
+and `canApprove` (APPROVER_ROLES: same + dept_head). A dept head now keeps the
+Approvals tab + worklist but falls back to OWN-DATA-ONLY everywhere else. Safe
+but incomplete: they should see their DEPARTMENT, not just themselves.
+
+Real fix (do when a client actually has department heads who need this): add a
+third data tier "department". Scope key is `employees.department_head_id = <the
+head's own employee id>` (confirmed the right key — precise FK, not dept-name
+match). Touches the data branch in: dashboard (page.tsx), loans, loans/[id],
+applications. Each currently does `canSeeAllLoans ? all : own` and needs a
+`department` branch: `employee_id IN (SELECT id FROM employees WHERE
+department_head_id = :meEmployeeId)`. Add an RLS-level guard too, not just
+app-layer filtering, so it fails closed. Also restore the dept-head dashboard
+worklist (currently they get the plain employee dashboard since it branches on
+canSeeAllLoans).
+
+### Loans skip pending_disbursement on approval
+`createLoanFromApplication` inserts loans with `status='active'`, but migration
+0009 introduced `pending_disbursement` as the intended post-approval state
+("approval is not disbursement — finance moves money separately"). Newly
+approved loans therefore skip straight to active, contradicting 0009's
+accounting principle. Not a demo problem (active loans display fine). Fix: set
+initial status to `pending_disbursement`; add a disbursement action that flips
+it to active when the disbursements row is created.
+
+### info/blue accent ramp never renders
+Carried from the earlier globals.css work: `--color-info-*` steps don't resolve,
+so anything using `info-500/700` falls back invisibly. Currently worked around
+with brand green. Fix if blue accent variety is wanted: verify the
+--color-info-50..700 vars actually exist in the @theme block.

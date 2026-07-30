@@ -15,7 +15,7 @@ import {
 } from "@wola/db";
 import { db } from "@/lib/tenant";
 import Shell from "@/components/shell";
-import DashboardCFO from "@/components/dashboard-cfo";
+import DashboardCFO, { type InboxItem, type MixRow } from "@/components/dashboard-cfo";
 import DashboardEmployee from "@/components/dashboard-employee";
 
 export default async function Dashboard() {
@@ -34,19 +34,121 @@ export default async function Dashboard() {
       email: (me?.email as string) ?? "",
       role: ctx.role,
       canSeeAllLoans: ctx.canSeeAllLoans,
+      canApprove: ctx.canApprove,
     };
 
     const mine = await employeeMetrics(tx, ctx.userId);
 
-    if (!ctx.canSeeAllLoans) {
-      return { user, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [] };
+    // Employees see only their personal dashboard.
+    if (ctx.scope === "own") {
+      return { user, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [] };
     }
 
+    // Approver worklist. For a dept head this is already limited by the
+    // approval engine (canAct) to applications at their stage.
     const inbox = await inboxFor(tx, ctx.tenantId, {
       userId: ctx.userId,
       employeeId: (me?.id as string) ?? null,
       role: ctx.role,
     });
+
+    // DEPARTMENT scope: a dept head sees the CFO-shaped dashboard, but every
+    // figure is limited to employees who report to them (scopeEmployeeIds).
+    // We reuse dashboard-cfo but feed it department-filtered book/mix/recent.
+    if (ctx.scope === "department") {
+      const ids = ctx.scopeEmployeeIds;
+      // Fail closed: no reports => empty book, not the whole company.
+      const scoped = ids.length > 0;
+
+      const [bookRow] = scoped
+        ? await tx`
+            SELECT count(*)::int AS active_loans,
+                   COALESCE(sum(l.principal), 0) AS principal
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})`
+        : [{ active_loans: 0, principal: 0 }];
+
+      const [expRow] = scoped
+        ? await tx`
+            SELECT COALESCE(sum(
+              COALESCE((SELECT sl.closing_balance FROM schedule_lines sl
+                        JOIN loan_schedules s ON s.id = sl.schedule_id
+                        WHERE s.loan_id = l.id AND s.is_active
+                          AND sl.due_date <= CURRENT_DATE
+                        ORDER BY sl.period_no DESC LIMIT 1), l.principal)
+            ), 0) AS outstanding
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})`
+        : [{ outstanding: 0 }];
+
+      const [flightRow] = scoped
+        ? await tx`
+            SELECT count(*)::int AS n FROM loan_applications
+            WHERE status IN ('submitted','in_review') AND employee_id = ANY(${ids})`
+        : [{ n: 0 }];
+      const [rejRow] = scoped
+        ? await tx`
+            SELECT count(*)::int AS n FROM loan_applications
+            WHERE status = 'rejected'
+              AND created_at >= date_trunc('year', CURRENT_DATE)
+              AND employee_id = ANY(${ids})`
+        : [{ n: 0 }];
+
+      const book = {
+        kind: "approver" as const,
+        totalExposure: Number(expRow?.outstanding ?? 0),
+        activeLoans: Number(bookRow?.active_loans ?? 0),
+        principalDisbursed: Number(bookRow?.principal ?? 0),
+        awaitingMe: inbox.length,
+        interestBook: 0, // department heads don't see interest projections
+        applicationsInFlight: Number(flightRow?.n ?? 0),
+        rejectedThisYear: Number(rejRow?.n ?? 0),
+      };
+
+      const mix = scoped
+        ? await tx`
+            SELECT lp.name, lp.kind, count(*)::int AS n,
+                   COALESCE(sum(l.principal), 0) AS principal
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            JOIN loan_products lp ON lp.id = la.loan_product_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})
+            GROUP BY lp.name, lp.kind ORDER BY principal DESC`
+        : [];
+
+      const pipelineRows = scoped
+        ? await tx`
+            SELECT la.status, count(*)::int AS n
+            FROM loan_applications la
+            WHERE la.employee_id = ANY(${ids})
+            GROUP BY la.status`
+        : [];
+      const pipeline = pipelineRows.map((r) => ({ status: r.status as string, n: Number(r.n) }));
+
+      const recentRows = scoped
+        ? await tx`
+            SELECT l.id, e.full_name, lp.name AS product, l.principal, l.start_date
+            FROM loans l
+            JOIN loan_applications la ON la.id = l.application_id
+            JOIN employees e ON e.id = la.employee_id
+            JOIN loan_products lp ON lp.id = la.loan_product_id
+            WHERE l.status = 'active' AND la.employee_id = ANY(${ids})
+            ORDER BY l.start_date DESC LIMIT 5`
+        : [];
+      const recent = recentRows.map((r) => ({
+        id: r.id as string,
+        borrower: r.full_name as string,
+        product: r.product as string,
+        principal: Number(r.principal),
+        date: r.start_date ? new Date(r.start_date as string).toISOString() : null,
+      }));
+
+      return { user, mine, book, inbox, mix, pipeline, recent, exposureTrend: [] };
+    }
+
+    // From here: full-book roles (scope === "all").
     const book = await approverMetrics(tx, inbox.length);
     const mix = await loansByProduct(tx);
 
@@ -100,8 +202,8 @@ export default async function Dashboard() {
       {book ? (
         <DashboardCFO
           book={book}
-          inbox={inbox as never[]}
-          mix={mix as never[]}
+          inbox={inbox as unknown as InboxItem[]}
+          mix={mix as unknown as MixRow[]}
           pipeline={pipeline}
           recent={recent}
           exposureTrend={exposureTrend ?? []}

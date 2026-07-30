@@ -4,7 +4,9 @@ const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 // Forest-brand ramp - deepest for the largest book, never state colours.
 const RAMP = ["#064E3B", "#12583c", "#1b6b4a", "#40916c", "#6fae90"];
 
-type Row = { name: string; kind: string; n: number; principal: number };
+// kind is accepted but unused here; optional so both MixRow (kind: string)
+// and DeptRow (kind?: string) satisfy this prop without a cast.
+type Row = { name: string; kind?: string; n: number; principal: number };
 
 export default function ProductBars({ data }: { data: Row[] }) {
   const rows = data

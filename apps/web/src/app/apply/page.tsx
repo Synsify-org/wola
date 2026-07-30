@@ -26,6 +26,7 @@ export default async function ApplyPage() {
         email: (u?.email as string) ?? "",
         role: ctx.role,
         canSeeAllLoans: ctx.canSeeAllLoans,
+        canApprove: ctx.canApprove,
       },
     };
   });

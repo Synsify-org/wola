@@ -33,6 +33,7 @@ export default async function ApprovalInbox() {
         email: (me?.email as string) ?? "",
         role: ctx.role,
         canSeeAllLoans: ctx.canSeeAllLoans,
+        canApprove: ctx.canApprove,
       },
       items: inbox,
     };

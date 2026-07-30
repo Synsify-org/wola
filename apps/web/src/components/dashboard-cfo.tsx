@@ -15,7 +15,7 @@ type Book = {
   principalDisbursed: number;
   interestBook: number;
 };
-type InboxItem = {
+export type InboxItem = {
   applicationId: string;
   employeeName: string;
   productName: string;
@@ -23,7 +23,7 @@ type InboxItem = {
   tenorMonths: number;
   stageRole: string;
 };
-type MixRow = { name: string; kind: string; n: number; principal: number };
+export type MixRow = { name: string; kind: string; n: number; principal: number };
 type PipelineRow = { status: string; n: number };
 type RecentRow = {
   id: string;

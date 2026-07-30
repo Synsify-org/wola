@@ -17,7 +17,7 @@ const compact = (n: number) => {
 type Book = { totalExposure: number; activeLoans: number; principalDisbursed: number; interestBook: number };
 type StatusCount = { status: string; n: number };
 type TrendPoint = { label: string; total: number; approved: number };
-type DeptRow = { name: string; kind?: string; n: number; principal: number };
+export type DeptRow = { name: string; kind?: string; n: number; principal: number };
 type SizeBand = { band: string; n: number };
 type PerfRow = { product: string; apps: number; avgAmount: number; approvalRate: number };
 
@@ -116,7 +116,7 @@ export default function AnalyticsView({
 
       {/* Book by product + department */}
       <section className="grid gap-4 lg:grid-cols-2">
-        {mix.length > 0 ? <ProductBars data={mix as never[]} /> : null}
+        {mix.length > 0 ? <ProductBars data={mix} /> : null}
         {/* Department bars */}
         <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
           <div className="caps mb-5">Exposure by department</div>

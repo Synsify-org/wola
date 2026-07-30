@@ -10,6 +10,7 @@ export interface ShellUser {
   email: string;
   role: string;
   canSeeAllLoans: boolean;
+  canApprove: boolean;
 }
 
 export default function Shell({
@@ -25,6 +26,7 @@ export default function Shell({
     <div className="flex min-h-screen bg-paper">
       <Sidebar
         canSeeAllLoans={user.canSeeAllLoans}
+        canApprove={user.canApprove}
         tenantName={tenantName}
         userName={user.name}
         userRole={user.role}
@@ -45,7 +47,7 @@ export default function Shell({
 
         {/* Mobile bottom nav */}
         <nav className="fixed inset-x-0 bottom-0 flex justify-around border-t border-rule bg-surface py-2 md:hidden">
-          <NavLinks canSeeAllLoans={user.canSeeAllLoans} compact />
+          <NavLinks canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} compact />
         </nav>
       </div>
     </div>

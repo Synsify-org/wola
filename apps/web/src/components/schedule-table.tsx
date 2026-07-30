@@ -26,11 +26,11 @@ export default function ScheduleTable({
         <div className="caps">Repayment schedule</div>
         {annualRate != null ? (
           <span className="num text-xs text-ink-soft">
-            {(annualRate * 100).toFixed(1)}% p.a. &middot; {schedule.length} instalments
+            {annualRate.toFixed(1)}% p.a. · {schedule.length} instalments
           </span>
         ) : null}
       </div>
-      <div className="mt-2 max-h-[28rem] overflow-y-auto">
+      <div className="mt-2 max-h-112 overflow-y-auto">
         <table className="ledger">
           <thead className="sticky top-0">
             <tr>

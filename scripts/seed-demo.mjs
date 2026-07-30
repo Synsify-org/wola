@@ -53,17 +53,31 @@ async function makeApp(employeeNo, kind, amount, tenor, status) {
 }
 
 // ---- helper: approve into a loan + engine schedule -------------------------
-async function makeLoan(employeeNo, kind, amount, tenor, startDate) {
+// disbursed=true (default) creates an ACTIVE loan with a disbursements row (the
+// realistic post-pay-out state). disbursed=false leaves it 'pending_disbursement'
+// so the demo can show a CFO releasing funds.
+async function makeLoan(employeeNo, kind, amount, tenor, startDate, disbursed = true) {
   const { appId, product } = await makeApp(employeeNo, kind, amount, tenor, "approved");
   const rate = product.interest_applies ? RATE : 0;
+  const status = disbursed ? "active" : "pending_disbursement";
   const [loan] = await sql`
     INSERT INTO loans
       (tenant_id, application_id, principal, annual_rate, rate_mode,
        start_date, tenor_months, status)
     VALUES (${T}, ${appId}, ${amount}, ${rate * 100},
             ${product.interest_applies ? "index_plus_margin" : "fixed"},
-            ${startDate}, ${tenor}, 'active')
+            ${startDate}, ${tenor}, ${status})
     RETURNING id`;
+
+  // Record the money movement for disbursed loans, so the disbursements table
+  // and audit trail reflect reality (approval ≠ disbursement).
+  if (disbursed) {
+    await sql`
+      INSERT INTO disbursements
+        (tenant_id, loan_id, method, amount, reference, disbursed_at)
+      VALUES (${T}, ${loan.id}, 'to_employee', ${amount},
+              ${MARK + " seed"}, ${startDate})`;
+  }
 
   // Engine computes the real reducing-balance schedule.
   const schedule = generateSchedule({
@@ -95,13 +109,25 @@ async function makeLoan(employeeNo, kind, amount, tenor, startDate) {
 // Approved, active loans — populate exposure, interest book, product mix.
 await makeLoan("ST002", "advance", 2000000, 3, "2026-05-01");   // staff advance
 await makeLoan("ST002", "term",    12000000, 24, "2026-03-01"); // staff development
-await makeLoan("ST003", "asset",   48000000, 36, "2026-01-15"); // HR car loan
-await makeLoan("ST001", "advance", 800000, 2, "2026-06-01");    // CFO small advance
+await makeLoan("ST003", "asset",   48000000, 36, "2026-01-15"); // HR car loan (Finance/People — OUTSIDE Ops dept)
+await makeLoan("ST001", "advance", 800000, 2, "2026-06-01");    // CFO small advance (OUTSIDE Ops dept)
+
+// Operations staff (report to Isaac/ST005) — these are what his DEPARTMENT
+// view shows. Kept separate from ST001/ST003 so the dept view is a visible
+// subset of the whole book, not the same set.
+await makeLoan("ST006", "term",    6000000, 18, "2026-04-01");  // supervisor development
+await makeLoan("ST007", "advance", 1200000, 3, "2026-06-01");   // machinist advance
+await makeLoan("ST008", "asset",   9000000, 24, "2026-02-01");  // welder small car loan
+
+// One APPROVED-BUT-NOT-YET-DISBURSED loan, so the demo can show a CFO
+// releasing funds (pending_disbursement -> active + disbursements row).
+await makeLoan("ST007", "term", 4000000, 12, "2026-07-15", false); // awaiting disbursement
 
 // Pending applications — populate the approval queue + AWAITING YOU.
-await makeApp("ST002", "term", 9000000, 18, "submitted");   // at dept_head
-await makeApp("ST003", "asset", 30000000, 30, "in_review"); // mid-pipeline
-await makeApp("ST002", "advance", 1500000, 3, "submitted"); // at dept_head
+await makeApp("ST002", "term", 9000000, 18, "submitted");   // at dept_head (Isaac)
+await makeApp("ST003", "asset", 30000000, 30, "in_review"); // HR — routes past Isaac now
+await makeApp("ST002", "advance", 1500000, 3, "submitted"); // at dept_head (Isaac)
+await makeApp("ST006", "advance", 900000, 3, "submitted");  // Ops — at dept_head (Isaac)
 
 console.log("demo seed complete");
 await sql.end();

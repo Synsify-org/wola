@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/guard";
 import { resolveTenant, loansByProduct, approverMetrics, inboxFor } from "@wola/db";
 import { db } from "@/lib/tenant";
 import Shell from "@/components/shell";
-import AnalyticsView from "@/components/analytics-view";
+import AnalyticsView, { type DeptRow } from "@/components/analytics-view";
 
 export default async function AnalyticsPage() {
   const slug = (await headers()).get("x-tenant-slug") ?? "";
@@ -19,6 +19,7 @@ export default async function AnalyticsPage() {
       email: (me?.email as string) ?? "",
       role: ctx.role,
       canSeeAllLoans: ctx.canSeeAllLoans,
+      canApprove: ctx.canApprove,
     };
 
     if (!ctx.canSeeAllLoans) {
@@ -131,7 +132,7 @@ export default async function AnalyticsPage() {
     <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
       <AnalyticsView
         book={data.book}
-        mix={data.mix as never[]}
+        mix={data.mix as unknown as DeptRow[]}
         statusCounts={data.statusCounts}
         totalApps={data.totalApps}
         approvalRate={data.approvalRate}
