@@ -10,28 +10,42 @@
    awaiting) = system-owned, never brandable. Ramps give layering.
    ============================================================ */
 @theme {
-  /* ── Brand: forest-green ramp ───────────────────────────── */
-  --color-brand-25:   #f3f9f6;
-  --color-brand-50:   #e6f2ec;
-  --color-brand-100:  #c2ddd0;
-  --color-brand-200:  #9ec9b4;
-  --color-brand-200:  #9ec9b4;
-  --color-brand-300:  #6fae90;
-  --color-brand-400:  #40916c;
-  --color-brand-500:  #1b6b4a;
-  --color-brand-600:  #12583c;
-  --color-brand-700:  #0a4630;
-  --color-brand-800:  #064E3B;
-  --color-brand-900:  #043528;
-  --color-brand-950:  #022019;
+  /* ── Brand: forest-green ramp ─────────────────────────────
+     "Theme B" (tweakcn cmlh0ynpe) — same forest-green family the app
+     already committed to, built as a proper OKLCH ramp (constant hue
+     ~149°, lightness/chroma tapered at the ends) instead of RGB-mixed
+     hex, so mid-tones stay saturated instead of going muddy grey.
+     --color-brand-500 is the theme's literal primary token. ─────── */
+  --color-brand-25:   oklch(0.9800 0.0120 149.18);
+  --color-brand-50:   oklch(0.9600 0.0350 149.18);
+  --color-brand-100:  oklch(0.9100 0.0600 149.18);
+  --color-brand-200:  oklch(0.8400 0.1000 149.18);
+  --color-brand-300:  oklch(0.7600 0.1300 149.18);
+  --color-brand-400:  oklch(0.6900 0.1550 149.18);
+  --color-brand-500:  oklch(0.6230 0.1688 149.1777);
+  --color-brand-600:  oklch(0.5400 0.1550 149.18);
+  --color-brand-700:  oklch(0.4400 0.1300 149.18);
+  --color-brand-800:  oklch(0.3400 0.1000 149.18);
+  --color-brand-900:  oklch(0.2600 0.0750 149.18);
+  --color-brand-950:  oklch(0.1900 0.0500 149.18);
 
   /* Brand aliases (existing components depend on these) */
-  --color-brand:      #064E3B;
-  --color-brand-deep: #003527;
+  --color-brand:      var(--color-brand-500);
+  --color-brand-deep: var(--color-brand-700);
   --color-brand-ink:  #FFFFFF;
-  --color-brand-wash: #EAF1EE;
+  --color-brand-wash: var(--color-brand-50);
 
-  /* ── Gray ramp (neutral scale) ──────────────────────────── */
+  /* ── Accent: gold ramp (secondary CTA colour, NOT a status colour —
+     kept away from --color-awaiting/--color-warning below on purpose,
+     see the header note on brand vs. state colours). ──────────────── */
+  --color-accent-50:  oklch(0.9700 0.0450 91.96);
+  --color-accent-200: oklch(0.9100 0.1100 91.96);
+  --color-accent-500: oklch(0.8611 0.1734 91.9641);
+  --color-accent-600: oklch(0.7200 0.1600 91.96);
+  --color-accent-700: oklch(0.5800 0.1350 91.96);
+  --color-accent-ink: oklch(0.1759 0.0275 161.2531);
+
+  /* ── Gray ramp (neutral scale, left cool/neutral on purpose) ────── */
   --color-gray-25:  #fcfcfd;
   --color-gray-50:  #f9fafb;
   --color-gray-100: #f2f4f7;
@@ -44,7 +58,10 @@
   --color-gray-800: #1d2939;
   --color-gray-900: #101828;
 
-  /* ── State colours + semantic ramps ─────────────────────── */
+  /* ── State colours + semantic ramps ─────────────────────────────
+     SYSTEM-OWNED — never touched by tenant branding or the theme
+     refresh above. An approver must never misread a rejected item as
+     branding (see the file header note). ─────────────────────────── */
   --color-approved:      #027a48;
   --color-approved-wash: #ecfdf3;
   --color-rejected:      #b42318;
@@ -66,31 +83,70 @@
   --color-warning-600: #dc6803;
   --color-warning-700: #b54708;
 
-  /* ── Surfaces & ink ─────────────────────────────────────── */
-  --color-paper:      #f9fafb;
-  --color-surface:    #ffffff;
-  --color-rule:       #e4e7ec;
-  --color-ink:        #101828;
-  --color-ink-soft:   #475467;
-  --color-ink-faint:  #98a2b3;
+  /* Info: a neutral blue accent, distinct from brand green and the amber
+     warning tone — used to give a multi-step wizard (apply-form.tsx) a
+     visually distinct "step 2" colour. Was referenced throughout the app
+     with no definition anywhere (bg-info-500 etc. resolved to nothing,
+     rendering invisible fills) — this is the missing token family, not a
+     new design decision. */
+  --color-info-50:  #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-200: #bfdbfe;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+
+  /* ── Surfaces & ink (Theme B: warm near-white paper, pure-white
+     cards, green-cast ink instead of neutral black) ───────────────── */
+  --color-paper:      oklch(0.9870 0.0031 91.4370);
+  --color-surface:    oklch(1.0000 0 0);
+  --color-rule:       oklch(0.9297 0.0128 164.7776);
+  --color-ink:        oklch(0.1759 0.0275 161.2531);
+  --color-ink-soft:   oklch(0.5260 0.0290 163.6044);
+  --color-ink-faint:  oklch(0.6800 0.0180 163.6000);
+
+  /* ── Sidebar (Theme B: dark forest sidebar chrome, regardless of
+     light/dark mode). Not yet consumed by components/sidebar.tsx —
+     tokens are here ready for when that component is rebuilt. ────── */
+  --color-sidebar:                    oklch(0.2566 0.0300 161.5403);
+  --color-sidebar-foreground:         oklch(0.9870 0.0031 91.4370);
+  --color-sidebar-primary:            var(--color-brand);
+  --color-sidebar-primary-foreground: var(--color-brand-ink);
+  --color-sidebar-accent:             oklch(0.3282 0.0420 161.1204);
+  --color-sidebar-accent-foreground:  var(--color-accent-500);
+  --color-sidebar-border:             oklch(0.3512 0.0457 161.0245);
+  --color-sidebar-ring:               var(--color-brand);
+
+  /* ── Chart palette (recharts components pick their own colours
+     today; these are here for when they're moved onto tokens). ───── */
+  --color-chart-1: var(--color-brand-500);
+  --color-chart-2: var(--color-accent-500);
+  --color-chart-3: oklch(0.3227 0.0644 157.5659);
+  --color-chart-4: oklch(0.6758 0.1453 238.4620);
+  --color-chart-5: oklch(0.7410 0.1645 52.1676);
 
   /* ── Type ───────────────────────────────────────────────── */
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-sans:  var(--font-outfit), system-ui, sans-serif;
+  --font-mono:  var(--font-jetbrains), ui-monospace, monospace;
+  --font-serif: Georgia, serif;
 
   --text-title-md: 36px;
   --text-title-sm: 30px;
 
-  /* ── Radius ─────────────────────────────────────────────── */
-  --radius-DEFAULT: 0.5rem;
-  --radius-lg:      0.75rem;
-  --radius-xl:      1rem;
+  /* ── Radius ── (nudged up from the old 0.5/0.75/1rem scale toward
+     Theme B's 1.25rem base, tempered so dense ledger tables and chip
+     pills don't look odd at full pill radius) ─────────────────────── */
+  --radius-DEFAULT: 0.625rem;
+  --radius-lg:      0.875rem;
+  --radius-xl:      1.25rem;
 
-  /* ── Elevation ──────────────────────────────────────────── */
-  --shadow-theme-xs: 0px 1px 2px 0px rgba(16,24,40,0.05);
-  --shadow-theme-sm: 0px 1px 3px 0px rgba(16,24,40,0.10), 0px 1px 2px 0px rgba(16,24,40,0.06);
-  --shadow-theme-md: 0px 4px 8px -2px rgba(16,24,40,0.10), 0px 2px 4px -2px rgba(16,24,40,0.06);
-  --shadow-theme-lg: 0px 12px 16px -4px rgba(16,24,40,0.08), 0px 4px 6px -2px rgba(16,24,40,0.03);
+  /* ── Elevation — Theme B's green-tinted shadow recipe, the
+     "cards lift off the page" fix flagged in DECISIONS.md. ────────── */
+  --shadow-theme-xs: 0px 10px 30px 0px hsl(142 76% 10% / 0.05);
+  --shadow-theme-sm: 0px 10px 30px 0px hsl(142 76% 10% / 0.10), 0px 1px 2px -1px hsl(142 76% 10% / 0.10);
+  --shadow-theme-md: 0px 10px 30px 0px hsl(142 76% 10% / 0.10), 0px 2px 4px -1px hsl(142 76% 10% / 0.10);
+  --shadow-theme-lg: 0px 10px 30px 0px hsl(142 76% 10% / 0.10), 0px 4px 6px -1px hsl(142 76% 10% / 0.10);
+  --shadow-theme-xl: 0px 10px 30px 0px hsl(142 76% 10% / 0.10), 0px 8px 10px -1px hsl(142 76% 10% / 0.10);
 
   /* ── shadcn bridge (semantic names -> Wola tokens) ──────── */
   --color-background:           var(--color-paper);
@@ -99,11 +155,11 @@
   --color-card-foreground:      var(--color-ink);
   --color-popover:              var(--color-surface);
   --color-popover-foreground:   var(--color-ink);
-  --color-primary:              #064E3B;
+  --color-primary:              var(--color-brand);
   --color-primary-foreground:   var(--color-brand-ink);
-  --color-secondary:            var(--color-brand-wash);
-  --color-secondary-foreground: var(--color-brand-deep);
-  --color-muted:                var(--color-gray-100);
+  --color-secondary:            var(--color-accent-500);
+  --color-secondary-foreground: var(--color-accent-ink);
+  --color-muted:                oklch(0.9587 0.0063 91.4666);
   --color-muted-foreground:     var(--color-ink-soft);
   --color-accent:               var(--color-brand-wash);
   --color-accent-foreground:    var(--color-brand-deep);

@@ -1,7 +1,7 @@
 ﻿// apps/web/src/app/loans/page.tsx - loan register.
 // Role-based: admin roles see all loans; employees see only their own.
-// NOTE ON "OUTSTANDING": scheduled balance (assumes on-schedule payment).
-// TRUE outstanding needs the repayments table. Revisit when that exists.
+// "Outstanding" = principal minus the repayment LEDGER (actual money in),
+// matching loanOutstanding() in @wola/db — not a schedule projection.
 import { requireSession, scopePredicate } from "@/lib/guard";
 import { resolveTenant } from "@wola/db";
 import { db } from "@/lib/tenant";
@@ -36,15 +36,11 @@ export default async function LoanRegister() {
       SELECT l.id, l.principal, l.annual_rate, l.tenor_months, l.status, l.start_date,
              e.full_name AS employee_name, e.employee_no,
              lp.name AS product_name,
-             COALESCE(
-               (SELECT sl.closing_balance
-                  FROM schedule_lines sl
-                  JOIN loan_schedules s ON s.id = sl.schedule_id
-                 WHERE s.loan_id = l.id AND s.is_active
-                   AND sl.due_date <= CURRENT_DATE
-                 ORDER BY sl.period_no DESC LIMIT 1),
-               l.principal
-             ) AS outstanding
+             GREATEST(l.principal - COALESCE(
+               (SELECT sum((r.allocation->>'principal')::numeric)
+                  FROM repayments r WHERE r.loan_id = l.id),
+               0
+             ), 0) AS outstanding
       FROM loans l
       JOIN loan_applications la ON la.id = l.application_id
       JOIN employees e ON e.id = la.employee_id
@@ -89,7 +85,7 @@ export default async function LoanRegister() {
         <Metric label="Total loans" value={String(loans.length)} icon={Layers} accent="brand" />
         <Metric label="Active" value={String(activeCount)} icon={CheckCircle} accent="approved" />
         <Metric label="Principal" value={ugx(totalPrincipal)} icon={Banknote} accent="brand" />
-        <Metric label="Outstanding" value={ugx(totalOutstanding)} sub="Scheduled" icon={Wallet} accent="brand" />
+        <Metric label="Outstanding" value={ugx(totalOutstanding)} sub="Ledger" icon={Wallet} accent="brand" />
       </div>
 
       {loans.length === 0 ? (
@@ -118,7 +114,9 @@ export default async function LoanRegister() {
                 <tr key={l.id}>
                   <td className="text-ink-soft">{l.product_name}</td>
                   <td className="r num font-semibold text-brand-700">{ugx(l.principal)}</td>
-                  <td className="r num text-ink-soft">{Number(l.annual_rate).toFixed(1)}%</td>
+                  {/* annual_rate is stored as a fraction (0.16 = 16%) — see
+                      resolveRate() in approvals.ts. */}
+                  <td className="r num text-ink-soft">{(Number(l.annual_rate) * 100).toFixed(1)}%</td>
                   <td className="r num text-ink-soft">{l.tenor_months} mo</td>
                   <td className="r num text-ink">{l.outstanding !== null ? ugx(l.outstanding) : "-"}</td>
                   <td>

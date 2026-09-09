@@ -87,6 +87,34 @@ export default async function AnalyticsPage() {
       GROUP BY 1, 2 ORDER BY 2`;
     const sizeBands = bandRows.map((r) => ({ band: r.band as string, n: Number(r.n) }));
 
+    // Average time from submission to final decision, in days (real).
+    // Only counts applications that actually reached a terminal state —
+    // an application still in flight has no "time to decision" yet.
+    const [decisionRow] = await tx`
+      SELECT avg(EXTRACT(EPOCH FROM (d.decided_at - la.created_at)) / 86400.0) AS avg_days
+      FROM loan_applications la
+      JOIN (
+        SELECT application_id, max(decided_at) AS decided_at
+        FROM approvals
+        WHERE decision IN ('approved', 'rejected') AND decided_at IS NOT NULL
+        GROUP BY application_id
+      ) d ON d.application_id = la.id
+      WHERE la.status IN ('approved', 'rejected')`;
+    const avgDecisionDays = Number(decisionRow?.avg_days ?? 0);
+
+    // Where in the pipeline rejections actually happen (real) — a bottleneck
+    // finder, not just a rejected/approved split.
+    const rejectionStageRows = await tx`
+      SELECT COALESCE(ast.approver_role, 'unknown') AS stage_role, count(*)::int AS n
+      FROM approvals a
+      LEFT JOIN approval_stages ast ON ast.id = a.stage_id
+      WHERE a.decision = 'rejected'
+      GROUP BY 1 ORDER BY n DESC`;
+    const rejectionsByStage = rejectionStageRows.map((r) => ({
+      stageRole: r.stage_role as string,
+      n: Number(r.n),
+    }));
+
     // Product performance (real: apps, avg amount, approval rate).
     const perfRows = await tx`
       SELECT lp.name AS product,
@@ -115,6 +143,8 @@ export default async function AnalyticsPage() {
       byDepartment,
       sizeBands,
       productPerf,
+      avgDecisionDays,
+      rejectionsByStage,
     };
   });
 
@@ -140,6 +170,8 @@ export default async function AnalyticsPage() {
         byDepartment={data.byDepartment}
         sizeBands={data.sizeBands}
         productPerf={data.productPerf}
+        avgDecisionDays={data.avgDecisionDays}
+        rejectionsByStage={data.rejectionsByStage}
       />
     </Shell>
   );

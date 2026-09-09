@@ -12,6 +12,7 @@ import {
   type Actor, type Decision, type RoutingResult,
 } from "@wola/engine";
 import { createLoanFromApplication } from "./loans";
+import { notifyApplicationDecision } from "./notifications";
 import type { Tx } from "./client";
 
 export interface ApplicationForApproval {
@@ -175,6 +176,9 @@ export async function decide(
 
   if (after.state === "rejected") {
     await tx`UPDATE loan_applications SET status='rejected', updated_at=now() WHERE id=${args.applicationId}`;
+    await notifyApplicationDecision(tx, args.tenantId, args.applicationId, {
+      kind: "rejected", reason: args.comment ?? "",
+    });
     return { ok: true, routing: after };
   }
 
@@ -191,10 +195,14 @@ export async function decide(
       annualRate: rate.rate,
       rateMode: rate.mode,
     });
+    await notifyApplicationDecision(tx, args.tenantId, args.applicationId, { kind: "approved" });
     return { ok: true, routing: after, loanId: loan.loanId };
   }
 
   await tx`UPDATE loan_applications SET status='in_review', updated_at=now() WHERE id=${args.applicationId}`;
+  await notifyApplicationDecision(tx, args.tenantId, args.applicationId, {
+    kind: "advanced", nextStageRole: after.currentStage!.approverRole,
+  });
   return { ok: true, routing: after };
 }
 

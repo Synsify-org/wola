@@ -60,11 +60,15 @@ async function makeLoan(employeeNo, kind, amount, tenor, startDate, disbursed = 
   const { appId, product } = await makeApp(employeeNo, kind, amount, tenor, "approved");
   const rate = product.interest_applies ? RATE : 0;
   const status = disbursed ? "active" : "pending_disbursement";
+  // annual_rate is stored as a FRACTION (0.095 = 9.5%), matching the real
+  // write path (resolveRate() in approvals.ts) — do NOT multiply by 100 here,
+  // that was this script's own copy of the unit bug fixed elsewhere this
+  // session, and it desynced demo data from what production actually stores.
   const [loan] = await sql`
     INSERT INTO loans
       (tenant_id, application_id, principal, annual_rate, rate_mode,
        start_date, tenor_months, status)
-    VALUES (${T}, ${appId}, ${amount}, ${rate * 100},
+    VALUES (${T}, ${appId}, ${amount}, ${rate},
             ${product.interest_applies ? "index_plus_margin" : "fixed"},
             ${startDate}, ${tenor}, ${status})
     RETURNING id`;

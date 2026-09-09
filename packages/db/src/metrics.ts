@@ -2,10 +2,10 @@
 // Dashboard aggregates. Role-aware: the same page shows a different truth
 // depending on who is looking.
 //
-// A NOTE ON "OUTSTANDING", because it is easy to state a number that is wrong:
-// there is no repayment posting yet, so every figure below is SCHEDULED, not
-// actual. It assumes instalments were paid on time. Once repayments post, these
-// queries change — until then, do not present these as collections figures.
+// "Outstanding" is derived from the repayment LEDGER (principal minus actual
+// repayments posted), matching loanOutstanding() in loans.ts — not a schedule
+// projection. A projection would silently disagree with the true, auditable
+// paid-down balance the moment any repayment lands off-schedule.
 import type { Tx } from "./client";
 
 export interface EmployeeMetrics {
@@ -20,10 +20,17 @@ export interface EmployeeMetrics {
 export interface ApproverMetrics {
   kind: "approver";
   awaitingMe: number;         // applications where I am the current approver
-  totalExposure: number;      // scheduled outstanding across the tenant
+  totalExposure: number;      // ledger outstanding across the tenant
   activeLoans: number;
   principalDisbursed: number;
   interestBook: number;       // total interest across active schedules
+  /** interestBook using only loans that already existed ~1 month ago
+   *  (start_date <= 1 month back). An APPROXIMATION, not a true historical
+   *  snapshot: a loan that went active->settled inside that window is
+   *  excluded from both figures, which slightly overstates how much the
+   *  "back then" number would really have been. Good enough for a directional
+   *  delta chip; not a substitute for a real periodic KPI snapshot table. */
+  interestBookPriorMonth: number;
   applicationsInFlight: number;
   rejectedThisYear: number;
 }
@@ -41,21 +48,18 @@ export async function employeeMetrics(
     };
   }
 
-  // One row per active loan: its instalment, and the balance still scheduled.
+  // One row per active loan: its instalment, and the TRUE ledger outstanding.
   const loans = await tx`
     SELECT l.id,
            (SELECT sl.instalment FROM schedule_lines sl
              JOIN loan_schedules s ON s.id = sl.schedule_id
             WHERE s.loan_id = l.id AND s.is_active
             ORDER BY sl.period_no LIMIT 1) AS instalment,
-           COALESCE(
-             (SELECT sl.closing_balance FROM schedule_lines sl
-               JOIN loan_schedules s ON s.id = sl.schedule_id
-              WHERE s.loan_id = l.id AND s.is_active
-                AND sl.due_date <= CURRENT_DATE
-              ORDER BY sl.period_no DESC LIMIT 1),
-             l.principal
-           ) AS outstanding,
+           GREATEST(l.principal - COALESCE(
+             (SELECT sum((r.allocation->>'principal')::numeric)
+                FROM repayments r WHERE r.loan_id = l.id),
+             0
+           ), 0) AS outstanding,
            (SELECT MIN(sl.due_date) FROM schedule_lines sl
              JOIN loan_schedules s ON s.id = sl.schedule_id
             WHERE s.loan_id = l.id AND s.is_active
@@ -95,17 +99,14 @@ export async function approverMetrics(
       COALESCE(sum(l.principal), 0) AS principal
     FROM loans l WHERE l.status = 'active'`;
 
-  // Scheduled outstanding across every active loan.
+  // TRUE ledger outstanding across every active loan.
   const [exposure] = await tx`
     SELECT COALESCE(sum(
-      COALESCE(
-        (SELECT sl.closing_balance FROM schedule_lines sl
-          JOIN loan_schedules s ON s.id = sl.schedule_id
-         WHERE s.loan_id = l.id AND s.is_active
-           AND sl.due_date <= CURRENT_DATE
-         ORDER BY sl.period_no DESC LIMIT 1),
-        l.principal
-      )
+      GREATEST(l.principal - COALESCE(
+        (SELECT sum((r.allocation->>'principal')::numeric)
+           FROM repayments r WHERE r.loan_id = l.id),
+        0
+      ), 0)
     ), 0) AS outstanding
     FROM loans l WHERE l.status = 'active'`;
 
@@ -116,6 +117,16 @@ export async function approverMetrics(
     JOIN loan_schedules s ON s.id = sl.schedule_id
     JOIN loans l ON l.id = s.loan_id
     WHERE s.is_active AND l.status = 'active'`;
+
+  // Same figure, restricted to loans that already existed ~1 month ago —
+  // see the interestBookPriorMonth caveat on ApproverMetrics.
+  const [interestPrior] = await tx`
+    SELECT COALESCE(sum(sl.interest_due), 0) AS interest
+    FROM schedule_lines sl
+    JOIN loan_schedules s ON s.id = sl.schedule_id
+    JOIN loans l ON l.id = s.loan_id
+    WHERE s.is_active AND l.status = 'active'
+      AND l.start_date <= CURRENT_DATE - INTERVAL '1 month'`;
 
   const [flight] = await tx`
     SELECT count(*)::int AS n FROM loan_applications
@@ -133,6 +144,7 @@ export async function approverMetrics(
     activeLoans: Number(book.active_loans),
     principalDisbursed: Number(book.principal),
     interestBook: Number(interest.interest),
+    interestBookPriorMonth: Number(interestPrior.interest),
     applicationsInFlight: Number(flight.n),
     rejectedThisYear: Number(rejected.n),
   };

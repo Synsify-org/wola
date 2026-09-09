@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 // Roles allowed to move money. Kept narrow on purpose: an HR or dept head may
 // see a loan but must not disburse it. Mirrors the treasury boundary in the
 // role spec (finance/exec only).
-const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "admin"];
+const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 export type DisburseResult =
   | { ok: true; amount: number }

@@ -1,4 +1,5 @@
 ﻿"use client";
+import DashboardCard from "./dashboard-card";
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
 // Forest-brand ramp - deepest for the largest book, never state colours.
@@ -16,8 +17,7 @@ export default function ProductBars({ data }: { data: Row[] }) {
   const total = rows.reduce((s, r) => s + r.principal, 0);
 
   return (
-    <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
-      <div className="caps mb-5">Book by product</div>
+    <DashboardCard title="Book by product">
       <div className="space-y-5">
         {rows.map((r, i) => {
           const pct = total > 0 ? Math.round((r.principal / total) * 100) : 0;
@@ -55,6 +55,6 @@ export default function ProductBars({ data }: { data: Row[] }) {
           );
         })}
       </div>
-    </div>
+    </DashboardCard>
   );
 }

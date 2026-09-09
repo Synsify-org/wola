@@ -42,16 +42,9 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* Nav */}
+      {/* Nav — NavLinks renders its own grouped section headers. */}
       <nav className="flex-1 overflow-y-auto p-3">
-        {collapsed ? null : (
-          <div className="px-3 pb-2 pt-1 text-[0.625rem] font-semibold uppercase tracking-wider text-ink-faint">
-            Menu
-          </div>
-        )}
-        <div className="space-y-1">
-          <NavLinks canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} collapsed={collapsed} />
-        </div>
+        <NavLinks canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} collapsed={collapsed} />
       </nav>
 
       {/* Footer: user + collapse toggle */}

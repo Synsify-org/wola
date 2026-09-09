@@ -42,7 +42,7 @@ export default function Topbar({
   const path = usePathname();
 
   return (
-    <header className="hidden md:flex h-14 items-center justify-between border-b border-rule bg-surface px-8">
+    <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-rule bg-surface/80 px-8 backdrop-blur-sm md:flex">
       <h1 className="text-sm font-semibold text-ink">{titleFor(path)}</h1>
 
       <DropdownMenu>

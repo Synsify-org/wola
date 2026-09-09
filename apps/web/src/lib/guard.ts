@@ -20,8 +20,19 @@ import { verifySession, SESSION_COOKIE } from "./auth";
 //
 //   canSeeAllLoans — whole-book DATA + analytics/reports tabs (finance/exec)
 //   canApprove     — approval worklist access (adds dept_head)
-const FULL_BOOK_ROLES = ["cfo", "hr", "ceo", "md", "coo", "admin"];
-const APPROVER_ROLES = ["cfo", "hr", "ceo", "md", "coo", "dept_head", "admin"];
+// NOTE: the membership role enum (migration 0001) uses 'org_admin' and
+// 'group_ceo'. Older code referenced 'admin'/'md'; both spellings are kept here
+// so a tenant provisioned with the real enum roles gets the right access. On-prem
+// installs create an 'org_admin' first user — it must land in FULL_BOOK_ROLES.
+//
+// 'auditor' is in FULL_BOOK_ROLES (read access to the whole book) but
+// deliberately NOT in APPROVER_ROLES, and must never be added to
+// DISBURSER_ROLES (loans/[id]/actions.ts) or FINANCE_ROLES (repay-actions.ts)
+// — oversight, not action. It was in the role enum with no handling here at
+// all until this fix, which meant an auditor fell through to plain-employee
+// (scope="own") and saw almost nothing.
+const FULL_BOOK_ROLES = ["cfo", "hr", "ceo", "md", "coo", "group_ceo", "admin", "org_admin", "auditor"];
+const APPROVER_ROLES = ["cfo", "hr", "ceo", "md", "coo", "group_ceo", "dept_head", "admin", "org_admin"];
 
 export type LoanScope = "all" | "department" | "own";
 

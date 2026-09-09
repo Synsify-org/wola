@@ -18,13 +18,22 @@ export * from "./loans";
 
 export function makeDb(url = process.env.DATABASE_URL!): Sql {
   // Connects as wola_app: no BYPASSRLS, no DDL, no audit UPDATE/DELETE.
-  return postgres(url, { max: 10 });
+  // idle_timeout releases connections that hot-reload orphaned pools would
+  // otherwise hold open until Postgres's max_connections is exhausted (the
+  // recurring dev-mode AggregateError at the first query). connect_timeout
+  // makes a genuinely-down database fail fast with a clear error instead of
+  // hanging. max is modest for local dev.
+  return postgres(url, {
+    max: 10,
+    idle_timeout: 20,     // seconds; drop idle connections
+    connect_timeout: 10,  // seconds; fail fast if DB unreachable
+  });
 }
 
 /** Resolve a subdomain slug to a live tenant. Cache in Redis in the app layer. */
 export async function resolveTenant(sql: Sql, slug: string) {
   const rows = await sql`
-    SELECT id, slug, name, status, plan, currency, timezone
+    SELECT id, slug, name, status, plan, currency, timezone, settings
     FROM tenants WHERE slug = ${slug} AND status IN ('trial','active')`;
   return rows[0] ?? null;
 }
@@ -53,3 +62,13 @@ export async function audit(
 }
 export * from "./metrics";
 export * from "./product-rules";
+export * from "./email";
+export * from "./auth";
+export * from "./rate-indices";
+export * from "./reconciliation";
+export * from "./hr-register";
+export * from "./employee-position";
+export * from "./config-status";
+export * from "./notifications";
+export * from "./invitations";
+export * from "./super-admin";

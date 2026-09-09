@@ -1,7 +1,9 @@
 ﻿// apps/web/src/components/metric.tsx
 // A dashboard KPI: icon chip, dominant number, quiet label, optional trend.
 // Subtle hover lift for tactility.
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 export default function Metric({
   label,
@@ -12,11 +14,16 @@ export default function Metric({
   trend,
 }: {
   label: string;
-  value: string;
+  /** Usually a formatted string; a ReactNode is accepted so callers can pass
+   *  an animated number (see CountUp) without Metric knowing about it. */
+  value: ReactNode;
   sub?: string;
   icon?: LucideIcon;
   accent?: "awaiting" | "approved" | "rejected" | "brand";
-  trend?: { dir: "up" | "down"; text: string };
+  /** Real period-over-period change. Omit rather than fabricate one when
+   *  there's nothing honest to compare against. Same shape as FeaturedMetric
+   *  and BookBreakup's delta prop. */
+  trend?: { dir: "up" | "down"; pct: number; note: string };
 }) {
   const chip =
     accent === "awaiting" ? "bg-warning-100 text-warning-700"
@@ -39,16 +46,25 @@ export default function Metric({
       </div>
       <div className="mt-1 flex items-center gap-2">
         {trend ? (
-          <span
-            className={
-              "num text-xs font-semibold " +
-              (trend.dir === "up" ? "text-approved" : "text-rejected")
-            }
-          >
-            {trend.dir === "up" ? "\u2191" : "\u2193"} {trend.text}
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className={
+                "grid h-5 w-5 shrink-0 place-items-center rounded-full " +
+                (trend.dir === "up" ? "bg-success-100 text-success-700" : "bg-error-100 text-error-700")
+              }
+            >
+              {trend.dir === "up" ? (
+                <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
+              ) : (
+                <ArrowDownRight className="h-3 w-3" strokeWidth={2.5} />
+              )}
+            </span>
+            <span className="num text-xs font-semibold text-ink">{Math.abs(trend.pct)}%</span>
+            <span className="text-xs text-ink-soft">{trend.note}</span>
           </span>
+        ) : sub ? (
+          <span className="text-xs text-ink-soft">{sub}</span>
         ) : null}
-        {sub ? <span className="text-xs text-ink-soft">{sub}</span> : null}
       </div>
     </div>
   );

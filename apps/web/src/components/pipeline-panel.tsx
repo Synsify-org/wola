@@ -1,4 +1,5 @@
 ﻿"use client";
+import DashboardCard from "./dashboard-card";
 
 type PipelineRow = { status: string; n: number };
 
@@ -16,8 +17,7 @@ export default function PipelinePanel({ data }: { data: PipelineRow[] }) {
   const total = data.reduce((s, r) => s + r.n, 0);
 
   return (
-    <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
-      <div className="caps mb-4">Application pipeline</div>
+    <DashboardCard title="Application pipeline">
       {total === 0 ? (
         <p className="text-sm text-ink-soft">No applications yet.</p>
       ) : (
@@ -42,6 +42,6 @@ export default function PipelinePanel({ data }: { data: PipelineRow[] }) {
           })}
         </div>
       )}
-    </div>
+    </DashboardCard>
   );
 }

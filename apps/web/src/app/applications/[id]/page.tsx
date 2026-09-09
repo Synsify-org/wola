@@ -36,6 +36,7 @@ export default async function ApplicationDetail({
       email: (meWho?.email as string) ?? "",
       role: ctx.role,
       canSeeAllLoans: ctx.canSeeAllLoans,
+      canApprove: ctx.canApprove,
     };
 
     const actor = { userId: ctx.userId, employeeId: (meWho?.id as string) ?? null, role: ctx.role };
@@ -69,10 +70,14 @@ export default async function ApplicationDetail({
       Array.isArray(meta.declared_external_loans) &&
       meta.declared_external_loans.length > 0;
 
-    // Loan + amortization schedule (approved apps only). Inline stopgap - TODO @wola/db.
+    // Loan + amortization schedule (approved apps only). A freshly-approved
+    // loan sits in 'pending_disbursement' until finance disburses it, so this
+    // must not filter to 'active' only or the preview vanishes right after
+    // approval. Inline stopgap - TODO @wola/db.
     const [loan] = await tx`
       SELECT id, principal, annual_rate, tenor_months, start_date
-      FROM loans WHERE application_id = ${id} AND status = 'active' LIMIT 1`;
+      FROM loans WHERE application_id = ${id}
+        AND status IN ('active', 'pending_disbursement') LIMIT 1`;
     let schedule: Array<{ period: number; dueDate: string; instalment: number; principal: number; interest: number; balance: number }> = [];
     if (loan) {
       const lines = await tx`
@@ -198,7 +203,9 @@ export default async function ApplicationDetail({
           {schedule.length > 0 ? (
             <ScheduleTable
               schedule={schedule}
-              annualRate={loan ? Number(loan.annual_rate) / 100 : null}
+              // annual_rate is stored as a fraction (0.16 = 16%); ScheduleTable
+              // wants a percent for display (16), not a fraction of a fraction.
+              annualRate={loan ? Number(loan.annual_rate) * 100 : null}
             />
           ) : null}
 
@@ -260,6 +267,18 @@ export default async function ApplicationDetail({
                   placeholder="Comment (required to reject)"
                   className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 />
+                <div>
+                  <label className="text-xs text-ink-soft" htmlFor="startDate">
+                    Disbursement start date (required if this is the final approval)
+                  </label>
+                  <input
+                    id="startDate"
+                    type="date"
+                    name="startDate"
+                    defaultValue={new Date().toISOString().slice(0, 10)}
+                    className="mt-1 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  />
+                </div>
                 <div className="flex gap-2">
                   <button type="submit" name="decision" value="approved" className="btn btn--primary flex-1">
                     Approve
