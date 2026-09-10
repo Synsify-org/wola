@@ -50,11 +50,6 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Is this tenant configured correctly and running?</p>
-      </div>
-
       <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md">
         <div className="mb-1 flex items-center gap-2">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand-700">

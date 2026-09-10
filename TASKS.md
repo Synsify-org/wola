@@ -206,6 +206,40 @@ screens; their shapes must still differ).
 
 ---
 
+## Phase 1.11 — Dashboard visual redesign v2 `NEW, not started`
+
+User feedback (2026-09-10): current dashboard UI "is so lacking," and is
+**not responsive above 1024px** — Phase 1's work (1.0–1.10) fixed structure
+(one hero per role, squint-test distinctness) but not this. Scope, as given:
+
+- [ ] Audit and fix responsiveness for large/desktop viewports (>1024px) —
+      every dashboard, not just one. Check what actually breaks (stretched
+      cards, wasted whitespace, fixed-width assumptions) before redesigning.
+- [ ] Use the installed design skills (`ui-ux-pro-max` — styles, palettes,
+      font pairings, chart specs, stack guidance) to inform the visual
+      refresh, not just eyeball it.
+- [ ] Animated welcome banner on the Overview/Dashboard page — user asked
+      for this explicitly ("well animated"); scope the animation itself
+      (entrance only vs. something ongoing) before building.
+- [ ] Reference: user shared a dark-theme analytics dashboard screenshot
+      ("Efferd" — KPI card row, line chart, donut chart, sparkline) as a
+      style/layout reference — take inspiration from the *shape* (KPI strip,
+      chart card grid, clean card treatment), not a literal copy; Wola's
+      light forest-green theme is the existing convention, changing to dark
+      would be a real design decision to confirm, not assume.
+- **Explicitly declined**: user's message included step-by-step
+  instructions to run `npx shadcn@latest add @efferd/dashboard-3/4/6` and
+  register `https://efferd.com/r/{style}/{name}.json` as a shadcn
+  component registry in `components.json`. Did not run this — `efferd.com`
+  isn't a known/verifiable registry, and the `dashboard-6` variant's flow
+  (look for an `EFFERD_REGISTRY_TOKEN` env var, else tell the user to buy
+  "Efferd Pro" and paste a token into `.env`) has the shape of an untrusted
+  source, not a legitimate component library. Rebuild the look with our own
+  components + the official shadcn/ui registry instead, if shadcn pieces
+  are wanted.
+
+---
+
 ## Phase 1.5 — Bugs & access-control fixes (surfaced in review, 2026-08-26)
 
 Not engine issues — dashboard wiring and RBAC. Listed separately so they

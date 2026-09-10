@@ -94,19 +94,9 @@ export default function DashboardCFO({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Where is the money — going out, coming back, and at risk?</p>
-      </div>
-
-      {/* HERO: money-operations console — disbursement + reconciliation.
-          Only for roles that can actually disburse (see DISBURSER_ROLES in
-          page.tsx). This is the one component no other role's dashboard has. */}
-      {canDisburse ? <CFOMoneyOps queue={queue} reconciliation={reconciliation} /> : null}
-
-      {/* Book at a glance — demoted to a compact supporting row; the money-ops
-          console above is the hero, not this. */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Book at a glance — sits right under the welcome banner on every
+          dashboard now (user request), ahead of the role-specific hero. */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <Metric
           label="Total exposure"
           value={ugx(book.totalExposure)}
@@ -143,6 +133,11 @@ export default function DashboardCFO({
           trend={interestDelta}
         />
       </section>
+
+      {/* HERO: money-operations console — disbursement + reconciliation.
+          Only for roles that can actually disburse (see DISBURSER_ROLES in
+          page.tsx). This is the one component no other role's dashboard has. */}
+      {canDisburse ? <CFOMoneyOps queue={queue} reconciliation={reconciliation} /> : null}
 
       {/* Needs your decision */}
       <section>

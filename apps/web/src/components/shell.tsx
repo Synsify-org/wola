@@ -43,7 +43,7 @@ export default function Shell({
         </header>
 
         <main className="w-full flex-1 overflow-y-auto px-4 py-8 pb-24 md:px-8 md:pb-8">
-          {children}
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
 
         {/* Mobile bottom nav */}

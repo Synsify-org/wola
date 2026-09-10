@@ -39,11 +39,6 @@ export default function DashboardCEO({
 }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Is the loan programme healthy?</p>
-      </div>
-
       {/* HERO: programme health + trend */}
       <section className="grid gap-4 lg:grid-cols-2">
         <FeaturedMetric

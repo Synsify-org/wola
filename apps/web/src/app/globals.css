@@ -127,7 +127,7 @@
 
   /* ── Type ───────────────────────────────────────────────── */
   --font-sans:  var(--font-outfit), system-ui, sans-serif;
-  --font-mono:  var(--font-jetbrains), ui-monospace, monospace;
+  --font-mono:  Tahoma, Geneva, Verdana, sans-serif;
   --font-serif: Georgia, serif;
 
   --text-title-md: 36px;

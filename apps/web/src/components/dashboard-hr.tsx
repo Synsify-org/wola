@@ -45,11 +45,6 @@ export default function DashboardHR({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Is my people-data healthy, and what is waiting at my stage?</p>
-      </div>
-
       {/* HERO: employee register health */}
       <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md">
         <div className="mb-4 flex items-center gap-2">

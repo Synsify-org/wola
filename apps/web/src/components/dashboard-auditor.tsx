@@ -20,11 +20,6 @@ const label = (s: string) => s.replace(/_/g, " ").replace(/\./g, " · ");
 export default function DashboardAuditor({ rows }: { rows: AuditRow[] }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Show me everything; let me change nothing.</p>
-      </div>
-
       <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-md">
         <div className="flex items-center justify-between px-5 pt-4">
           <div className="flex items-center gap-2">

@@ -27,6 +27,7 @@ import DashboardAdmin from "@/components/dashboard-admin";
 import DashboardAuditor, { type AuditRow } from "@/components/dashboard-auditor";
 import DashboardDeptHead, { type QueueItem } from "@/components/dashboard-depthead";
 import DashboardEmployee from "@/components/dashboard-employee";
+import DashboardWelcomeBanner from "@/components/dashboard-welcome-banner";
 
 // Money-operations console (§6.2's CFO hero) is scoped to the roles that can
 // actually disburse — must match DISBURSER_ROLES in loans/[id]/actions.ts.
@@ -215,8 +216,29 @@ export default async function Dashboard() {
     configStatus, auditRows, deptQueue, teamActiveLoans, myOutstanding,
   } = data;
 
+  // Same "one question" per role as before, now spoken once by the banner
+  // instead of duplicated as a header on all 8 dashboards individually.
+  const subtitle = deptQueue
+    ? "Who on my team needs my decision right now?"
+    : health
+      ? "Is my people-data healthy, and what is waiting at my stage?"
+      : ceoView && book
+        ? "Is the loan programme healthy?"
+        : configStatus
+          ? "Is this tenant configured correctly and running?"
+          : auditRows
+            ? "Show me everything; let me change nothing."
+            : book && EXEC_APPROVER_ROLES.includes(user.role)
+              ? "What is waiting at my stage?"
+              : book
+                ? "Where is the money — going out, coming back, and at risk?"
+                : "Where do I stand, and what comes out of my next payslip?";
+
+  const tenantDisplayName = (tenant?.name as string) ?? "Wola";
+
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <Shell user={user} tenantName={tenantDisplayName}>
+      <DashboardWelcomeBanner name={user.name} tenantName={tenantDisplayName} subtitle={subtitle} />
       {deptQueue ? (
         <DashboardDeptHead
           queue={deptQueue as unknown as QueueItem[]}

@@ -43,10 +43,6 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
   if (empty) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-          <p className="mt-1 text-sm text-ink-soft">Where do I stand, and what comes out of my next payslip?</p>
-        </div>
         <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
           <p className="text-sm text-ink-soft">You have no loans or applications yet.</p>
           <Link href="/apply" className="btn btn--primary mt-5 inline-block rounded-full">
@@ -59,11 +55,6 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Where do I stand, and what comes out of my next payslip?</p>
-      </div>
-
       {/* HERO: position card(s) — one per active loan, stacked. */}
       {mine.loans.length > 0 ? (
         <div className="space-y-3">

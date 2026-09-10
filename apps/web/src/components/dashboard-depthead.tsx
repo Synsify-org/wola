@@ -89,11 +89,6 @@ export default function DashboardDeptHead({
 }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Who on my team needs my decision right now?</p>
-      </div>
-
       <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink">

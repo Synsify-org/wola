@@ -68,7 +68,7 @@ export default function AnalyticsView({
       </div>
 
       {/* KPI strip */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <Metric label="Applications" value={<CountUp value={totalApps} />} sub="All time" icon={FileText} accent="brand" />
         <Metric label="Approval rate" value={<CountUp value={approvalRate} format={(n) => Math.round(n) + "%"} />} sub="Of all applications" icon={CheckCircle} accent="approved" />
         <Metric label="Avg. decision time" value={<CountUp value={avgDecisionDays} format={(n) => n.toFixed(1) + "d"} />} sub="Submission to final decision" icon={Clock3} accent="brand" />

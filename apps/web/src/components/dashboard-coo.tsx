@@ -32,10 +32,14 @@ export default function DashboardCOO({
 }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">What is waiting at my stage?</p>
-      </div>
+      {/* Compact book row — context, not a hero. Sits right under the
+          welcome banner on every dashboard now (user request). */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Total exposure" value={ugx(totalExposure)} icon={Wallet} accent="brand" />
+        <Metric label="Active loans" value={String(activeLoans)} icon={Layers} accent="brand" />
+        <Metric label="Principal disbursed" value={ugx(principalDisbursed)} icon={Banknote} accent="brand" />
+        <Metric label="Interest book" value={ugx(interestBook)} icon={TrendingUp} accent="brand" />
+      </section>
 
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -82,14 +86,6 @@ export default function DashboardCOO({
           </div>
         )}
       </div>
-
-      {/* Compact book row — context, not a hero. */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Metric label="Total exposure" value={ugx(totalExposure)} icon={Wallet} accent="brand" />
-        <Metric label="Active loans" value={String(activeLoans)} icon={Layers} accent="brand" />
-        <Metric label="Principal disbursed" value={ugx(principalDisbursed)} icon={Banknote} accent="brand" />
-        <Metric label="Interest book" value={ugx(interestBook)} icon={TrendingUp} accent="brand" />
-      </section>
     </div>
   );
 }
