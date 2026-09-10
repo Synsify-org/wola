@@ -1,4 +1,5 @@
 ﻿import type { LucideIcon } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
@@ -45,15 +46,20 @@ export default function FeaturedMetric({
   sub,
   icon: Icon,
   trend,
+  delta,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon?: LucideIcon;
   trend?: number[];
+  /** Real period-over-period change, e.g. computed from the same trend
+   *  series. Omit rather than fabricate a number when there's nothing to
+   *  compare against (e.g. the first month on the book). */
+  delta?: { dir: "up" | "down"; pct: number; note: string };
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-rule bg-surface p-6 shadow-theme-sm">
+    <div className="flex flex-col rounded-xl border border-rule bg-surface p-6 shadow-theme-md">
       <div className="flex items-start justify-between">
         <span className="caps">{label}</span>
         {Icon ? (
@@ -63,7 +69,26 @@ export default function FeaturedMetric({
         ) : null}
       </div>
       <div className="num mt-3 text-3xl font-bold leading-tight text-ink">{value}</div>
-      {sub ? <div className="mt-1 text-sm text-ink-soft">{sub}</div> : null}
+      {delta ? (
+        <div className="mt-2 flex items-center gap-1.5">
+          <span
+            className={
+              "grid h-5.5 w-5.5 shrink-0 place-items-center rounded-full " +
+              (delta.dir === "up" ? "bg-success-100 text-success-700" : "bg-error-100 text-error-700")
+            }
+          >
+            {delta.dir === "up" ? (
+              <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+            ) : (
+              <ArrowDownRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+            )}
+          </span>
+          <span className="num text-xs font-semibold text-ink">{Math.abs(delta.pct)}%</span>
+          <span className="text-xs text-ink-soft">{delta.note}</span>
+        </div>
+      ) : sub ? (
+        <div className="mt-1 text-sm text-ink-soft">{sub}</div>
+      ) : null}
       {trend && trend.length >= 2 ? (
         <div className="mt-4">
           <Sparkline data={trend} />

@@ -12,14 +12,27 @@ export type LoginState = { error?: string; ok?: boolean };
 
 async function doLogin(_prev: LoginState, formData: FormData): Promise<LoginState> {
   "use server";
-  const slug = (await headers()).get("x-tenant-slug");
+  const h = await headers();
+  const slug = h.get("x-tenant-slug");
   const tenant = slug ? await resolveTenant(db, slug) : null;
   if (!tenant) throw new TenantError(404, "Unknown tenant");
 
+  // First hop in x-forwarded-for is the original client; behind no proxy
+  // (local dev) this header is absent, so fall back to a fixed key rather
+  // than leaving rate limiting keyed on `undefined` for everyone.
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const result = await login(email, password, tenant.id as string);
-  if (!result) return { error: "Invalid email or password." };
+  const remember = formData.get("remember") === "1";
+  const result = await login(email, password, tenant.id as string, ip, remember);
+  if (!result.ok) {
+    return {
+      error: result.reason === "rate_limited"
+        ? "Too many attempts. Try again in a few minutes."
+        : "Invalid email or password.",
+    };
+  }
 
   (await cookies()).set(SESSION_COOKIE, result.token, {
     httpOnly: true,

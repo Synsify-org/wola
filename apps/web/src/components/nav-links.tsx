@@ -10,6 +10,8 @@ import {
   Wallet,
   Building2,
   CheckSquare,
+  ScrollText,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,17 +29,31 @@ type Item = {
   label: string;
   icon: LucideIcon;
   need?: "approve" | "fullBook" | "oversee";
+  group: "workspace" | "oversight" | "insights";
+};
+
+// Groups mirror the data-scope tiers in guard.ts, not just visual taste:
+// WORKSPACE is what any signed-in person can always reach for themselves;
+// OVERSIGHT is anything that shows OTHER people's data (department/whole
+// book); INSIGHTS is whole-book aggregate reporting. A group header only
+// renders if at least one of its items survives the role filter below.
+const GROUP_LABELS: Record<Item["group"], string> = {
+  workspace: "Workspace",
+  oversight: "Oversight",
+  insights: "Insights",
 };
 
 const ITEMS: Item[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/apply", label: "Apply", icon: FilePlus },
-  { href: "/applications", label: "Applications", icon: FileText, need: "fullBook" },
-  { href: "/loans", label: "My loans", icon: Wallet },
-  { href: "/book", label: "Book", icon: Building2, need: "oversee" },
-  { href: "/approvals", label: "Approvals", icon: CheckSquare, need: "approve" },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, need: "fullBook" },
-  { href: "/reports", label: "Reports", icon: FileBarChart, need: "fullBook" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, group: "workspace" },
+  { href: "/apply", label: "Apply", icon: FilePlus, group: "workspace" },
+  { href: "/loans", label: "My loans", icon: Wallet, group: "workspace" },
+  { href: "/applications", label: "Applications", icon: FileText, need: "fullBook", group: "oversight" },
+  { href: "/book", label: "Book", icon: Building2, need: "oversee", group: "oversight" },
+  { href: "/approvals", label: "Approvals", icon: CheckSquare, need: "approve", group: "oversight" },
+  { href: "/settings/employees", label: "Employees", icon: Users, need: "fullBook", group: "oversight" },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, need: "fullBook", group: "insights" },
+  { href: "/reports", label: "Reports", icon: FileBarChart, need: "fullBook", group: "insights" },
+  { href: "/audit-log", label: "Audit log", icon: ScrollText, need: "fullBook", group: "insights" },
 ];
 
 export default function NavLinks({
@@ -65,48 +81,70 @@ export default function NavLinks({
     i.href === "/book" && !canSeeAllLoans ? { ...i, label: "Department" } : i,
   );
 
+  const renderLink = (item: Item) => {
+    const active = item.href === "/" ? path === "/" : path.startsWith(item.href);
+    const Icon = item.icon;
+
+    if (compact) {
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={
+            active
+              ? "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-brand"
+              : "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-ink-faint"
+          }
+        >
+          <Icon className="h-5 w-5" />
+          {item.label}
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        className={
+          (active
+            ? "bg-brand-50 text-brand-700 font-semibold"
+            : "text-ink-soft hover:bg-gray-50 hover:text-ink font-medium") +
+          " flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors " +
+          (collapsed ? "justify-center" : "")
+        }
+      >
+        <Icon className="h-4.5 w-4.5 shrink-0" />
+        {collapsed ? null : <span>{item.label}</span>}
+      </Link>
+    );
+  };
+
+  // Mobile bottom bar: flat, no room for section headers.
+  if (compact) {
+    return <>{items.map(renderLink)}</>;
+  }
+
+  // Sidebar: grouped by data-scope tier. A group only renders if at least
+  // one of its items survived the role filter above.
+  const groupOrder: Item["group"][] = ["workspace", "oversight", "insights"];
+  const visibleGroups = groupOrder
+    .map((g) => ({ g, groupItems: items.filter((i) => i.group === g) }))
+    .filter(({ groupItems }) => groupItems.length > 0);
+
   return (
     <>
-      {items.map((item) => {
-        const active =
-          item.href === "/" ? path === "/" : path.startsWith(item.href);
-        const Icon = item.icon;
-
-        if (compact) {
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={
-                active
-                  ? "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-brand"
-                  : "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-ink-faint"
-              }
-            >
-              <Icon className="h-5 w-5" />
-              {item.label}
-            </Link>
-          );
-        }
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            title={collapsed ? item.label : undefined}
-            className={
-              (active
-                ? "bg-brand-50 text-brand-700 font-semibold"
-                : "text-ink-soft hover:bg-gray-50 hover:text-ink font-medium") +
-              " flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors " +
-              (collapsed ? "justify-center" : "")
-            }
-          >
-            <Icon className="h-4.5 w-4.5 shrink-0" />
-            {collapsed ? null : <span>{item.label}</span>}
-          </Link>
-        );
-      })}
+      {visibleGroups.map(({ g, groupItems }, idx) => (
+        <div key={g} className="mb-1">
+          {collapsed ? null : (
+            <div className={"px-3 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-wider text-ink-faint " + (idx === 0 ? "pt-0" : "pt-3")}>
+              {GROUP_LABELS[g]}
+            </div>
+          )}
+          <div className="space-y-1">{groupItems.map(renderLink)}</div>
+        </div>
+      ))}
     </>
   );
 }

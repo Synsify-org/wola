@@ -92,3 +92,41 @@ test("early payment reduces balance directly, never goes negative", () => {
 test("engine version is stamped", () => {
   assert.equal(ENGINE_VERSION, "amort-1.0.0");
 });
+
+// ── DAY-COUNT / LEAP YEAR: addMonths must respect actual month lengths ──
+// (Phase 2, TASKS.md). Not exported directly — tested black-box through the
+// due dates a real schedule produces, the same way every other caller uses it.
+test("leap year: Jan 31 + 1 month lands on Mar 2 (Feb 2024 has 29 days)", () => {
+  const s = generateSchedule({
+    principal: 1_000_000, annualRate: 0.16, tenorMonths: 3,
+    startDate: new Date(2024, 0, 31), decimals: 0,
+  });
+  const d = s.lines[0].dueDate;
+  assert.equal(d.getFullYear(), 2024);
+  assert.equal(d.getMonth(), 2, `expected March (2), got month ${d.getMonth()}`);
+  assert.equal(d.getDate(), 2, `expected the 2nd, got ${d.getDate()}`);
+});
+
+test("non-leap year: the SAME Jan 31 + 1 month lands on Mar 3 (Feb 2023 has 28 days)", () => {
+  const s = generateSchedule({
+    principal: 1_000_000, annualRate: 0.16, tenorMonths: 3,
+    startDate: new Date(2023, 0, 31), decimals: 0,
+  });
+  const d = s.lines[0].dueDate;
+  assert.equal(d.getFullYear(), 2023);
+  assert.equal(d.getMonth(), 2, `expected March (2), got month ${d.getMonth()}`);
+  assert.equal(d.getDate(), 3, `expected the 3rd, got ${d.getDate()}`);
+});
+
+test("due dates stay strictly increasing across a schedule spanning a leap February", () => {
+  const s = generateSchedule({
+    principal: 5_000_000, annualRate: 0.14, tenorMonths: 6,
+    startDate: new Date(2024, 0, 29), decimals: 0,
+  });
+  for (let i = 1; i < s.lines.length; i++) {
+    assert.ok(
+      s.lines[i].dueDate.getTime() > s.lines[i - 1].dueDate.getTime(),
+      `period ${s.lines[i].period} due date did not advance past period ${s.lines[i - 1].period}`,
+    );
+  }
+});

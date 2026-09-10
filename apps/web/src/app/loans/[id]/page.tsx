@@ -6,9 +6,10 @@
 // open a loan whose application belongs to them. A mismatched id 404s rather
 // than leaking another person's loan.
 //
-// NOTE ON annual_rate: stored as a PERCENT (e.g. 9.5), per DECISIONS #5.
-// Every component now treats it as a percent — ScheduleTable's ×100 bug was
-// fixed at the source, so we pass the raw percent straight through.
+// NOTE ON annual_rate: stored as a FRACTION (e.g. 0.16 = 16%) — see
+// resolveRate() in approvals.ts and the write in applications/[id]/actions.ts.
+// This page converts to a percent (×100) once here for display; ScheduleTable
+// expects a percent, not a fraction of a fraction.
 //
 // NOTE ON outstanding: scheduled balance only (assumes on-schedule payroll
 // deduction). True outstanding needs the repayments table — deferred for the
@@ -17,12 +18,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { requireSession, scopePredicate } from "@/lib/guard";
-import { resolveTenant } from "@wola/db";
+import { resolveTenant, loanOutstanding } from "@wola/db";
 import { db } from "@/lib/tenant";
 import Shell from "@/components/shell";
 import Metric from "@/components/metric";
 import ScheduleTable from "@/components/schedule-table";
 import DisburseButton from "@/components/disburse-button";
+import RepayButton from "@/components/repay-button";
 import {
   ArrowLeft,
   Banknote,
@@ -32,7 +34,7 @@ import {
 } from "lucide-react";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
-const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "admin"];
+const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 const ugx = (n: number | string) =>
   "UGX " + Math.round(Number(n)).toLocaleString();
@@ -118,7 +120,11 @@ export default async function LoanDetail({
         AND ${scopePredicate(tx, ctx)}
       LIMIT 1`) as unknown as LoanHead[];
 
-    if (!loan) return { user, loan: null, lines: [] as LineRow[] };
+    if (!loan) return {
+      user, loan: null, lines: [] as LineRow[],
+      scope: ctx.scope, canDisburse: false, canRepay: false,
+      trueOutstanding: 0, principalRepaid: 0,
+    };
 
     // Active schedule lines, ordered. schedule_lines.closing_balance is the
     // scheduled running balance; is_active picks the current schedule version
@@ -131,10 +137,21 @@ export default async function LoanDetail({
       WHERE s.loan_id = ${loan.id} AND s.is_active = true
       ORDER BY sl.period_no ASC`) as unknown as LineRow[];
 
-    return { user, loan, lines, scope: ctx.scope, canDisburse: DISBURSER_ROLES.includes(ctx.role) };
+    // TRUE outstanding from the repayment ledger (principal repaid to date),
+    // not the scheduled balance. This is what makes the number visibly drop
+    // when a repayment is recorded.
+    const paid = await loanOutstanding(tx, ctx.tenantId, loan.id as string);
+
+    return {
+      user, loan, lines, scope: ctx.scope,
+      canDisburse: DISBURSER_ROLES.includes(ctx.role),
+      canRepay: DISBURSER_ROLES.includes(ctx.role),
+      trueOutstanding: paid.outstanding,
+      principalRepaid: paid.principalRepaid,
+    };
   });
 
-  const { user, loan, lines, scope, canDisburse } = data;
+  const { user, loan, lines, scope, canDisburse, canRepay, trueOutstanding, principalRepaid } = data;
   if (!loan) notFound();
 
   // ScheduleTable wants { period, dueDate, instalment, principal, interest,
@@ -149,7 +166,7 @@ export default async function LoanDetail({
     balance: Number(l.closing_balance),
   }));
 
-  const ratePct = Number(loan.annual_rate); // stored as percent, e.g. 9.5
+  const ratePct = Number(loan.annual_rate) * 100; // fraction -> percent, e.g. 0.16 -> 16.0
   const monthly = schedule.length ? schedule[0].instalment : 0;
 
   // Next deduction = first unpaid scheduled line (first line due today or
@@ -163,16 +180,13 @@ export default async function LoanDetail({
     schedule[schedule.length - 1] ??
     null;
 
-  // Outstanding = closing balance of the most recent line already due
-  // (scheduled). Falls back to principal before the first due date.
-  const dueLines = schedule.filter((l) => new Date(l.dueDate) <= today);
-  const outstanding = dueLines.length
-    ? dueLines[dueLines.length - 1].balance
-    : Number(loan.principal);
-
-  const paidCount = dueLines.length;
-  const totalCount = schedule.length;
-  const progress = totalCount ? Math.round((paidCount / totalCount) * 100) : 0;
+  // Outstanding now comes from the repayment LEDGER (true paid-down balance),
+  // not the schedule. This is the number that drops when a repayment is
+  // recorded. Progress = principal repaid / principal.
+  const outstanding = trueOutstanding;
+  const progress = Number(loan.principal) > 0
+    ? Math.round((principalRepaid / Number(loan.principal)) * 100)
+    : 0;
 
   return (
     <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
@@ -213,6 +227,8 @@ export default async function LoanDetail({
         </div>
         {loan.status === "pending_disbursement" && canDisburse ? (
           <DisburseButton loanId={loan.id} amount={Number(loan.principal)} />
+        ) : loan.status === "active" && canRepay ? (
+          <RepayButton loanId={loan.id} suggested={monthly} />
         ) : (
           <Link href="/apply" className="btn btn--ghost rounded-full text-sm">
             Apply for another
@@ -240,7 +256,7 @@ export default async function LoanDetail({
         <Metric
           label="Outstanding"
           value={ugx(outstanding)}
-          sub="Scheduled"
+          sub="Ledger"
           icon={Wallet}
           accent="brand"
         />
@@ -260,13 +276,13 @@ export default async function LoanDetail({
         />
       </div>
 
-      {/* Repayment progress */}
-      {totalCount > 0 ? (
+      {/* Repayment progress — driven by the ledger (principal repaid). */}
+      {schedule.length > 0 ? (
         <div className="mb-6 rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
           <div className="flex items-center justify-between">
             <div className="caps">Repayment progress</div>
             <div className="num text-xs text-ink-soft">
-              {paidCount} of {totalCount} instalments · {progress}%
+              {ugx(principalRepaid)} of {ugx(Number(loan.principal))} principal · {progress}%
             </div>
           </div>
           <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
@@ -278,8 +294,8 @@ export default async function LoanDetail({
         </div>
       ) : null}
 
-      {/* Full schedule. annual_rate is a percent (e.g. 9.5) and ScheduleTable
-          now expects a percent, so pass it straight through. */}
+      {/* Full schedule. annual_rate is a fraction; ratePct above already
+          converted it to a percent for ScheduleTable. */}
       {schedule.length > 0 ? (
         <ScheduleTable schedule={schedule} annualRate={ratePct} />
       ) : (

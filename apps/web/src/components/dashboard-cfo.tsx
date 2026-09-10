@@ -1,10 +1,10 @@
 ﻿import Link from "next/link";
 import Metric from "./metric";
 import { Clock, Wallet, Banknote, TrendingUp } from "lucide-react";
-import ProductBars from "./product-bars";
+import BookBreakup from "./book-breakup";
 import PipelinePanel from "./pipeline-panel";
 import RecentActivity from "./recent-activity";
-import FeaturedMetric from "./featured-metric";
+import CFOMoneyOps, { type DisbursementQueueItem, type ReconciliationCycle } from "./cfo-money-ops";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
@@ -14,6 +14,7 @@ type Book = {
   activeLoans: number;
   principalDisbursed: number;
   interestBook: number;
+  interestBookPriorMonth: number;
 };
 export type InboxItem = {
   applicationId: string;
@@ -43,6 +44,9 @@ export default function DashboardCFO({
   pipeline,
   recent,
   exposureTrend,
+  canDisburse,
+  queue,
+  reconciliation,
 }: {
   book: Book;
   inbox: InboxItem[];
@@ -50,46 +54,97 @@ export default function DashboardCFO({
   pipeline: PipelineRow[];
   recent: RecentRow[];
   exposureTrend: number[];
+  canDisburse: boolean;
+  queue: DisbursementQueueItem[];
+  reconciliation: ReconciliationCycle | null;
 }) {
+  // Real month-over-month delta on cumulative principal disbursed — omitted
+  // (not fabricated) when there isn't a prior month to compare against, or
+  // the prior month was zero (an undefined % change). This is what
+  // exposureTrend actually measures (disbursement growth), so it's the exact
+  // metric for "Principal disbursed" below. Reused on "Total exposure" too,
+  // as a PROXY — exposure also falls as repayments post, which this series
+  // doesn't capture; a true outstanding-over-time trend needs a merged
+  // disbursed/repaid timeline, not built yet.
+  const n = exposureTrend.length;
+  const prev = n >= 2 ? exposureTrend[n - 2] : null;
+  const last = n >= 1 ? exposureTrend[n - 1] : null;
+  const disbursementDelta =
+    prev !== null && last !== null && prev > 0
+      ? {
+          dir: (last >= prev ? "up" : "down") as "up" | "down",
+          pct: Math.round(Math.abs((last - prev) / prev) * 100),
+          note: "vs last month",
+        }
+      : undefined;
+
+  // Real delta for interestBook — see the interestBookPriorMonth caveat on
+  // ApproverMetrics (packages/db/src/metrics.ts): an approximation using only
+  // loans that already existed ~1 month ago, not a true historical snapshot.
+  const interestDelta =
+    book.interestBookPriorMonth > 0
+      ? {
+          dir: (book.interestBook >= book.interestBookPriorMonth ? "up" : "down") as "up" | "down",
+          pct: Math.round(
+            Math.abs((book.interestBook - book.interestBookPriorMonth) / book.interestBookPriorMonth) * 100,
+          ),
+          note: "vs last month",
+        }
+      : undefined;
+
   return (
     <div className="space-y-6">
-      {/* Featured exposure + metric grid */}
-      <section className="grid gap-4 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <FeaturedMetric
-            label="Total exposure"
-            value={ugx(book.totalExposure)}
-            sub={"Across " + book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
-            icon={Wallet}
-            trend={exposureTrend}
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:col-span-3">
-          <Metric
-            label="Awaiting you"
-            value={String(book.awaitingMe)}
-            sub={book.awaitingMe > 0 ? "Needs your decision" : "Nothing pending"}
-            accent={book.awaitingMe > 0 ? "awaiting" : "approved"}
-            icon={Clock}
-          />
-          <Metric
-            label="Principal disbursed"
-            value={ugx(book.principalDisbursed)}
-            sub="Total lent out"
-            accent="brand"
-            icon={Banknote}
-          />
-          <Metric
-            label="Interest book"
-            value={ugx(book.interestBook)}
-            sub="If every loan runs to term"
-            accent="brand"
-            icon={TrendingUp}
-          />
-        </div>
+      <div>
+        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
+        <p className="mt-1 text-sm text-ink-soft">Where is the money — going out, coming back, and at risk?</p>
+      </div>
+
+      {/* HERO: money-operations console — disbursement + reconciliation.
+          Only for roles that can actually disburse (see DISBURSER_ROLES in
+          page.tsx). This is the one component no other role's dashboard has. */}
+      {canDisburse ? <CFOMoneyOps queue={queue} reconciliation={reconciliation} /> : null}
+
+      {/* Book at a glance — demoted to a compact supporting row; the money-ops
+          console above is the hero, not this. */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Metric
+          label="Total exposure"
+          value={ugx(book.totalExposure)}
+          sub={book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
+          icon={Wallet}
+          accent="brand"
+          trend={disbursementDelta}
+        />
+        {/* No delta chip: a queue depth is a point-in-time count, not a
+            cumulative flow — there's no ledger history of "awaiting" size
+            to compare against honestly. The sub-text already says the
+            thing that matters (clear vs needs a decision). */}
+        <Metric
+          label="Awaiting you"
+          value={String(book.awaitingMe)}
+          sub={book.awaitingMe > 0 ? "Needs your decision" : "Nothing pending"}
+          accent={book.awaitingMe > 0 ? "awaiting" : "approved"}
+          icon={Clock}
+        />
+        <Metric
+          label="Principal disbursed"
+          value={ugx(book.principalDisbursed)}
+          sub="Total lent out"
+          accent="brand"
+          icon={Banknote}
+          trend={disbursementDelta}
+        />
+        <Metric
+          label="Interest book"
+          value={ugx(book.interestBook)}
+          sub="If every loan runs to term"
+          accent="brand"
+          icon={TrendingUp}
+          trend={interestDelta}
+        />
       </section>
 
-      {/* Hero: needs your decision */}
+      {/* Needs your decision */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink">Needs your decision</h2>
@@ -144,7 +199,9 @@ export default function DashboardCFO({
 
       {/* Book: product bars + application pipeline, side by side */}
       <section className="grid gap-4 lg:grid-cols-2">
-        {mix.length > 0 ? <ProductBars data={mix} /> : null}
+        {mix.length > 0 ? (
+          <BookBreakup data={mix} total={book.principalDisbursed} delta={disbursementDelta} />
+        ) : null}
         <PipelinePanel data={pipeline} />
       </section>
 

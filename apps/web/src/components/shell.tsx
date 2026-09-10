@@ -23,7 +23,7 @@ export default function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-paper">
+    <div className="flex h-screen overflow-hidden bg-paper">
       <Sidebar
         canSeeAllLoans={user.canSeeAllLoans}
         canApprove={user.canApprove}
@@ -32,7 +32,8 @@ export default function Shell({
         userRole={user.role}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Only THIS column scrolls — sidebar and topbar stay put. */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar userName={user.name} userEmail={user.email} role={user.role} />
 
         {/* Mobile top bar (identity only; nav is the bottom bar) */}
@@ -41,7 +42,7 @@ export default function Shell({
           <span className="truncate text-xs text-ink-soft">{tenantName}</span>
         </header>
 
-        <main className="w-full flex-1 px-4 py-8 pb-24 md:px-8 md:pb-8">
+        <main className="w-full flex-1 overflow-y-auto px-4 py-8 pb-24 md:px-8 md:pb-8">
           {children}
         </main>
 
