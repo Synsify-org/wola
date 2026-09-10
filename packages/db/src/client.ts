@@ -23,10 +23,16 @@ export function makeDb(url = process.env.DATABASE_URL!): Sql {
   // recurring dev-mode AggregateError at the first query). connect_timeout
   // makes a genuinely-down database fail fast with a clear error instead of
   // hanging. max is modest for local dev.
+  // prepare: false — required when DATABASE_URL points at a transaction-mode
+  // pgbouncer pooler (e.g. Supabase's Supavisor on :6543): each query can land
+  // on a different backend connection, so a cached server-side prepared
+  // statement handle from a prior query is invalid. Harmless against a direct
+  // (non-pooled) connection too, just skips a query-plan cache.
   return postgres(url, {
     max: 10,
     idle_timeout: 20,     // seconds; drop idle connections
     connect_timeout: 10,  // seconds; fail fast if DB unreachable
+    prepare: false,
   });
 }
 
