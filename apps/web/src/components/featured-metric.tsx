@@ -59,16 +59,16 @@ export default function FeaturedMetric({
   delta?: { dir: "up" | "down"; pct: number; note: string };
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-rule bg-surface p-6 shadow-theme-md">
-      <div className="flex items-start justify-between">
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-rule bg-surface p-6 shadow-theme-md">
+      <div className="flex items-start justify-between gap-2">
         <span className="caps">{label}</span>
         {Icon ? (
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-100 text-brand-700">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700">
             <Icon className="h-5 w-5" strokeWidth={2} />
           </span>
         ) : null}
       </div>
-      <div className="num mt-3 text-3xl font-bold leading-tight text-ink">{value}</div>
+      <div className="num mt-3 truncate text-3xl font-bold leading-tight text-ink" title={value}>{value}</div>
       {delta ? (
         <div className="mt-2 flex items-center gap-1.5">
           <span

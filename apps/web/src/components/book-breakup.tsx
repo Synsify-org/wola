@@ -45,7 +45,7 @@ export default function BookBreakup({
     <DashboardCard title="Book breakup">
       <div className="flex items-center gap-6">
         <div className="min-w-0 flex-1">
-          <div className="num text-3xl font-bold leading-tight text-ink">{ugx(total)}</div>
+          <div className="num truncate text-3xl font-bold leading-tight text-ink" title={ugx(total)}>{ugx(total)}</div>
           {delta ? (
             <div className="mt-2 flex items-center gap-1.5">
               <span

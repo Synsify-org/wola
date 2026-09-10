@@ -54,17 +54,17 @@ export default function DashboardHR({
           <h2 className="text-sm font-semibold text-ink">Employee register health</h2>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <div className="num text-2xl font-bold text-ink">{health.headcount}</div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="min-w-0">
+            <div className="num truncate text-2xl font-bold text-ink">{health.headcount}</div>
             <div className="caps mt-1">Headcount</div>
           </div>
-          <div>
-            <div className="num text-2xl font-bold text-ink">{health.onProbation}</div>
+          <div className="min-w-0">
+            <div className="num truncate text-2xl font-bold text-ink">{health.onProbation}</div>
             <div className="caps mt-1">On probation</div>
           </div>
-          <div>
-            <div className="num text-2xl font-bold text-ink">{health.onFinalWarning}</div>
+          <div className="min-w-0">
+            <div className="num truncate text-2xl font-bold text-ink">{health.onFinalWarning}</div>
             <div className="caps mt-1">Final warning</div>
           </div>
         </div>

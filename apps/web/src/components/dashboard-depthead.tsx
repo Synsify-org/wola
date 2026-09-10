@@ -127,15 +127,15 @@ export default function DashboardDeptHead({
 
       {/* Secondary, quieter: my own position (shrunk) + team size context. */}
       <section className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
           <div className="caps mb-1">My outstanding</div>
-          <div className="num text-xl font-semibold text-ink">
+          <div className="num truncate text-xl font-semibold text-ink">
             {myOutstanding !== null ? ugx(myOutstanding) : "No active loan"}
           </div>
         </div>
-        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
           <div className="caps mb-1">Team active loans</div>
-          <div className="num text-xl font-semibold text-ink">{teamActiveLoans}</div>
+          <div className="num truncate text-xl font-semibold text-ink">{teamActiveLoans}</div>
         </div>
       </section>
 
