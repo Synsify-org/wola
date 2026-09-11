@@ -43,9 +43,13 @@ export default function BookBreakup({
 
   return (
     <DashboardCard title="Book breakup">
-      <div className="flex items-center gap-6">
+      {/* Stacked until there's genuinely enough width for the donut to sit
+          beside the total without squeezing it — sharing a row at exactly
+          the outer grid's own lg: breakpoint (1024px) is what caused the
+          total to truncate (confirmed live: "UGX 83..."). */}
+      <div className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:gap-6">
         <div className="min-w-0 flex-1">
-          <div className="num truncate text-3xl font-bold leading-tight text-ink" title={ugx(total)}>{ugx(total)}</div>
+          <div className="num truncate text-2xl font-bold leading-tight text-ink" title={ugx(total)}>{ugx(total)}</div>
           {delta ? (
             <div className="mt-2 flex items-center gap-1.5">
               <span
