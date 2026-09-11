@@ -90,6 +90,7 @@ export default function NavLinks({
         <Link
           key={item.href}
           href={item.href}
+          prefetch={false}
           className={
             active
               ? "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-brand"
@@ -106,6 +107,7 @@ export default function NavLinks({
       <Link
         key={item.href}
         href={item.href}
+        prefetch={false}
         title={collapsed ? item.label : undefined}
         className={
           (active
