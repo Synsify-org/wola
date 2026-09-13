@@ -190,7 +190,7 @@ UPDATE loan_products SET
   cap_method = 'salary_multiple', cap_basis = 'gross', cap_multiple = 3,
   max_tenor_months = 36, interest_applies = true,
   requires_post_probation = true, blocked_by_final_warning = true,
-  requires_external_declaration = false
+  requires_external_declaration = true
 WHERE kind = 'term'
   AND tenant_id = (SELECT id FROM tenants WHERE slug = 'testco');
 

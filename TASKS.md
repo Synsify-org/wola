@@ -400,14 +400,22 @@ don't get lost inside the design-system work.
   outright — if it's still happening, it's on a different page/state than
   what I checked; next step if it recurs is a screenshot of the exact spot.
 
-- [ ] **External-loan declaration: car loan only, or car + development?** `DECISION NEEDED`
-  You said both Development and Car loans should require declaring
-  existing loans. Both source documents (MUA benefit scheme + `Wola.pdf`)
-  only tie this to the **Car loan** (`requires_external_declaration = true`
-  only on the `asset` product in `setup-mua-tenant.mjs`). Given the car-cap
-  240m/96m mixup precedent in DECISIONS.md, I'm not changing lending
-  policy on an assumption — confirm this is really a scope change from the
-  signed scheme (not a recollection mismatch) before I touch the product config.
+- [x] `RESOLVED — Car + Development` **External-loan declaration scope**
+  Confirmed (2026-09-13): this is a real, intentional scope change from
+  the signed scheme documents, not a recollection mismatch — Development
+  loan should require the same external-borrowings declaration as the Car
+  loan going forward. Flipped `requires_external_declaration` to `true` on
+  the `term` product for the `testco` tenant in both the production
+  Supabase DB and local dev DB (data change, not a schema migration, same
+  as the earlier Supabase RLS correction — `loan_products` config is
+  per-tenant DATA per DECISIONS.md). Updated the two provisioning sources
+  ([scripts/seed-dev.sql](scripts/seed-dev.sql), [scripts/setup-mua-tenant.mjs](scripts/setup-mua-tenant.mjs)) so future
+  re-seeds stay correct. No code changes needed — the apply form and
+  eligibility engine already key off this flag generically per product.
+  Verified live: the "Declare outside borrowings" field now appears on
+  the Development Loan card, same as it already did for the Car Loan.
+  Note: only `testco` needed this — `mua` isn't provisioned in the
+  production database (it doesn't exist there yet).
 
 ---
 
