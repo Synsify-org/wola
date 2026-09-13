@@ -68,11 +68,14 @@ lending-policy changes.
 - [ ] `NEEDS INFO` — "Staff loan computation bug": no product called
       "Staff Loan" exists (only Salary Advance / Development Loan / Car
       Loan). Need a specific product + example numbers to investigate.
-- [ ] `NEEDS RETEST` — Applicant can't track application status: the
-      employee dashboard already computes and shows the current approval
-      stage per in-flight application (built earlier this project) — want
-      me to re-verify this live, or is there a specific case where it
-      failed?
+- [x] `REFUTED — live-verified` — Applicant can't track application
+      status: logged in as staff@testco.io, who has 2 in-flight
+      applications (Salary Advance, Development Loan). Dashboard showed
+      "Dept Head stage" for both; cross-checked directly against the DB
+      (`approvals` table) — zero decisions recorded on either application,
+      so "awaiting dept head" (the first stage) is exactly correct for
+      both. The status label is computed live from real routing state, not
+      stale or hardcoded. No bug found.
 
 **Follow-up worth doing, not bundled into this batch**:
 - [ ] Move `Shell` (sidebar/topbar) into a shared `layout.tsx` instead of
