@@ -84,6 +84,13 @@ after(async () => {
 });
 
 const newApplication = async (employeeId) => {
+  // Withdraw whatever a PREVIOUS test left in flight for this employee —
+  // each test is its own independent scenario, so a leftover 'submitted'/
+  // 'in_review' row from an earlier test shouldn't collide with 0016's
+  // one-in-flight-per-product constraint.
+  await admin`UPDATE loan_applications SET status = 'withdrawn'
+    WHERE employee_id = ${employeeId} AND loan_product_id = ${ids.product}
+      AND status IN ('submitted', 'in_review')`;
   const [a] = await admin`INSERT INTO loan_applications
     (tenant_id,employee_id,loan_product_id,amount,tenor_months,status)
     VALUES (${T},${employeeId},${ids.product},10000000,24,'submitted') RETURNING id`;

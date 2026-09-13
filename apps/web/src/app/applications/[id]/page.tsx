@@ -58,9 +58,19 @@ export default async function ApplicationDetail({
       JOIN loan_products lp ON lp.id = la.loan_product_id
       WHERE la.id = ${id}`;
 
+    // Name + position, not the raw email — an approver's identity to
+    // someone reading the decision trail is who they are in the org, not
+    // their login. Falls back to email only if no employee record exists
+    // (e.g. a super-admin-only account).
     const decisions = await tx`
-      SELECT a.decision, a.comment, u.email AS approver
-      FROM approvals a LEFT JOIN users u ON u.id = a.approver_user_id
+      SELECT a.decision, a.comment,
+             COALESCE(e.full_name, u.email) AS approver_name,
+             e.title AS approver_title,
+             m.role AS approver_role
+      FROM approvals a
+      LEFT JOIN users u ON u.id = a.approver_user_id
+      LEFT JOIN employees e ON e.user_id = a.approver_user_id
+      LEFT JOIN memberships m ON m.user_id = a.approver_user_id AND m.tenant_id = ${ctx.tenantId}
       WHERE a.application_id = ${id} ORDER BY a.created_at`;
 
     const profile = meta.applicant_user_id ? await getEmployeeProfile(tx, meta.applicant_user_id as string) : null;
@@ -223,8 +233,11 @@ export default async function ApplicationDetail({
                         </span>
                       </td>
                       <td>
-                        <div className="text-sm text-ink">{d.approver}</div>
-                        {d.comment ? <div className="text-xs text-ink-soft">{d.comment}</div> : null}
+                        <div className="text-sm font-medium text-ink">{d.approver_name}</div>
+                        <div className="text-xs text-ink-soft">
+                          {(d.approver_title as string | null) || label((d.approver_role as string | null) ?? "")}
+                        </div>
+                        {d.comment ? <div className="mt-0.5 text-xs text-ink-soft">{d.comment}</div> : null}
                       </td>
                     </tr>
                   ))}

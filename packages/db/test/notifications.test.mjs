@@ -78,6 +78,14 @@ after(async () => {
 });
 
 const newApplication = async () => {
+  // Each test starts its own independent scenario on the same staff member
+  // (assertions below check notifications land on staff@notif.t
+  // specifically) — withdraw whatever the PREVIOUS test left in flight so
+  // this insert doesn't collide with 0016's one-in-flight-per-product
+  // constraint, exactly as a real re-application would need to wait.
+  await admin`UPDATE loan_applications SET status = 'withdrawn'
+    WHERE employee_id = ${ids.eStaff} AND loan_product_id = ${ids.product}
+      AND status IN ('submitted', 'in_review')`;
   const [a] = await admin`INSERT INTO loan_applications
     (tenant_id,employee_id,loan_product_id,amount,tenor_months,status)
     VALUES (${T},${ids.eStaff},${ids.product},10000000,24,'submitted') RETURNING id`;

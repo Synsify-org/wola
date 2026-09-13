@@ -165,12 +165,23 @@ export async function decide(
     return { ok: false, error: "A disbursement date is required for the final approval." };
   }
 
-  await tx`
-    INSERT INTO approvals
-      (tenant_id, application_id, stage_id, approver_user_id, decision, comment, decided_at)
-    VALUES
-      (${args.tenantId}, ${args.applicationId}, ${currentStageId},
-       ${args.actor.userId}, ${args.decision}, ${args.comment ?? null}, now())`;
+  try {
+    await tx`
+      INSERT INTO approvals
+        (tenant_id, application_id, stage_id, approver_user_id, decision, comment, decided_at)
+      VALUES
+        (${args.tenantId}, ${args.applicationId}, ${currentStageId},
+         ${args.actor.userId}, ${args.decision}, ${args.comment ?? null}, now())`;
+  } catch (e) {
+    // 23505 = unique_violation on approvals_one_decision_per_stage (0015) —
+    // a second concurrent decision for the same stage (double-click, or a
+    // retry during a slow page load) lost the race. The first one already
+    // went through; tell the actor rather than surfacing a raw DB error.
+    if ((e as { code?: string }).code === "23505") {
+      return { ok: false, error: "This stage was already decided (possibly by a duplicate click) — refresh to see the current state." };
+    }
+    throw e;
+  }
 
   const after = route(pipeline, app.applicantRole, await loadApprovals(tx, args.applicationId));
 

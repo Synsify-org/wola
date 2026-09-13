@@ -1,5 +1,5 @@
 ﻿"use client";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -12,8 +12,22 @@ import {
   CheckSquare,
   ScrollText,
   Users,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
+
+// Reported bug: clicking a nav link gives no feedback at all until the
+// destination page finishes loading — it just "freezes." No loading.tsx
+// exists anywhere (Shell renders fresh inside every page, not a shared
+// layout, so a route-level loading.tsx would flash the whole sidebar away —
+// a bigger separate fix). This is the lightweight patch Next's own docs
+// recommend for exactly this case: a per-link pending state, swapped in
+// place of the icon so the click that was just made is visibly registered.
+function NavIcon({ icon: Icon, className = "h-4.5 w-4.5 shrink-0" }: { icon: LucideIcon; className?: string }) {
+  const { pending } = useLinkStatus();
+  if (pending) return <Loader2 className={className + " animate-spin"} />;
+  return <Icon className={className} />;
+}
 
 // `need` controls visibility:
 //   undefined  -> everyone (employee included)
@@ -97,7 +111,7 @@ export default function NavLinks({
               : "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-ink-faint"
           }
         >
-          <Icon className="h-5 w-5" />
+          <NavIcon icon={Icon} className="h-5 w-5" />
           {item.label}
         </Link>
       );
@@ -117,7 +131,7 @@ export default function NavLinks({
           (collapsed ? "justify-center" : "")
         }
       >
-        <Icon className="h-4.5 w-4.5 shrink-0" />
+        <NavIcon icon={Icon} />
         {collapsed ? null : <span>{item.label}</span>}
       </Link>
     );
