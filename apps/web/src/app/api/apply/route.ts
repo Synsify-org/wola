@@ -5,7 +5,6 @@
 // configuration. The client form is a convenience; this is the authority.
 // A tampered amount in the hidden field dies here.
 import { NextResponse } from "next/server";
-import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/guard";
 import { getEmployeeProfile, loadProductRules } from "@wola/db";
 import { assessEligibility } from "@wola/engine";
@@ -89,5 +88,5 @@ export async function POST(req: Request) {
   if ("error" in result) {
     return NextResponse.json({ ok: false, error: result.error }, { status: 400 });
   }
-  redirect("/applications/" + result.applicationId);
+  return NextResponse.json({ ok: true, applicationId: result.applicationId });
 }

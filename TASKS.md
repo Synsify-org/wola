@@ -102,10 +102,16 @@ lending-policy changes.
       test suite along the way: a test's `vi.mock()` referenced the old
       pre-move path and had gone silently no-op, letting the real
       `server-only`-importing module load and fail in the jsdom test env.
-- [ ] The apply form's error handling falls back to a raw JSON response
-      page on server errors (native form POST, not a fetch+inline-state
-      pattern) — noticed while testing the duplicate-application fix,
-      pre-existing, not part of this batch.
+- [x] `DONE` — The apply form's error handling fell back to a raw JSON
+      response page on server errors (native form POST, not a
+      fetch+inline-state pattern). Converted `/api/apply` to always return
+      JSON (`{ok, error}` or `{ok, applicationId}`, no server-side
+      `redirect()`), and the form now submits via `fetch` + `onSubmit`,
+      showing errors inline (e.g. the duplicate-application guard's message)
+      and navigating client-side (`router.push`) on success. Verified live:
+      a successful submit lands on the new application's detail page, and
+      re-submitting the same product while one is still in review shows the
+      error inline with no page navigation.
 
 ---
 
