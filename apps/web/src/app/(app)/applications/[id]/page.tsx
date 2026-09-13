@@ -6,10 +6,6 @@ import UnderwritingChecklist from "@/components/underwriting-checklist";
 import StatusTimeline from "@/components/status-timeline";
 import ScheduleTable from "@/components/schedule-table";
 import { User, FileText } from "lucide-react";
-import Shell from "@/components/shell";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import { headers } from "next/headers";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -23,22 +19,12 @@ export default async function ApplicationDetail({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
 
   const data = await requireSession(async (tx, ctx) => {
     const loaded = await routeApplication(tx, id);
     if (!loaded) return null;
 
-    const [meWho] = await tx`SELECT e.id, e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
-    const user = {
-      name: (meWho?.full_name as string) ?? (meWho?.email as string) ?? "User",
-      email: (meWho?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
-
+    const [meWho] = await tx`SELECT e.id FROM employees e WHERE e.user_id = ${ctx.userId}`;
     const actor = { userId: ctx.userId, employeeId: (meWho?.id as string) ?? null, role: ctx.role };
     const applicant = {
       employeeId: loaded.app.employeeId,
@@ -58,9 +44,19 @@ export default async function ApplicationDetail({
       JOIN loan_products lp ON lp.id = la.loan_product_id
       WHERE la.id = ${id}`;
 
+    // Name + position, not the raw email — an approver's identity to
+    // someone reading the decision trail is who they are in the org, not
+    // their login. Falls back to email only if no employee record exists
+    // (e.g. a super-admin-only account).
     const decisions = await tx`
-      SELECT a.decision, a.comment, u.email AS approver
-      FROM approvals a LEFT JOIN users u ON u.id = a.approver_user_id
+      SELECT a.decision, a.comment,
+             COALESCE(e.full_name, u.email) AS approver_name,
+             e.title AS approver_title,
+             m.role AS approver_role
+      FROM approvals a
+      LEFT JOIN users u ON u.id = a.approver_user_id
+      LEFT JOIN employees e ON e.user_id = a.approver_user_id
+      LEFT JOIN memberships m ON m.user_id = a.approver_user_id AND m.tenant_id = ${ctx.tenantId}
       WHERE a.application_id = ${id} ORDER BY a.created_at`;
 
     const profile = meta.applicant_user_id ? await getEmployeeProfile(tx, meta.applicant_user_id as string) : null;
@@ -97,7 +93,7 @@ export default async function ApplicationDetail({
       }));
     }
 
-    return { ...loaded, user, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule };
+    return { ...loaded, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule };
   });
 
   if (!data) {
@@ -109,7 +105,7 @@ export default async function ApplicationDetail({
     );
   }
 
-  const { app, routing, isMyTurn, meta, decisions, profile, rules, externalDeclared, user, loan, schedule } = data;
+  const { app, routing, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule } = data;
   const doneIds = routing.completed.map((s) => s.id);
   const rejected = routing.state === "rejected";
   const statusChip =
@@ -131,7 +127,7 @@ export default async function ApplicationDetail({
   );
 
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <nav className="mb-3 flex items-center gap-2 text-sm">
         <a href="/applications" className="font-medium text-ink-soft transition-colors hover:text-brand-700">Applications</a>
         <span className="text-ink-faint">/</span>
@@ -223,8 +219,11 @@ export default async function ApplicationDetail({
                         </span>
                       </td>
                       <td>
-                        <div className="text-sm text-ink">{d.approver}</div>
-                        {d.comment ? <div className="text-xs text-ink-soft">{d.comment}</div> : null}
+                        <div className="text-sm font-medium text-ink">{d.approver_name}</div>
+                        <div className="text-xs text-ink-soft">
+                          {(d.approver_title as string | null) || label((d.approver_role as string | null) ?? "")}
+                        </div>
+                        {d.comment ? <div className="mt-0.5 text-xs text-ink-soft">{d.comment}</div> : null}
                       </td>
                     </tr>
                   ))}
@@ -298,6 +297,6 @@ export default async function ApplicationDetail({
           ) : null}
         </div>
       </div>
-    </Shell>
+    </>
   );
 }

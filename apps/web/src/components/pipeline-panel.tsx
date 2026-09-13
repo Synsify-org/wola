@@ -33,7 +33,7 @@ export default function PipelinePanel({ data }: { data: PipelineRow[] }) {
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-gray-100">
                   <div
-                    className={"h-full rounded-full " + s.cls}
+                    className={"h-full rounded-full transition-all duration-500 ease-out " + s.cls}
                     style={{ width: Math.max(pct, n > 0 ? 3 : 0) + "%" }}
                   />
                 </div>

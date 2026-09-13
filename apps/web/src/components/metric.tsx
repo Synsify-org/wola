@@ -32,16 +32,16 @@ export default function Metric({
     : "bg-brand-100 text-brand-700";
 
   return (
-    <div className="group rounded-xl border border-rule bg-surface p-5 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
-      <div className="flex items-start justify-between">
+    <div className="group min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-5 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
+      <div className="flex items-start justify-between gap-2">
         <span className="caps">{label}</span>
         {Icon ? (
-          <span className={"grid h-11 w-11 place-items-center rounded-xl transition-transform duration-200 group-hover:scale-105 " + chip}>
+          <span className={"grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-transform duration-200 group-hover:scale-105 " + chip}>
             <Icon className="h-5 w-5" strokeWidth={2} />
           </span>
         ) : null}
       </div>
-      <div className="num mt-3 text-[1.75rem] font-bold leading-tight text-ink">
+      <div className="num mt-3 truncate text-2xl font-bold leading-tight text-ink" title={typeof value === "string" ? value : undefined}>
         {value}
       </div>
       <div className="mt-1 flex items-center gap-2">

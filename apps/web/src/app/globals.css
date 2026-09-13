@@ -125,9 +125,12 @@
   --color-chart-4: oklch(0.6758 0.1453 238.4620);
   --color-chart-5: oklch(0.7410 0.1645 52.1676);
 
-  /* ── Type ───────────────────────────────────────────────── */
-  --font-sans:  var(--font-outfit), system-ui, sans-serif;
-  --font-mono:  var(--font-jetbrains), ui-monospace, monospace;
+  /* ── Type ───────────────────────────────────────────────────────
+     One uniform typeface for both words and numbers, per direct
+     request — was Outfit for text / Tahoma for numbers, which read as
+     two different fonts on the same page. Tahoma for everything. ─── */
+  --font-sans:  Tahoma, Geneva, Verdana, sans-serif;
+  --font-mono:  Tahoma, Geneva, Verdana, sans-serif;
   --font-serif: Georgia, serif;
 
   --text-title-md: 36px;
@@ -187,9 +190,13 @@
 }
 
 @layer components {
-  /* Tabular figures — money/dates must align. */
+  /* Tabular figures — money/dates must align. Tracks --font-sans, not a
+     separate --font-mono, so numbers stay the SAME typeface as surrounding
+     text even when a tenant picks a custom brand font in Settings
+     (theme.ts overrides --font-sans per tenant; a hardcoded mono value
+     here would silently reintroduce two different fonts on one page). */
   .num {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
   }

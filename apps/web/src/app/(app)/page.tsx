@@ -18,7 +18,6 @@ import {
   configurationStatus,
 } from "@wola/db";
 import { db } from "@/lib/tenant";
-import Shell from "@/components/shell";
 import DashboardCFO, { type InboxItem, type MixRow } from "@/components/dashboard-cfo";
 import DashboardHR from "@/components/dashboard-hr";
 import DashboardCEO, { type CEOInboxItem } from "@/components/dashboard-ceo"; // dashboard-ceo also exports MixRow, structurally identical to dashboard-cfo's — reuse the one already imported below rather than a colliding second import
@@ -27,6 +26,7 @@ import DashboardAdmin from "@/components/dashboard-admin";
 import DashboardAuditor, { type AuditRow } from "@/components/dashboard-auditor";
 import DashboardDeptHead, { type QueueItem } from "@/components/dashboard-depthead";
 import DashboardEmployee from "@/components/dashboard-employee";
+import DashboardWelcomeBanner from "@/components/dashboard-welcome-banner";
 
 // Money-operations console (§6.2's CFO hero) is scoped to the roles that can
 // actually disburse — must match DISBURSER_ROLES in loans/[id]/actions.ts.
@@ -58,13 +58,10 @@ export default async function Dashboard() {
       LEFT JOIN employees e ON e.user_id = u.id
       WHERE u.id = ${ctx.userId}`;
 
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "User",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
+    // Just the name — role/canSeeAllLoans/etc already live on ctx; the rest
+    // of the old `user` object (email, canApprove) was only ever used by
+    // Shell, which now gets its own copy of this in (app)/layout.tsx.
+    const displayName = (me?.full_name as string) ?? (me?.email as string) ?? "User";
 
     // Employees see only their personal dashboard. Fetched only here — it's
     // the heaviest of these queries (per-application routing + a full
@@ -73,7 +70,7 @@ export default async function Dashboard() {
     if (ctx.scope === "own") {
       const mine = await employeePosition(tx, ctx.userId);
       return {
-        user, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
+        displayName, role: ctx.role, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
         deptQueue: null, teamActiveLoans: 0, myOutstanding: null,
       };
@@ -109,36 +106,79 @@ export default async function Dashboard() {
         : null;
 
       return {
-        user, mine: null, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
+        displayName, role: ctx.role, mine: null, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
         deptQueue: inbox, teamActiveLoans: Number(teamRow?.n ?? 0), myOutstanding,
       };
     }
 
-    // From here: full-book roles (scope === "all").
-    const book = await approverMetrics(tx, inbox.length);
-    const mix = await loansByProduct(tx);
+    // From here: full-book roles (scope === "all"). None of these depend on
+    // each other's results (book only needs inbox.length, already known) —
+    // batching them into one Promise.all lets postgres.js pipeline the
+    // requests on the wire instead of paying a full network round trip per
+    // query, one after another. On a database in a different region than
+    // the app (the common case on a free-tier deploy), that sequential
+    // chain — 8+ round trips end to end — was the confirmed live cause of
+    // multi-second dashboard loads (7-8s per load, measured).
+    const showsMoneyOps =
+      DISBURSER_ROLES.includes(ctx.role) &&
+      ctx.role !== "ceo" &&
+      !EXEC_APPROVER_ROLES.includes(ctx.role) &&
+      !ADMIN_ROLES.includes(ctx.role);
 
-    // Pipeline: application counts by status (real).
-    const pipelineRows = await tx`
-      SELECT status, count(*)::int AS n
-      FROM loan_applications
-      GROUP BY status`;
+    const [
+      book, mix, pipelineRows, recentRows, growthRows,
+      queue, reconciliation, health, settledRows, configStatus, auditRowsRaw,
+    ] = await Promise.all([
+      approverMetrics(tx, inbox.length),
+      loansByProduct(tx),
+      tx`SELECT status, count(*)::int AS n FROM loan_applications GROUP BY status`,
+      tx`
+        SELECT l.id, e.full_name, lp.name AS product, l.principal, l.start_date
+        FROM loans l
+        JOIN loan_applications la ON la.id = l.application_id
+        JOIN employees e ON e.id = la.employee_id
+        JOIN loan_products lp ON lp.id = la.loan_product_id
+        WHERE l.status = 'active'
+        ORDER BY l.start_date DESC
+        LIMIT 5`,
+      // Sparkline: cumulative principal disbursed by month (real book growth).
+      tx`
+        SELECT date_trunc('month', l.start_date) AS m, sum(l.principal) AS p
+        FROM loans l
+        WHERE l.status = 'active' AND l.start_date IS NOT NULL
+        GROUP BY 1 ORDER BY 1`,
+      // Money-operations console — only for roles that can actually disburse
+      // AND still land on the shared DashboardCFO (CEO and the exec-approver
+      // roles have their own dashboards below and must never see this — see
+      // dashboard-ceo.tsx / dashboard-coo.tsx).
+      showsMoneyOps ? disbursementQueue(tx, ctx.tenantId) : Promise.resolve([]),
+      showsMoneyOps ? reconciliationThisCycle(tx, ctx.tenantId) : Promise.resolve(null),
+      // HR gets its own hero (register data quality, not the financial book).
+      ctx.role === "hr" ? registerHealth(tx, ctx.tenantId) : Promise.resolve(null),
+      // CEO's hero needs "settled", which approverMetrics() doesn't track.
+      ctx.role === "ceo"
+        ? tx`SELECT count(*)::int AS n FROM loans WHERE status = 'settled'`
+        : Promise.resolve(null),
+      // Admin gets the readiness-checklist hero (config, not lending).
+      ADMIN_ROLES.includes(ctx.role) ? configurationStatus(tx, ctx.tenantId) : Promise.resolve(null),
+      // Auditor gets the read-only activity hero — same query shape as
+      // /audit-log, capped tighter since this is a dashboard snippet.
+      ctx.role === "auditor"
+        ? tx`
+            SELECT a.id, a.action, a.entity, a.entity_id, a.at, u.email AS actor_email
+            FROM audit_log a
+            LEFT JOIN users u ON u.id = a.actor_id
+            ORDER BY a.at DESC
+            LIMIT 20`
+        : Promise.resolve(null),
+    ]);
+
     const pipeline = pipelineRows.map((r) => ({
       status: r.status as string,
       n: Number(r.n),
     }));
 
-    // Recent activity: last approved loans with borrower + product + date.
-    const recentRows = await tx`
-      SELECT l.id, e.full_name, lp.name AS product, l.principal, l.start_date
-      FROM loans l
-      JOIN loan_applications la ON la.id = l.application_id
-      JOIN employees e ON e.id = la.employee_id
-      JOIN loan_products lp ON lp.id = la.loan_product_id
-      WHERE l.status = 'active'
-      ORDER BY l.start_date DESC
-      LIMIT 5`;
     const recent = recentRows.map((r) => ({
       id: r.id as string,
       borrower: r.full_name as string,
@@ -147,76 +187,54 @@ export default async function Dashboard() {
       date: r.start_date ? new Date(r.start_date as string).toISOString() : null,
     }));
 
-      // Sparkline: cumulative principal disbursed by month (real book growth).
-    const growthRows = await tx`
-      SELECT date_trunc('month', l.start_date) AS m, sum(l.principal) AS p
-      FROM loans l
-      WHERE l.status = 'active' AND l.start_date IS NOT NULL
-      GROUP BY 1 ORDER BY 1`;
     let cum = 0;
     const exposureTrend = growthRows.map((r) => {
       cum += Number(r.p);
       return cum;
     });
 
-    // Money-operations console — only for roles that can actually disburse
-    // AND still land on the shared DashboardCFO (CEO and the exec-approver
-    // roles have their own dashboards below and must never see this — see
-    // dashboard-ceo.tsx / dashboard-coo.tsx). Fetched here, not unconditionally,
-    // so roles that never render it don't pay the cost.
-    const showsMoneyOps =
-      DISBURSER_ROLES.includes(ctx.role) &&
-      ctx.role !== "ceo" &&
-      !EXEC_APPROVER_ROLES.includes(ctx.role) &&
-      !ADMIN_ROLES.includes(ctx.role);
-    const queue = showsMoneyOps ? await disbursementQueue(tx, ctx.tenantId) : [];
-    const reconciliation = showsMoneyOps ? await reconciliationThisCycle(tx, ctx.tenantId) : null;
-
-    // HR gets its own hero (register data quality, not the financial book —
-    // see dashboard-hr.tsx). Only fetched for HR.
-    const health = ctx.role === "hr" ? await registerHealth(tx, ctx.tenantId) : null;
-
-    // CEO gets its own hero (programme health + trend, no disbursement, no
-    // reconciliation, no employee register — doc's explicit "must not show"
-    // list). "Settled" isn't tracked in approverMetrics(); one small count here.
-    let ceoView: { settled: number } | null = null;
-    if (ctx.role === "ceo") {
-      const [settledRow] = await tx`SELECT count(*)::int AS n FROM loans WHERE status = 'settled'`;
-      ceoView = { settled: Number(settledRow?.n ?? 0) };
-    }
-
-    // Admin gets the readiness-checklist hero (config, not lending — see
-    // dashboard-admin.tsx). Only fetched for org_admin/admin.
-    const configStatus = ADMIN_ROLES.includes(ctx.role)
-      ? await configurationStatus(tx, ctx.tenantId)
+    const ceoView: { settled: number } | null = ctx.role === "ceo"
+      ? { settled: Number((settledRows as unknown as { n: number }[] | null)?.[0]?.n ?? 0) }
       : null;
 
-    // Auditor gets the read-only activity hero — no action control anywhere
-    // (see dashboard-auditor.tsx). Same query shape as /audit-log, capped
-    // tighter since this is a dashboard snippet, not the full log.
-    const auditRows = ctx.role === "auditor"
-      ? ((await tx`
-          SELECT a.id, a.action, a.entity, a.entity_id, a.at, u.email AS actor_email
-          FROM audit_log a
-          LEFT JOIN users u ON u.id = a.actor_id
-          ORDER BY a.at DESC
-          LIMIT 20`) as unknown as { id: string; action: string; entity: string; entity_id: string | null; at: string; actor_email: string | null }[])
-      : null;
+    const auditRows = auditRowsRaw as unknown as
+      { id: string; action: string; entity: string; entity_id: string | null; at: string; actor_email: string | null }[] | null;
 
     return {
-      user, mine: null, book, inbox, mix, pipeline, recent, exposureTrend,
+      displayName, role: ctx.role, mine: null, book, inbox, mix, pipeline, recent, exposureTrend,
       canDisburse: showsMoneyOps, queue, reconciliation, health, ceoView, configStatus, auditRows,
       deptQueue: null, teamActiveLoans: 0, myOutstanding: null,
     };
   });
 
   const {
-    user, mine, book, inbox, mix, pipeline, recent, exposureTrend, canDisburse, queue, reconciliation, health, ceoView,
+    displayName, role, mine, book, inbox, mix, pipeline, recent, exposureTrend, canDisburse, queue, reconciliation, health, ceoView,
     configStatus, auditRows, deptQueue, teamActiveLoans, myOutstanding,
   } = data;
 
+  // Same "one question" per role as before, now spoken once by the banner
+  // instead of duplicated as a header on all 8 dashboards individually.
+  const subtitle = deptQueue
+    ? "Who on my team needs my decision right now?"
+    : health
+      ? "Is my people-data healthy, and what is waiting at my stage?"
+      : ceoView && book
+        ? "Is the loan programme healthy?"
+        : configStatus
+          ? "Is this tenant configured correctly and running?"
+          : auditRows
+            ? "Show me everything; let me change nothing."
+            : book && EXEC_APPROVER_ROLES.includes(role)
+              ? "What is waiting at my stage?"
+              : book
+                ? "Where is the money — going out, coming back, and at risk?"
+                : "Where do I stand, and what comes out of my next payslip?";
+
+  const tenantDisplayName = (tenant?.name as string) ?? "Wola";
+
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
+      <DashboardWelcomeBanner name={displayName} tenantName={tenantDisplayName} subtitle={subtitle} />
       {deptQueue ? (
         <DashboardDeptHead
           queue={deptQueue as unknown as QueueItem[]}
@@ -253,7 +271,7 @@ export default async function Dashboard() {
             at: r.at,
           }))}
         />
-      ) : book && EXEC_APPROVER_ROLES.includes(user.role) ? (
+      ) : book && EXEC_APPROVER_ROLES.includes(role) ? (
         <DashboardCOO
           inbox={inbox as unknown as COOInboxItem[]}
           totalExposure={book.totalExposure}
@@ -276,6 +294,6 @@ export default async function Dashboard() {
       ) : (
         <DashboardEmployee mine={mine} />
       )}
-    </Shell>
+    </>
   );
 }

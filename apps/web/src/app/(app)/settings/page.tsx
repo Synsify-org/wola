@@ -9,7 +9,6 @@ import { resolveTenant, listCurrentRateIndices, productsMissingRateIndex } from 
 import { db } from "@/lib/tenant";
 import { headers } from "next/headers";
 import Link from "next/link";
-import Shell from "@/components/shell";
 import ThemeEditor from "@/components/theme-editor";
 import RateIndexEditor from "@/components/rate-index-editor";
 import DashboardCard from "@/components/dashboard-card";
@@ -108,7 +107,7 @@ export default async function SettingsPage() {
   };
 
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <div className="mb-6 animate-in fade-in slide-in-from-bottom-1 duration-500">
         <h1 className="text-xl font-semibold text-ink">Settings</h1>
         <p className="mt-1 text-sm text-ink-soft">Your account and workspace.</p>
@@ -170,6 +169,6 @@ export default async function SettingsPage() {
           </div>
         </section>
       ) : null}
-    </Shell>
+    </>
   );
 }

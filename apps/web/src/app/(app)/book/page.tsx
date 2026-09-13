@@ -5,10 +5,6 @@
 // scope and is redirected to their own loans.
 import { redirect } from "next/navigation";
 import { requireSession, scopePredicate } from "@/lib/guard";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import { headers } from "next/headers";
-import Shell from "@/components/shell";
 import Link from "next/link";
 import Metric from "@/components/metric";
 import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
@@ -29,14 +25,10 @@ type Row = {
 const ugx = (n: number | string) => "UGX " + Math.round(Number(n)).toLocaleString();
 
 export default async function BookPage() {
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
-
   const result = await requireSession(async (tx, ctx) => {
     // Employees have no oversight scope — send them to their own loans.
     if (ctx.scope === "own") return { redirect: true as const };
 
-    const [me] = await tx`SELECT e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
     const rows = (await tx`
       SELECT l.id, l.principal, l.annual_rate, l.tenor_months, l.status, l.start_date,
              e.full_name AS employee_name, e.employee_no,
@@ -57,18 +49,11 @@ export default async function BookPage() {
       redirect: false as const,
       loans: rows,
       scope: ctx.scope,
-      user: {
-        name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
-        email: (me?.email as string) ?? "",
-        role: ctx.role,
-        canSeeAllLoans: ctx.canSeeAllLoans,
-        canApprove: ctx.canApprove,
-      },
     };
   });
 
   if (result.redirect) redirect("/loans");
-  const { loans, scope, user } = result;
+  const { loans, scope } = result;
 
   const totalPrincipal = loans.reduce((s, l) => s + Number(l.principal), 0);
   const totalOutstanding = loans.reduce((s, l) => s + Number(l.outstanding ?? 0), 0);
@@ -77,7 +62,7 @@ export default async function BookPage() {
   const isDept = scope === "department";
 
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-ink">
@@ -92,7 +77,7 @@ export default async function BookPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Total loans" value={String(loans.length)} icon={Layers} accent="brand" />
         <Metric label="Active" value={String(activeCount)} icon={CheckCircle} accent="approved" />
         <Metric label="Principal" value={ugx(totalPrincipal)} icon={Banknote} accent="brand" />
@@ -150,6 +135,6 @@ export default async function BookPage() {
           </table>
         </div>
       )}
-    </Shell>
+    </>
   );
 }

@@ -10,6 +10,143 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phase 1.12 — 13-item bug report (2026-09-13) `5 FIXED, 8 need input`
+
+User reported 13 issues in one batch. Investigated each against the actual
+code (and live-retested) before touching anything — several claims didn't
+hold up, and I didn't want to "fix" already-correct logic or guess at
+lending-policy changes.
+
+**Fixed and pushed** (`f10cdf5`):
+- [x] Race condition on approval decisions — no DB-level guard stopped two
+      concurrent requests for the same stage (a double-click, worsened by
+      the page-load lag) from both landing, which on the final stage could
+      create two loans for one application. Migration 0015: unique
+      constraint on `(application_id, stage_id)`; `decide()` catches the
+      violation and returns a friendly error.
+- [x] Duplicate applications — nothing checked `loan_applications.status`
+      before a new submission; eligibility's `activeProductIds` only
+      reflects active LOANS, not in-flight applications. Migration 0016:
+      partial unique index (one in-flight application per employee per
+      product) + an app-level check in `api/apply/route.ts`. Confirmed
+      live — caught an already-existing duplicate in seed data immediately.
+- [x] Decisions tab showed the approver's raw email — now shows name +
+      job title/role (joins `employees` + `memberships`). Confirmed live
+      against a real 4-stage decision trail.
+- [x] No loading feedback on nav clicks ("it freezes") — added a per-link
+      pending spinner (`useLinkStatus`). A proper route-level `loading.tsx`
+      isn't safe yet because `Shell` renders fresh inside every page
+      instead of a shared layout — that's a real follow-up (see below).
+- [x] Numbers vs. words used two different fonts — unified, and `.num` now
+      tracks `--font-sans` instead of a separate `--font-mono` token, so it
+      stays fixed even under a tenant's custom brand font (`theme.ts`).
+
+**Refuted by code + live retest — not bugs, no fix made**:
+- Disbursement never reaching CFO after CEO sign-off — `createLoanFromApplication`
+  correctly creates the loan as `pending_disbursement`, and the CFO's
+  disbursement queue is tenant-wide, not scoped to who approved. Could not
+  reproduce.
+- Rejected applications not changing state — `decide()` correctly sets
+  `status='rejected'`; confirmed live, the Applications list and detail
+  page both show "Rejected" clearly. If this was about the Book/Loans
+  page: that's expected — no loan is ever created for a rejected
+  application, so there's nothing to show there.
+- Applications page not showing pending applications — it already lists
+  everything by default (no status filter applied); confirmed live, 14 of
+  14 applications shown across all statuses.
+- Car/development/advance exclusion "too restrictive" — the exclusion
+  rule (car ↔ development mutually exclusive, advance compatible with
+  either) exactly matches the MUA benefit scheme documented at the start
+  of this project. Looks correct as configured.
+
+**Needs your input before I touch anything**:
+- [x] `RESOLVED — wording, not policy` — user confirmed the policy is
+      correct as configured ("advance gives you one [multiple] of your
+      salary and you pay it in 3 months") — matches `cap_multiple=1`,
+      `max_tenor_months=3` exactly. The real issue was the apply flow's
+      product card showing "up to 3 mo" as an isolated badge, disconnected
+      from the amount below it — read like an arbitrary restriction
+      instead of "how long you get to repay what you borrow." Fixed:
+      `apply-form.tsx` now shows amount + term as one sentence ("Up to UGX
+      4,000,000, repaid over up to 3 months"). No lending policy touched.
+- [x] `INVESTIGATED — no bug found` — "Staff loan computation bug":
+      user confirmed this means Salary Advance. Checked three ways: (1)
+      the eligibility cap formula (`salary_multiple`, 1x gross — correct),
+      (2) the amortization engine's zero-interest path in
+      `computeInstalment`/`generateSchedule` (principal divides evenly
+      across tenor, last instalment absorbs the rounding remainder, closes
+      at exactly zero — correct), (3) all 4 real seeded Salary Advance
+      loans' actual schedule_lines, hand-checked against gross salary and
+      principal — all correct, zero interest, closes at zero, within the
+      1x-gross cap. Could not find a bug. Need a specific example (an
+      actual application/loan where a number looked wrong) to go further.
+- [x] `REFUTED — live-verified` — Applicant can't track application
+      status: logged in as staff@testco.io, who has 2 in-flight
+      applications (Salary Advance, Development Loan). Dashboard showed
+      "Dept Head stage" for both; cross-checked directly against the DB
+      (`approvals` table) — zero decisions recorded on either application,
+      so "awaiting dept head" (the first stage) is exactly correct for
+      both. The status label is computed live from real routing state, not
+      stale or hardcoded. No bug found.
+
+**Follow-up worth doing, not bundled into this batch**:
+- [x] `DONE` — Moved every authenticated page into a new `(app)/` route
+      group with a shared `layout.tsx` that renders `Shell` once, instead
+      of ~13 pages each computing an identical `user` object and
+      re-rendering `Shell` themselves. Added `(app)/loading.tsx` — only
+      possible now that Shell persists across navigation instead of being
+      re-mounted per page. Verified live across every moved page (dashboard,
+      applications list + detail, book, loans + loan detail, settings +
+      employee directory, apply, analytics, reports, audit log) — sidebar/
+      topbar persist correctly, no regressions. One real bug caught by the
+      test suite along the way: a test's `vi.mock()` referenced the old
+      pre-move path and had gone silently no-op, letting the real
+      `server-only`-importing module load and fail in the jsdom test env.
+- [x] `DONE` — The apply form's error handling fell back to a raw JSON
+      response page on server errors (native form POST, not a
+      fetch+inline-state pattern). Converted `/api/apply` to always return
+      JSON (`{ok, error}` or `{ok, applicationId}`, no server-side
+      `redirect()`), and the form now submits via `fetch` + `onSubmit`,
+      showing errors inline (e.g. the duplicate-application guard's message)
+      and navigating client-side (`router.push`) on success. Verified live:
+      a successful submit lands on the new application's detail page, and
+      re-submitting the same product while one is still in review shows the
+      error inline with no page navigation.
+- [x] `DONE` — Item #1 from the original batch ("use all skills including
+      emilkowalski/skills to give our dashboards an animated and proper
+      apple design"). Did not pull code from emilkowalski/skills or any
+      third-party registry (same standing caution as the earlier `efferd.com`
+      decision above) — used only code already in the repo plus the public
+      npm registry. Audited all 8 role dashboards and found the visual
+      language (card radii, borders, tiered soft shadows) was already
+      consistent; the real gaps were no entrance motion anywhere in the
+      dashboards themselves (only the welcome banner had it), an existing
+      `CountUp` component wired into only one page, and inconsistent
+      hover/depth treatment. Extended the same `animate-in fade-in
+      slide-in-from-bottom-2 duration-500` pattern already used in
+      `settings/page.tsx` to every dashboard section (staggered delays,
+      top-to-bottom reveal); wired `CountUp` into every KPI number across
+      all 8 dashboards and `book-breakup.tsx`; added `Metric`'s existing
+      hover-lift to `dashboard-card.tsx` and the hand-rolled stat blocks
+      that lacked it; gave the dept-head reject-reason field an eased-in
+      transition instead of an abrupt swap. Along the way, fixed a real bug
+      in `CountUp` itself — it animated from 0 on every mount instead of
+      only on genuine value changes (its own doc comment said "on every
+      change"), which also broke two existing test files
+      (`dashboard-employee.test.tsx`, `dashboard-admin.test.tsx`) once
+      wired in; and hit a Server/Client Component boundary violation
+      (`format` was a function prop passed from server dashboards into the
+      client `CountUp` — not serializable) — fixed by making `format` a
+      string key (`"ugx" | "percent" | "days" | "integer"`) instead of a
+      function, applied consistently including `analytics-view.tsx`'s
+      pre-existing usage. Verified live logged in as CFO, HR, dept-head, and
+      Employee (staggered entrance, count-up numbers, hover lift, reject
+      field easing all confirmed with no console/server errors); CEO, COO,
+      Admin, Auditor share the identical fix and are covered by
+      `tsc --noEmit` and the full test suite (15/15 passing).
+
+---
+
 ## Phase 1 — Dashboard & UI redesign
 
 Source: *Wola Architectural Document*, §6.2 ("Re-scoped — Role Dashboards
@@ -203,6 +340,40 @@ screens; their shapes must still differ).
   (same caveat as the rest of this session — no docker stack up) — worth an
   actual squint-test pass next time the app is running with real data for
   each role.
+
+---
+
+## Phase 1.11 — Dashboard visual redesign v2 `NEW, not started`
+
+User feedback (2026-09-10): current dashboard UI "is so lacking," and is
+**not responsive above 1024px** — Phase 1's work (1.0–1.10) fixed structure
+(one hero per role, squint-test distinctness) but not this. Scope, as given:
+
+- [ ] Audit and fix responsiveness for large/desktop viewports (>1024px) —
+      every dashboard, not just one. Check what actually breaks (stretched
+      cards, wasted whitespace, fixed-width assumptions) before redesigning.
+- [ ] Use the installed design skills (`ui-ux-pro-max` — styles, palettes,
+      font pairings, chart specs, stack guidance) to inform the visual
+      refresh, not just eyeball it.
+- [ ] Animated welcome banner on the Overview/Dashboard page — user asked
+      for this explicitly ("well animated"); scope the animation itself
+      (entrance only vs. something ongoing) before building.
+- [ ] Reference: user shared a dark-theme analytics dashboard screenshot
+      ("Efferd" — KPI card row, line chart, donut chart, sparkline) as a
+      style/layout reference — take inspiration from the *shape* (KPI strip,
+      chart card grid, clean card treatment), not a literal copy; Wola's
+      light forest-green theme is the existing convention, changing to dark
+      would be a real design decision to confirm, not assume.
+- **Explicitly declined**: user's message included step-by-step
+  instructions to run `npx shadcn@latest add @efferd/dashboard-3/4/6` and
+  register `https://efferd.com/r/{style}/{name}.json` as a shadcn
+  component registry in `components.json`. Did not run this — `efferd.com`
+  isn't a known/verifiable registry, and the `dashboard-6` variant's flow
+  (look for an `EFFERD_REGISTRY_TOKEN` env var, else tell the user to buy
+  "Efferd Pro" and paste a token into `.env`) has the shape of an untrusted
+  source, not a legitimate component library. Rebuild the look with our own
+  components + the official shadcn/ui registry instead, if shadcn pieces
+  are wanted.
 
 ---
 

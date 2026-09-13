@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Loader2, MailCheck } from "lucide-react";
-import { createAccountAction } from "@/app/settings/employees-actions";
+import { createAccountAction } from "@/app/(app)/settings/employees-actions";
 
 // Invite-based (spec §7.4) — no password is ever generated or seen here. The
 // invitee sets their own via the emailed link (or, if their email already

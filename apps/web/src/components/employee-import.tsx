@@ -2,7 +2,7 @@
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { importEmployeesAction, type ImportResult } from "@/app/settings/employees-actions";
+import { importEmployeesAction, type ImportResult } from "@/app/(app)/settings/employees-actions";
 
 // HR's bulk import tool: CSV in, employees table upserted by employee_no.
 // Same mechanism handles new starters AND a periodic payroll/salary refresh —

@@ -1,12 +1,8 @@
-﻿// apps/web/src/app/applications/page.tsx
+// apps/web/src/app/(app)/applications/page.tsx
 // The applications list. Server component: runs a read-only list query
 // (inline stopgap - TODO: move to @wola/db as listApplications() once Willy
 // formalizes it) and hands rows to the client table for sort/filter/search.
 import { requireSession, scopePredicate } from "@/lib/guard";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import { headers } from "next/headers";
-import Shell from "@/components/shell";
 import ApplicationsTable from "@/components/applications-table";
 
 export type ApplicationRow = {
@@ -23,23 +19,7 @@ export type ApplicationRow = {
 };
 
 export default async function ApplicationsPage() {
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
-
-  const data = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`
-      SELECT e.id, e.full_name, u.email
-      FROM users u LEFT JOIN employees e ON e.user_id = u.id
-      WHERE u.id = ${ctx.userId}`;
-
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "User",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
-
+  const applications = await requireSession(async (tx, ctx) => {
     // RLS scopes to the tenant; scopePredicate applies the per-role data
     // boundary. Full-book roles see all applications; a dept head sees their
     // department's; an employee sees only their own. Single query, one
@@ -54,7 +34,7 @@ export default async function ApplicationsPage() {
       WHERE ${scopePredicate(tx, ctx)}
       ORDER BY la.created_at DESC`;
 
-    const applications: ApplicationRow[] = rows.map((r) => ({
+    return rows.map((r) => ({
       id: r.id as string,
       applicantName: r.full_name as string,
       employeeNo: r.employee_no as string,
@@ -65,14 +45,8 @@ export default async function ApplicationsPage() {
       tenorMonths: r.tenor_months as number,
       status: r.status as string,
       appliedAt: new Date(r.created_at as string).toISOString(),
-    }));
-
-    return { user, applications };
+    })) satisfies ApplicationRow[];
   });
 
-  return (
-    <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
-      <ApplicationsTable rows={data.applications} />
-    </Shell>
-  );
+  return <ApplicationsTable rows={applications} />;
 }

@@ -1,5 +1,6 @@
 ﻿"use client";
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   assessEligibility,
   type ProductRules,
@@ -56,11 +57,14 @@ export default function ApplyForm({
   employee: EmployeeFinancials;
   identity: Identity;
 }) {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [productId, setProductId] = useState(products[0]?.productId ?? "");
   const [external, setExternal] = useState(0);
   const [amount, setAmount] = useState(0);
   const [tenor, setTenor] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const rules = products.find((p) => p.productId === productId) ?? null;
 
@@ -93,6 +97,25 @@ export default function ApplyForm({
   const canSubmit = !!result && result.eligible && amount > 0 && !overCap;
   const monthly = amount > 0 && tenor > 0 ? amount / tenor : 0;
   const selectedProduct = products.find((p) => p.productId === productId);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/apply", { method: "POST", body: new FormData(e.currentTarget) });
+      const data = await res.json();
+      if (!data.ok) {
+        setSubmitError(data.error ?? "Something went wrong. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+      router.push("/applications/" + data.applicationId);
+    } catch {
+      setSubmitError("Something went wrong. Please try again.");
+      setSubmitting(false);
+    }
+  }
 
   const tenorOptions = useMemo(() => {
     const max = result?.maxTenorMonths ?? rules?.maxTenorMonths ?? 1;
@@ -210,7 +233,7 @@ export default function ApplyForm({
 
                         <div>
                           <div className="font-semibold leading-tight text-ink">{p.name}</div>
-                          <div className="mt-1.5 flex flex-wrap gap-1">
+                          <div className="mt-1.5">
                             <span
                               className={
                                 "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium " +
@@ -221,18 +244,23 @@ export default function ApplyForm({
                             >
                               {p.interestApplies ? "Interest" : "Interest-free"}
                             </span>
-                            <span className="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
-                              up to {p.maxTenorMonths} mo
-                            </span>
                           </div>
                         </div>
 
+                        {/* Amount and repayment period read as ONE offer, not two
+                            disconnected facts — "up to 3 mo" on its own (as a
+                            separate badge, disconnected from the amount) read as
+                            an arbitrary restriction rather than what it actually
+                            is: how long you get to repay what you borrow. */}
                         {elig && (
                           <div className="mt-auto border-t border-rule pt-2.5">
                             {elig.eligible ? (
                               <div className="text-[11px] text-ink-soft">
                                 Up to{" "}
                                 <span className="num font-semibold text-ink">{ugx(elig.maxAmount)}</span>
+                                {", repaid over up to "}
+                                <span className="num font-semibold text-ink">{p.maxTenorMonths}</span>
+                                {p.maxTenorMonths === 1 ? " month" : " months"}
                               </div>
                             ) : (
                               <div className="text-[11px] font-medium text-rejected">Not eligible</div>
@@ -452,7 +480,16 @@ export default function ApplyForm({
                   ))}
                 </dl>
 
-                <form action="/api/apply" method="post">
+                {submitError && (
+                  <div className="rounded-xl border border-error-200 bg-rejected-wash p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rejected" />
+                      <div className="text-sm text-rejected">{submitError}</div>
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit}>
                   <input type="hidden" name="productId" value={productId} />
                   <input type="hidden" name="amount" value={amount} />
                   <input type="hidden" name="tenor" value={tenor} />
@@ -462,11 +499,11 @@ export default function ApplyForm({
                     value={rules?.requiresExternalDeclaration ? external : 0}
                   />
                   <div className="flex justify-between">
-                    <button type="button" onClick={() => setStep(1)} className="btn btn--ghost rounded-lg">
+                    <button type="button" onClick={() => setStep(1)} className="btn btn--ghost rounded-lg" disabled={submitting}>
                       <ArrowLeft className="h-4 w-4" /> Back
                     </button>
-                    <button type="submit" disabled={!canSubmit} className="btn btn--primary rounded-lg">
-                      Submit application <ArrowRight className="h-4 w-4" />
+                    <button type="submit" disabled={!canSubmit || submitting} className="btn btn--primary rounded-lg">
+                      {submitting ? "Submitting…" : "Submit application"} <ArrowRight className="h-4 w-4" />
                     </button>
                   </div>
                 </form>

@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { decideAction } from "@/app/applications/[id]/actions";
+import { decideAction } from "@/app/(app)/applications/[id]/actions";
+import CountUp from "./count-up";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const roleLabel = (r: string) =>
@@ -28,7 +29,10 @@ function DecideRow({ applicationId }: { applicationId: string }) {
 
   if (rejecting) {
     return (
-      <form action={decideAction} className="flex flex-1 items-center gap-2">
+      <form
+        action={decideAction}
+        className="flex flex-1 items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200"
+      >
         <input type="hidden" name="applicationId" value={applicationId} />
         <input type="hidden" name="decision" value="rejected" />
         <input
@@ -89,12 +93,7 @@ export default function DashboardDeptHead({
 }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-soft">Who on my team needs my decision right now?</p>
-      </div>
-
-      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md">
+      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink">
             Needs your decision{queue.length > 0 ? ` (${queue.length})` : ""}
@@ -107,7 +106,7 @@ export default function DashboardDeptHead({
             {queue.map((item) => (
               <div
                 key={item.applicationId}
-                className="flex flex-col gap-3 rounded-lg border border-rule bg-paper p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-lg border border-rule bg-paper p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-sm sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -131,16 +130,16 @@ export default function DashboardDeptHead({
       </div>
 
       {/* Secondary, quieter: my own position (shrunk) + team size context. */}
-      <section className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 sm:grid-cols-2">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
           <div className="caps mb-1">My outstanding</div>
-          <div className="num text-xl font-semibold text-ink">
-            {myOutstanding !== null ? ugx(myOutstanding) : "No active loan"}
+          <div className="num truncate text-xl font-semibold text-ink">
+            {myOutstanding !== null ? <CountUp value={myOutstanding} format="ugx" /> : "No active loan"}
           </div>
         </div>
-        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
           <div className="caps mb-1">Team active loans</div>
-          <div className="num text-xl font-semibold text-ink">{teamActiveLoans}</div>
+          <div className="num truncate text-xl font-semibold text-ink"><CountUp value={teamActiveLoans} /></div>
         </div>
       </section>
 

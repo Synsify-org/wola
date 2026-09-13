@@ -3,11 +3,7 @@
 // (canSeeAllLoans) for oversight. RLS scopes audit_log to the tenant; wola_app
 // has SELECT+INSERT only on this table (append-only, migration 0001) so this
 // page can never be the thing that mutates the trail it's displaying.
-import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import Shell from "@/components/shell";
 import { ScrollText } from "lucide-react";
 
 type Row = {
@@ -22,20 +18,8 @@ type Row = {
 const label = (s: string) => s.replace(/_/g, " ").replace(/\./g, " · ");
 
 export default async function AuditLogPage() {
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
-
   const data = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`SELECT e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
-
-    if (!ctx.canSeeAllLoans) return { user, authorized: false as const };
+    if (!ctx.canSeeAllLoans) return { authorized: false as const };
 
     // Most-recent-first, capped — a full filter/search UI is a follow-on, not
     // this pass. TODO @wola/db: move this into a listAuditLog() export once a
@@ -47,21 +31,19 @@ export default async function AuditLogPage() {
       ORDER BY a.at DESC
       LIMIT 200`) as unknown as Row[];
 
-    return { user, authorized: true as const, rows };
+    return { authorized: true as const, rows };
   });
 
   if (!data.authorized) {
     return (
-      <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
-        <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-          <p className="text-sm text-ink-soft">The audit log is available to management and audit roles only.</p>
-        </div>
-      </Shell>
+      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
+        <p className="text-sm text-ink-soft">The audit log is available to management and audit roles only.</p>
+      </div>
     );
   }
 
   return (
-    <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <div className="mb-6 flex items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-100 text-brand-700">
           <ScrollText className="h-5 w-5" strokeWidth={2} />
@@ -104,6 +86,6 @@ export default async function AuditLogPage() {
           </table>
         </div>
       )}
-    </Shell>
+    </>
   );
 }

@@ -106,32 +106,32 @@ export default function ReportsView({
           </div>
 
           {/* Executive summary */}
-          <dl className="mt-6 grid grid-cols-2 gap-6 border-t border-rule pt-5 sm:grid-cols-3 lg:grid-cols-6">
-            <div>
+          <dl className="mt-6 grid grid-cols-2 gap-6 border-t border-rule pt-5 sm:grid-cols-3 xl:grid-cols-6">
+            <div className="min-w-0">
               <dt className="caps">Total exposure</dt>
-              <dd className="num mt-1 text-lg font-bold text-ink">{ugx(book.totalExposure)}</dd>
+              <dd className="num mt-1 truncate text-lg font-bold text-ink" title={ugx(book.totalExposure)}>{ugx(book.totalExposure)}</dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="caps">Active loans</dt>
-              <dd className="num mt-1 text-lg font-bold text-ink">{book.activeLoans}</dd>
+              <dd className="num mt-1 truncate text-lg font-bold text-ink">{book.activeLoans}</dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="caps">Principal disbursed</dt>
-              <dd className="num mt-1 text-lg font-bold text-ink">{ugx(book.principalDisbursed)}</dd>
+              <dd className="num mt-1 truncate text-lg font-bold text-ink" title={ugx(book.principalDisbursed)}>{ugx(book.principalDisbursed)}</dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="caps">Outstanding (ledger)</dt>
-              <dd className="num mt-1 text-lg font-bold text-ink">{ugx(totalOutstanding)}</dd>
+              <dd className="num mt-1 truncate text-lg font-bold text-ink" title={ugx(totalOutstanding)}>{ugx(totalOutstanding)}</dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="caps">Portfolio at risk</dt>
-              <dd className="num mt-1 text-lg font-bold" style={{ color: parRatio > 5 ? "var(--color-rejected)" : "var(--color-ink)" }}>
+              <dd className="num mt-1 truncate text-lg font-bold" style={{ color: parRatio > 5 ? "var(--color-rejected)" : "var(--color-ink)" }}>
                 {parRatio.toFixed(1)}%
               </dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="caps">Interest collected</dt>
-              <dd className="num mt-1 text-lg font-bold text-ink">{interestCollectionRate}%</dd>
+              <dd className="num mt-1 truncate text-lg font-bold text-ink">{interestCollectionRate}%</dd>
             </div>
           </dl>
         </div>
@@ -178,7 +178,7 @@ export default function ReportsView({
               <ul className="mt-2 space-y-1">
                 {topBorrowers.map((b) => (
                   <li key={b.employeeNo} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate text-ink">{b.borrower}</span>
+                    <span className="truncate text-ink" title={b.borrower}>{b.borrower}</span>
                     <span className="num shrink-0 font-medium text-ink">{ugx(b.outstanding)}</span>
                   </li>
                 ))}

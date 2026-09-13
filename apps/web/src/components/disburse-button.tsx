@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Banknote, Loader2 } from "lucide-react";
-import { disburseAction } from "@/app/loans/[id]/actions";
+import { disburseAction } from "@/app/(app)/loans/[id]/actions";
 
 // Shown on a pending_disbursement loan for finance roles. Confirms the pay-out,
 // captures an optional reference (cheque no / transfer ref), and calls the

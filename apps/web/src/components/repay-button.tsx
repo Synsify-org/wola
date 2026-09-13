@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet, Loader2 } from "lucide-react";
-import { recordRepaymentAction } from "@/app/loans/[id]/repay-actions";
+import { recordRepaymentAction } from "@/app/(app)/loans/[id]/repay-actions";
 
 // Shown on an ACTIVE loan for finance roles. Records a repayment (default: the
 // scheduled instalment, the common payroll case) and revalidates so the true

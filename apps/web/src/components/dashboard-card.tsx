@@ -16,7 +16,7 @@ export default function DashboardCard({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
+    <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
       <div className="mb-4 flex items-center justify-between">
         <div className="caps">{title}</div>
         {action}

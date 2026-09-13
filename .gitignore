@@ -7,3 +7,5 @@ dist/
 dist/
 
 dist/
+.vercel
+.env*.local

@@ -44,8 +44,8 @@ export default function RecentActivity({ data }: { data: Item[] }) {
               </div>
               <div className="flex min-w-0 flex-1 items-center justify-between pb-5 last:pb-0">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-ink">{r.borrower}</div>
-                  <div className="truncate text-xs text-ink-soft">{r.product}</div>
+                  <div className="truncate text-sm font-medium text-ink" title={r.borrower}>{r.borrower}</div>
+                  <div className="truncate text-xs text-ink-soft" title={r.product}>{r.product}</div>
                 </div>
                 <div className="ml-4 shrink-0 text-right">
                   <div className="num text-sm text-ink">{ugx(r.principal)}</div>

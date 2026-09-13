@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Palette, Loader2, Check } from "lucide-react";
-import { saveThemeAction } from "@/app/settings/theme-actions";
+import { saveThemeAction } from "@/app/(app)/settings/theme-actions";
 import { FONT_OPTIONS } from "@/lib/theme";
 import ColorPickerPopover from "./color-picker-popover";
 import DashboardCard from "./dashboard-card";
