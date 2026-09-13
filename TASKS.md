@@ -90,11 +90,18 @@ lending-policy changes.
       stale or hardcoded. No bug found.
 
 **Follow-up worth doing, not bundled into this batch**:
-- [ ] Move `Shell` (sidebar/topbar) into a shared `layout.tsx` instead of
-      every page rendering its own copy — prerequisite for real
-      route-level `loading.tsx` skeletons (currently would flash the whole
-      sidebar away on navigation) and removes real duplication across
-      ~15+ page files.
+- [x] `DONE` — Moved every authenticated page into a new `(app)/` route
+      group with a shared `layout.tsx` that renders `Shell` once, instead
+      of ~13 pages each computing an identical `user` object and
+      re-rendering `Shell` themselves. Added `(app)/loading.tsx` — only
+      possible now that Shell persists across navigation instead of being
+      re-mounted per page. Verified live across every moved page (dashboard,
+      applications list + detail, book, loans + loan detail, settings +
+      employee directory, apply, analytics, reports, audit log) — sidebar/
+      topbar persist correctly, no regressions. One real bug caught by the
+      test suite along the way: a test's `vi.mock()` referenced the old
+      pre-move path and had gone silently no-op, letting the real
+      `server-only`-importing module load and fail in the jsdom test env.
 - [ ] The apply form's error handling falls back to a raw JSON response
       page on server errors (native form POST, not a fetch+inline-state
       pattern) — noticed while testing the duplicate-application fix,
