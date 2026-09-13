@@ -10,6 +10,83 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phase 1.12 — 13-item bug report (2026-09-13) `5 FIXED, 8 need input`
+
+User reported 13 issues in one batch. Investigated each against the actual
+code (and live-retested) before touching anything — several claims didn't
+hold up, and I didn't want to "fix" already-correct logic or guess at
+lending-policy changes.
+
+**Fixed and pushed** (`f10cdf5`):
+- [x] Race condition on approval decisions — no DB-level guard stopped two
+      concurrent requests for the same stage (a double-click, worsened by
+      the page-load lag) from both landing, which on the final stage could
+      create two loans for one application. Migration 0015: unique
+      constraint on `(application_id, stage_id)`; `decide()` catches the
+      violation and returns a friendly error.
+- [x] Duplicate applications — nothing checked `loan_applications.status`
+      before a new submission; eligibility's `activeProductIds` only
+      reflects active LOANS, not in-flight applications. Migration 0016:
+      partial unique index (one in-flight application per employee per
+      product) + an app-level check in `api/apply/route.ts`. Confirmed
+      live — caught an already-existing duplicate in seed data immediately.
+- [x] Decisions tab showed the approver's raw email — now shows name +
+      job title/role (joins `employees` + `memberships`). Confirmed live
+      against a real 4-stage decision trail.
+- [x] No loading feedback on nav clicks ("it freezes") — added a per-link
+      pending spinner (`useLinkStatus`). A proper route-level `loading.tsx`
+      isn't safe yet because `Shell` renders fresh inside every page
+      instead of a shared layout — that's a real follow-up (see below).
+- [x] Numbers vs. words used two different fonts — unified, and `.num` now
+      tracks `--font-sans` instead of a separate `--font-mono` token, so it
+      stays fixed even under a tenant's custom brand font (`theme.ts`).
+
+**Refuted by code + live retest — not bugs, no fix made**:
+- Disbursement never reaching CFO after CEO sign-off — `createLoanFromApplication`
+  correctly creates the loan as `pending_disbursement`, and the CFO's
+  disbursement queue is tenant-wide, not scoped to who approved. Could not
+  reproduce.
+- Rejected applications not changing state — `decide()` correctly sets
+  `status='rejected'`; confirmed live, the Applications list and detail
+  page both show "Rejected" clearly. If this was about the Book/Loans
+  page: that's expected — no loan is ever created for a rejected
+  application, so there's nothing to show there.
+- Applications page not showing pending applications — it already lists
+  everything by default (no status filter applied); confirmed live, 14 of
+  14 applications shown across all statuses.
+- Car/development/advance exclusion "too restrictive" — the exclusion
+  rule (car ↔ development mutually exclusive, advance compatible with
+  either) exactly matches the MUA benefit scheme documented at the start
+  of this project. Looks correct as configured.
+
+**Needs your input before I touch anything**:
+- [ ] `DECISION NEEDED` — Advance "up to 3 months": this is the tenant's
+      actual configured `max_tenor_months`, not hardcoded copy. Do you
+      want the *wording* changed, or the *policy value* changed? Different
+      asks, and the second is a lending-policy change I won't make on
+      assumption.
+- [ ] `NEEDS INFO` — "Staff loan computation bug": no product called
+      "Staff Loan" exists (only Salary Advance / Development Loan / Car
+      Loan). Need a specific product + example numbers to investigate.
+- [ ] `NEEDS RETEST` — Applicant can't track application status: the
+      employee dashboard already computes and shows the current approval
+      stage per in-flight application (built earlier this project) — want
+      me to re-verify this live, or is there a specific case where it
+      failed?
+
+**Follow-up worth doing, not bundled into this batch**:
+- [ ] Move `Shell` (sidebar/topbar) into a shared `layout.tsx` instead of
+      every page rendering its own copy — prerequisite for real
+      route-level `loading.tsx` skeletons (currently would flash the whole
+      sidebar away on navigation) and removes real duplication across
+      ~15+ page files.
+- [ ] The apply form's error handling falls back to a raw JSON response
+      page on server errors (native form POST, not a fetch+inline-state
+      pattern) — noticed while testing the duplicate-application fix,
+      pre-existing, not part of this batch.
+
+---
+
 ## Phase 1 — Dashboard & UI redesign
 
 Source: *Wola Architectural Document*, §6.2 ("Re-scoped — Role Dashboards
