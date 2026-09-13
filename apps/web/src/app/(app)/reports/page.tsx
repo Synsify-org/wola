@@ -4,25 +4,19 @@ import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
 import { resolveTenant, approverMetrics, inboxFor } from "@wola/db";
 import { db } from "@/lib/tenant";
-import Shell from "@/components/shell";
 import ReportsView from "@/components/reports-view";
 
 export default async function ReportsPage() {
+  // Still needed here (not just by the layout's Shell): the report
+  // letterhead shows the tenant name, and brand colors come from
+  // tenant.settings.
   const slug = (await headers()).get("x-tenant-slug") ?? "";
   const tenant = slug ? await resolveTenant(db, slug) : null;
 
   const data = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`SELECT e.id, e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
+    if (!ctx.canSeeAllLoans) return { authorized: false as const };
 
-    if (!ctx.canSeeAllLoans) return { user, authorized: false as const };
-
+    const [me] = await tx`SELECT id FROM employees WHERE user_id = ${ctx.userId}`;
     const inbox = await inboxFor(tx, ctx.tenantId, { userId: ctx.userId, employeeId: (me?.id as string) ?? null, role: ctx.role });
     const book = await approverMetrics(tx, inbox.length);
 
@@ -165,7 +159,7 @@ export default async function ReportsPage() {
     }));
 
     return {
-      user, authorized: true as const, book, loans, applications, departments,
+      authorized: true as const, book, loans, applications, departments,
       tenantName: (tenant?.name as string) ?? "Wola",
       totalArrears, overdueCount, parRatio, actualInterestCollected,
       topBorrowers, approvalTrail,
@@ -174,33 +168,29 @@ export default async function ReportsPage() {
 
   if (!data.authorized) {
     return (
-      <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
-        <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-          <p className="text-sm text-ink-soft">Reports are available to management roles only.</p>
-        </div>
-      </Shell>
+      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
+        <p className="text-sm text-ink-soft">Reports are available to management roles only.</p>
+      </div>
     );
   }
 
   const brand = ((tenant?.settings ?? {}) as { brand?: { primary?: string; accent?: string } }).brand ?? {};
 
   return (
-    <Shell user={data.user} tenantName={data.tenantName}>
-      <ReportsView
-        book={data.book}
-        loans={data.loans}
-        applications={data.applications}
-        departments={data.departments}
-        tenantName={data.tenantName}
-        brandPrimary={brand.primary ?? "#16A34A"}
-        brandAccent={brand.accent ?? "#FACC15"}
-        totalArrears={data.totalArrears}
-        overdueCount={data.overdueCount}
-        parRatio={data.parRatio}
-        actualInterestCollected={data.actualInterestCollected}
-        topBorrowers={data.topBorrowers}
-        approvalTrail={data.approvalTrail}
-      />
-    </Shell>
+    <ReportsView
+      book={data.book}
+      loans={data.loans}
+      applications={data.applications}
+      departments={data.departments}
+      tenantName={data.tenantName}
+      brandPrimary={brand.primary ?? "#16A34A"}
+      brandAccent={brand.accent ?? "#FACC15"}
+      totalArrears={data.totalArrears}
+      overdueCount={data.overdueCount}
+      parRatio={data.parRatio}
+      actualInterestCollected={data.actualInterestCollected}
+      topBorrowers={data.topBorrowers}
+      approvalTrail={data.approvalTrail}
+    />
   );
 }

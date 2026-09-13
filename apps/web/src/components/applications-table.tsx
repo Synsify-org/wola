@@ -11,7 +11,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { ArrowUpDown, Eye, Search } from "lucide-react";
-import type { ApplicationRow } from "@/app/applications/page";
+import type { ApplicationRow } from "@/app/(app)/applications/page";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const shortDate = (d: string) =>

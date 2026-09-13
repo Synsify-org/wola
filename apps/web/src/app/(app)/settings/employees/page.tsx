@@ -5,10 +5,6 @@
 // enforced again server-side in the action, and hidden here rather than
 // shown-then-denied for anyone who can't use it.
 import { requireSession } from "@/lib/guard";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import { headers } from "next/headers";
-import Shell from "@/components/shell";
 import EmployeeImport from "@/components/employee-import";
 import CreateAccountButton from "@/components/create-account-button";
 import EditEmployeeDialog from "@/components/edit-employee-dialog";
@@ -34,20 +30,8 @@ type Row = {
 const ugx = (n: string) => "UGX " + Math.round(Number(n)).toLocaleString();
 
 export default async function EmployeesPage() {
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
-
   const data = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`SELECT e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
-
-    if (!ctx.canSeeAllLoans) return { user, authorized: false as const };
+    if (!ctx.canSeeAllLoans) return { authorized: false as const };
 
     const rows = (await tx`
       SELECT e.id, e.employee_no, e.full_name, e.department, e.title,
@@ -58,21 +42,19 @@ export default async function EmployeesPage() {
       LEFT JOIN employees head ON head.id = e.department_head_id
       ORDER BY e.full_name`) as unknown as Row[];
 
-    return { user, authorized: true as const, rows, canImport: HR_ROLES.includes(ctx.role) };
+    return { authorized: true as const, rows, canImport: HR_ROLES.includes(ctx.role) };
   });
 
   if (!data.authorized) {
     return (
-      <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
-        <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-          <p className="text-sm text-ink-soft">The employee directory is available to HR and management roles only.</p>
-        </div>
-      </Shell>
+      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
+        <p className="text-sm text-ink-soft">The employee directory is available to HR and management roles only.</p>
+      </div>
     );
   }
 
   return (
-    <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-ink">Employee directory</h1>
@@ -157,6 +139,6 @@ export default async function EmployeesPage() {
           </table>
         </div>
       )}
-    </Shell>
+    </>
   );
 }

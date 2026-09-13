@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserX, UserCheck, Loader2 } from "lucide-react";
-import { setEmployeeStatusAction } from "@/app/settings/employees-actions";
+import { setEmployeeStatusAction } from "@/app/(app)/settings/employees-actions";
 
 // Pure employee-status flip. Deliberately does NOT touch any loan — see the
 // comment on setEmployeeStatusAction for why. A confirm step guards against

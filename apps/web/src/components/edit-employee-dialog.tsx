@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { updateEmployeeAction, type EmployeeUpdate } from "@/app/settings/employees-actions";
+import { updateEmployeeAction, type EmployeeUpdate } from "@/app/(app)/settings/employees-actions";
 
 type Employee = {
   id: string;

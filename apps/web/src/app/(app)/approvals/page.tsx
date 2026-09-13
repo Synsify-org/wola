@@ -1,10 +1,7 @@
 ﻿// apps/web/src/app/approvals/page.tsx - the approver inbox.
 // Applications awaiting THIS actor, resolved through the approval engine.
-import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { inboxFor, resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import Shell from "@/components/shell";
+import { inboxFor } from "@wola/db";
 import Link from "next/link";
 import { Inbox } from "lucide-react";
 
@@ -13,36 +10,17 @@ const label = (r: string) =>
   r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default async function ApprovalInbox() {
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
-
-  const data = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`
-      SELECT e.id, e.full_name, u.email
-      FROM users u
-      LEFT JOIN employees e ON e.user_id = u.id
-      WHERE u.id = ${ctx.userId}`;
-    const inbox = await inboxFor(tx, ctx.tenantId, {
+  const items = await requireSession(async (tx, ctx) => {
+    const [me] = await tx`SELECT id FROM employees WHERE user_id = ${ctx.userId}`;
+    return inboxFor(tx, ctx.tenantId, {
       userId: ctx.userId,
       employeeId: (me?.id as string) ?? null,
       role: ctx.role,
     });
-    return {
-      user: {
-        name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
-        email: (me?.email as string) ?? "",
-        role: ctx.role,
-        canSeeAllLoans: ctx.canSeeAllLoans,
-        canApprove: ctx.canApprove,
-      },
-      items: inbox,
-    };
   });
 
-  const { user, items } = data;
-
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-ink">Approvals</h1>
         <p className="mt-1 text-sm text-ink-soft">
@@ -99,6 +77,6 @@ export default async function ApprovalInbox() {
           </table>
         </div>
       )}
-    </Shell>
+    </>
   );
 }

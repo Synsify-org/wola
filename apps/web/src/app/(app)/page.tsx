@@ -18,7 +18,6 @@ import {
   configurationStatus,
 } from "@wola/db";
 import { db } from "@/lib/tenant";
-import Shell from "@/components/shell";
 import DashboardCFO, { type InboxItem, type MixRow } from "@/components/dashboard-cfo";
 import DashboardHR from "@/components/dashboard-hr";
 import DashboardCEO, { type CEOInboxItem } from "@/components/dashboard-ceo"; // dashboard-ceo also exports MixRow, structurally identical to dashboard-cfo's — reuse the one already imported below rather than a colliding second import
@@ -59,13 +58,10 @@ export default async function Dashboard() {
       LEFT JOIN employees e ON e.user_id = u.id
       WHERE u.id = ${ctx.userId}`;
 
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "User",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
+    // Just the name — role/canSeeAllLoans/etc already live on ctx; the rest
+    // of the old `user` object (email, canApprove) was only ever used by
+    // Shell, which now gets its own copy of this in (app)/layout.tsx.
+    const displayName = (me?.full_name as string) ?? (me?.email as string) ?? "User";
 
     // Employees see only their personal dashboard. Fetched only here — it's
     // the heaviest of these queries (per-application routing + a full
@@ -74,7 +70,7 @@ export default async function Dashboard() {
     if (ctx.scope === "own") {
       const mine = await employeePosition(tx, ctx.userId);
       return {
-        user, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
+        displayName, role: ctx.role, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
         deptQueue: null, teamActiveLoans: 0, myOutstanding: null,
       };
@@ -110,7 +106,7 @@ export default async function Dashboard() {
         : null;
 
       return {
-        user, mine: null, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
+        displayName, role: ctx.role, mine: null, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
         deptQueue: inbox, teamActiveLoans: Number(teamRow?.n ?? 0), myOutstanding,
       };
@@ -205,14 +201,14 @@ export default async function Dashboard() {
       { id: string; action: string; entity: string; entity_id: string | null; at: string; actor_email: string | null }[] | null;
 
     return {
-      user, mine: null, book, inbox, mix, pipeline, recent, exposureTrend,
+      displayName, role: ctx.role, mine: null, book, inbox, mix, pipeline, recent, exposureTrend,
       canDisburse: showsMoneyOps, queue, reconciliation, health, ceoView, configStatus, auditRows,
       deptQueue: null, teamActiveLoans: 0, myOutstanding: null,
     };
   });
 
   const {
-    user, mine, book, inbox, mix, pipeline, recent, exposureTrend, canDisburse, queue, reconciliation, health, ceoView,
+    displayName, role, mine, book, inbox, mix, pipeline, recent, exposureTrend, canDisburse, queue, reconciliation, health, ceoView,
     configStatus, auditRows, deptQueue, teamActiveLoans, myOutstanding,
   } = data;
 
@@ -228,7 +224,7 @@ export default async function Dashboard() {
           ? "Is this tenant configured correctly and running?"
           : auditRows
             ? "Show me everything; let me change nothing."
-            : book && EXEC_APPROVER_ROLES.includes(user.role)
+            : book && EXEC_APPROVER_ROLES.includes(role)
               ? "What is waiting at my stage?"
               : book
                 ? "Where is the money — going out, coming back, and at risk?"
@@ -237,8 +233,8 @@ export default async function Dashboard() {
   const tenantDisplayName = (tenant?.name as string) ?? "Wola";
 
   return (
-    <Shell user={user} tenantName={tenantDisplayName}>
-      <DashboardWelcomeBanner name={user.name} tenantName={tenantDisplayName} subtitle={subtitle} />
+    <>
+      <DashboardWelcomeBanner name={displayName} tenantName={tenantDisplayName} subtitle={subtitle} />
       {deptQueue ? (
         <DashboardDeptHead
           queue={deptQueue as unknown as QueueItem[]}
@@ -275,7 +271,7 @@ export default async function Dashboard() {
             at: r.at,
           }))}
         />
-      ) : book && EXEC_APPROVER_ROLES.includes(user.role) ? (
+      ) : book && EXEC_APPROVER_ROLES.includes(role) ? (
         <DashboardCOO
           inbox={inbox as unknown as COOInboxItem[]}
           totalExposure={book.totalExposure}
@@ -298,6 +294,6 @@ export default async function Dashboard() {
       ) : (
         <DashboardEmployee mine={mine} />
       )}
-    </Shell>
+    </>
   );
 }

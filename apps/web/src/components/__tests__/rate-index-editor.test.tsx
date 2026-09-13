@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const setRateIndexAction = vi.fn();
-vi.mock("@/app/settings/rate-indices-actions", () => ({
+vi.mock("@/app/(app)/settings/rate-indices-actions", () => ({
   setRateIndexAction: (...args: unknown[]) => setRateIndexAction(...args),
 }));
 

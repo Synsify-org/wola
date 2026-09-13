@@ -1,31 +1,17 @@
 ﻿// apps/web/src/app/analytics/page.tsx - management analytics.
 // Admin-only. All aggregate queries here are inline stopgaps.
 // TODO: move to @wola/db (Willy) as analytics.ts functions.
-import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { resolveTenant, loansByProduct, approverMetrics, inboxFor } from "@wola/db";
-import { db } from "@/lib/tenant";
-import Shell from "@/components/shell";
+import { loansByProduct, approverMetrics, inboxFor } from "@wola/db";
 import AnalyticsView, { type DeptRow } from "@/components/analytics-view";
 
 export default async function AnalyticsPage() {
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
-
   const data = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`SELECT e.id, e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
-
     if (!ctx.canSeeAllLoans) {
-      return { user, authorized: false as const };
+      return { authorized: false as const };
     }
 
+    const [me] = await tx`SELECT id FROM employees WHERE user_id = ${ctx.userId}`;
     const inbox = await inboxFor(tx, ctx.tenantId, { userId: ctx.userId, employeeId: (me?.id as string) ?? null, role: ctx.role });
     const book = await approverMetrics(tx, inbox.length);
     const mix = await loansByProduct(tx);
@@ -132,7 +118,6 @@ export default async function AnalyticsPage() {
     }));
 
     return {
-      user,
       authorized: true as const,
       book,
       mix,
@@ -150,29 +135,25 @@ export default async function AnalyticsPage() {
 
   if (!data.authorized) {
     return (
-      <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
-        <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-          <p className="text-sm text-ink-soft">Analytics are available to management roles only.</p>
-        </div>
-      </Shell>
+      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
+        <p className="text-sm text-ink-soft">Analytics are available to management roles only.</p>
+      </div>
     );
   }
 
   return (
-    <Shell user={data.user} tenantName={(tenant?.name as string) ?? "Wola"}>
-      <AnalyticsView
-        book={data.book}
-        mix={data.mix as unknown as DeptRow[]}
-        statusCounts={data.statusCounts}
-        totalApps={data.totalApps}
-        approvalRate={data.approvalRate}
-        trend={data.trend}
-        byDepartment={data.byDepartment}
-        sizeBands={data.sizeBands}
-        productPerf={data.productPerf}
-        avgDecisionDays={data.avgDecisionDays}
-        rejectionsByStage={data.rejectionsByStage}
-      />
-    </Shell>
+    <AnalyticsView
+      book={data.book}
+      mix={data.mix as unknown as DeptRow[]}
+      statusCounts={data.statusCounts}
+      totalApps={data.totalApps}
+      approvalRate={data.approvalRate}
+      trend={data.trend}
+      byDepartment={data.byDepartment}
+      sizeBands={data.sizeBands}
+      productPerf={data.productPerf}
+      avgDecisionDays={data.avgDecisionDays}
+      rejectionsByStage={data.rejectionsByStage}
+    />
   );
 }

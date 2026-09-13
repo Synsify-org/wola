@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { decideAction } from "@/app/applications/[id]/actions";
+import { decideAction } from "@/app/(app)/applications/[id]/actions";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const roleLabel = (r: string) =>

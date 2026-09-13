@@ -6,10 +6,6 @@ import UnderwritingChecklist from "@/components/underwriting-checklist";
 import StatusTimeline from "@/components/status-timeline";
 import ScheduleTable from "@/components/schedule-table";
 import { User, FileText } from "lucide-react";
-import Shell from "@/components/shell";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import { headers } from "next/headers";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -23,22 +19,12 @@ export default async function ApplicationDetail({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
 
   const data = await requireSession(async (tx, ctx) => {
     const loaded = await routeApplication(tx, id);
     if (!loaded) return null;
 
-    const [meWho] = await tx`SELECT e.id, e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
-    const user = {
-      name: (meWho?.full_name as string) ?? (meWho?.email as string) ?? "User",
-      email: (meWho?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
-
+    const [meWho] = await tx`SELECT e.id FROM employees e WHERE e.user_id = ${ctx.userId}`;
     const actor = { userId: ctx.userId, employeeId: (meWho?.id as string) ?? null, role: ctx.role };
     const applicant = {
       employeeId: loaded.app.employeeId,
@@ -107,7 +93,7 @@ export default async function ApplicationDetail({
       }));
     }
 
-    return { ...loaded, user, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule };
+    return { ...loaded, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule };
   });
 
   if (!data) {
@@ -119,7 +105,7 @@ export default async function ApplicationDetail({
     );
   }
 
-  const { app, routing, isMyTurn, meta, decisions, profile, rules, externalDeclared, user, loan, schedule } = data;
+  const { app, routing, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule } = data;
   const doneIds = routing.completed.map((s) => s.id);
   const rejected = routing.state === "rejected";
   const statusChip =
@@ -141,7 +127,7 @@ export default async function ApplicationDetail({
   );
 
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <nav className="mb-3 flex items-center gap-2 text-sm">
         <a href="/applications" className="font-medium text-ink-soft transition-colors hover:text-brand-700">Applications</a>
         <span className="text-ink-faint">/</span>
@@ -311,6 +297,6 @@ export default async function ApplicationDetail({
           ) : null}
         </div>
       </div>
-    </Shell>
+    </>
   );
 }

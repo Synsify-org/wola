@@ -16,11 +16,8 @@
 // demo, same caveat as the register. Marked TODO for @wola/db (Willy).
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { requireSession, scopePredicate } from "@/lib/guard";
-import { resolveTenant, loanOutstanding } from "@wola/db";
-import { db } from "@/lib/tenant";
-import Shell from "@/components/shell";
+import { loanOutstanding } from "@wola/db";
 import Metric from "@/components/metric";
 import ScheduleTable from "@/components/schedule-table";
 import DisburseButton from "@/components/disburse-button";
@@ -86,23 +83,8 @@ export default async function LoanDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
 
   const data = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`
-      SELECT e.full_name, u.email
-      FROM users u LEFT JOIN employees e ON e.user_id = u.id
-      WHERE u.id = ${ctx.userId}`;
-
-    const user = {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "User",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
-    };
-
     // The loan header. RLS scopes to the tenant; scopePredicate enforces the
     // per-role data boundary: full-book roles see any loan, a dept head sees a
     // report's loan, an employee sees only their own. A loan outside scope
@@ -121,7 +103,7 @@ export default async function LoanDetail({
       LIMIT 1`) as unknown as LoanHead[];
 
     if (!loan) return {
-      user, loan: null, lines: [] as LineRow[],
+      loan: null, lines: [] as LineRow[],
       scope: ctx.scope, canDisburse: false, canRepay: false,
       trueOutstanding: 0, principalRepaid: 0,
     };
@@ -143,7 +125,7 @@ export default async function LoanDetail({
     const paid = await loanOutstanding(tx, ctx.tenantId, loan.id as string);
 
     return {
-      user, loan, lines, scope: ctx.scope,
+      loan, lines, scope: ctx.scope,
       canDisburse: DISBURSER_ROLES.includes(ctx.role),
       canRepay: DISBURSER_ROLES.includes(ctx.role),
       trueOutstanding: paid.outstanding,
@@ -151,7 +133,7 @@ export default async function LoanDetail({
     };
   });
 
-  const { user, loan, lines, scope, canDisburse, canRepay, trueOutstanding, principalRepaid } = data;
+  const { loan, lines, scope, canDisburse, canRepay, trueOutstanding, principalRepaid } = data;
   if (!loan) notFound();
 
   // ScheduleTable wants { period, dueDate, instalment, principal, interest,
@@ -189,7 +171,7 @@ export default async function LoanDetail({
     : 0;
 
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       {/* Back link — to My loans for own scope, to the Book/Department view
           for oversight scopes (matches where the viewer came from). */}
       <Link
@@ -310,6 +292,6 @@ export default async function LoanDetail({
           ) : null}
         </div>
       )}
-    </Shell>
+    </>
   );
 }

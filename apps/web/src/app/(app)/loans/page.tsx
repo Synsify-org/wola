@@ -3,10 +3,6 @@
 // "Outstanding" = principal minus the repayment LEDGER (actual money in),
 // matching loanOutstanding() in @wola/db — not a schedule projection.
 import { requireSession, scopePredicate } from "@/lib/guard";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
-import { headers } from "next/headers";
-import Shell from "@/components/shell";
 import Link from "next/link";
 import Metric from "@/components/metric";
 import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
@@ -27,11 +23,7 @@ type Row = {
 const ugx = (n: number | string) => "UGX " + Math.round(Number(n)).toLocaleString();
 
 export default async function LoanRegister() {
-  const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
-
-  const { loans, user } = await requireSession(async (tx, ctx) => {
-    const [me] = await tx`SELECT e.full_name, u.email FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ${ctx.userId}`;
+  const loans = await requireSession(async (tx, ctx) => {
     const rows = (await tx`
       SELECT l.id, l.principal, l.annual_rate, l.tenor_months, l.status, l.start_date,
              e.full_name AS employee_name, e.employee_no,
@@ -47,16 +39,7 @@ export default async function LoanRegister() {
       JOIN loan_products lp ON lp.id = la.loan_product_id
       WHERE ${scopePredicate(tx, ctx, "own")}
       ORDER BY l.created_at DESC`) as unknown as Row[];
-    return {
-      loans: rows,
-      user: {
-        name: (me?.full_name as string) ?? (me?.email as string) ?? "-",
-        email: (me?.email as string) ?? "",
-        role: ctx.role,
-        canSeeAllLoans: ctx.canSeeAllLoans,
-        canApprove: ctx.canApprove,
-      },
-    };
+    return rows;
   });
 
   const totalPrincipal = loans.reduce((s, l) => s + Number(l.principal), 0);
@@ -71,7 +54,7 @@ export default async function LoanRegister() {
   );
 
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-ink">My loans</h1>
@@ -135,6 +118,6 @@ export default async function LoanRegister() {
           </table>
         </div>
       )}
-    </Shell>
+    </>
   );
 }

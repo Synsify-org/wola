@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Percent, Loader2, Check, AlertTriangle } from "lucide-react";
-import { setRateIndexAction } from "@/app/settings/rate-indices-actions";
+import { setRateIndexAction } from "@/app/(app)/settings/rate-indices-actions";
 import DashboardCard from "./dashboard-card";
 
 export interface RateIndexRow {
