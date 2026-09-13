@@ -210,7 +210,7 @@ export default function ApplyForm({
 
                         <div>
                           <div className="font-semibold leading-tight text-ink">{p.name}</div>
-                          <div className="mt-1.5 flex flex-wrap gap-1">
+                          <div className="mt-1.5">
                             <span
                               className={
                                 "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium " +
@@ -221,18 +221,23 @@ export default function ApplyForm({
                             >
                               {p.interestApplies ? "Interest" : "Interest-free"}
                             </span>
-                            <span className="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
-                              up to {p.maxTenorMonths} mo
-                            </span>
                           </div>
                         </div>
 
+                        {/* Amount and repayment period read as ONE offer, not two
+                            disconnected facts — "up to 3 mo" on its own (as a
+                            separate badge, disconnected from the amount) read as
+                            an arbitrary restriction rather than what it actually
+                            is: how long you get to repay what you borrow. */}
                         {elig && (
                           <div className="mt-auto border-t border-rule pt-2.5">
                             {elig.eligible ? (
                               <div className="text-[11px] text-ink-soft">
                                 Up to{" "}
                                 <span className="num font-semibold text-ink">{ugx(elig.maxAmount)}</span>
+                                {", repaid over up to "}
+                                <span className="num font-semibold text-ink">{p.maxTenorMonths}</span>
+                                {p.maxTenorMonths === 1 ? " month" : " months"}
                               </div>
                             ) : (
                               <div className="text-[11px] font-medium text-rejected">Not eligible</div>

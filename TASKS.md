@@ -60,14 +60,26 @@ lending-policy changes.
   of this project. Looks correct as configured.
 
 **Needs your input before I touch anything**:
-- [ ] `DECISION NEEDED` — Advance "up to 3 months": this is the tenant's
-      actual configured `max_tenor_months`, not hardcoded copy. Do you
-      want the *wording* changed, or the *policy value* changed? Different
-      asks, and the second is a lending-policy change I won't make on
-      assumption.
-- [ ] `NEEDS INFO` — "Staff loan computation bug": no product called
-      "Staff Loan" exists (only Salary Advance / Development Loan / Car
-      Loan). Need a specific product + example numbers to investigate.
+- [x] `RESOLVED — wording, not policy` — user confirmed the policy is
+      correct as configured ("advance gives you one [multiple] of your
+      salary and you pay it in 3 months") — matches `cap_multiple=1`,
+      `max_tenor_months=3` exactly. The real issue was the apply flow's
+      product card showing "up to 3 mo" as an isolated badge, disconnected
+      from the amount below it — read like an arbitrary restriction
+      instead of "how long you get to repay what you borrow." Fixed:
+      `apply-form.tsx` now shows amount + term as one sentence ("Up to UGX
+      4,000,000, repaid over up to 3 months"). No lending policy touched.
+- [x] `INVESTIGATED — no bug found` — "Staff loan computation bug":
+      user confirmed this means Salary Advance. Checked three ways: (1)
+      the eligibility cap formula (`salary_multiple`, 1x gross — correct),
+      (2) the amortization engine's zero-interest path in
+      `computeInstalment`/`generateSchedule` (principal divides evenly
+      across tenor, last instalment absorbs the rounding remainder, closes
+      at exactly zero — correct), (3) all 4 real seeded Salary Advance
+      loans' actual schedule_lines, hand-checked against gross salary and
+      principal — all correct, zero interest, closes at zero, within the
+      1x-gross cap. Could not find a bug. Need a specific example (an
+      actual application/loan where a number looked wrong) to go further.
 - [x] `REFUTED — live-verified` — Applicant can't track application
       status: logged in as staff@testco.io, who has 2 in-flight
       applications (Salary Advance, Development Loan). Dashboard showed
