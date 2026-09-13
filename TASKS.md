@@ -112,6 +112,38 @@ lending-policy changes.
       a successful submit lands on the new application's detail page, and
       re-submitting the same product while one is still in review shows the
       error inline with no page navigation.
+- [x] `DONE` — Item #1 from the original batch ("use all skills including
+      emilkowalski/skills to give our dashboards an animated and proper
+      apple design"). Did not pull code from emilkowalski/skills or any
+      third-party registry (same standing caution as the earlier `efferd.com`
+      decision above) — used only code already in the repo plus the public
+      npm registry. Audited all 8 role dashboards and found the visual
+      language (card radii, borders, tiered soft shadows) was already
+      consistent; the real gaps were no entrance motion anywhere in the
+      dashboards themselves (only the welcome banner had it), an existing
+      `CountUp` component wired into only one page, and inconsistent
+      hover/depth treatment. Extended the same `animate-in fade-in
+      slide-in-from-bottom-2 duration-500` pattern already used in
+      `settings/page.tsx` to every dashboard section (staggered delays,
+      top-to-bottom reveal); wired `CountUp` into every KPI number across
+      all 8 dashboards and `book-breakup.tsx`; added `Metric`'s existing
+      hover-lift to `dashboard-card.tsx` and the hand-rolled stat blocks
+      that lacked it; gave the dept-head reject-reason field an eased-in
+      transition instead of an abrupt swap. Along the way, fixed a real bug
+      in `CountUp` itself — it animated from 0 on every mount instead of
+      only on genuine value changes (its own doc comment said "on every
+      change"), which also broke two existing test files
+      (`dashboard-employee.test.tsx`, `dashboard-admin.test.tsx`) once
+      wired in; and hit a Server/Client Component boundary violation
+      (`format` was a function prop passed from server dashboards into the
+      client `CountUp` — not serializable) — fixed by making `format` a
+      string key (`"ugx" | "percent" | "days" | "integer"`) instead of a
+      function, applied consistently including `analytics-view.tsx`'s
+      pre-existing usage. Verified live logged in as CFO, HR, dept-head, and
+      Employee (staggered entrance, count-up numbers, hover lift, reject
+      field easing all confirmed with no console/server errors); CEO, COO,
+      Admin, Auditor share the identical fix and are covered by
+      `tsc --noEmit` and the full test suite (15/15 passing).
 
 ---
 

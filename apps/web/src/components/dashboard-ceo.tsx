@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wallet, Layers } from "lucide-react";
 import FeaturedMetric from "./featured-metric";
 import BookBreakup from "./book-breakup";
+import CountUp from "./count-up";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
@@ -40,37 +41,37 @@ export default function DashboardCEO({
   return (
     <div className="space-y-6">
       {/* HERO: programme health + trend */}
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2">
         <FeaturedMetric
           label="Total exposure"
-          value={ugx(totalExposure)}
+          value={<CountUp value={totalExposure} format="ugx" />}
           sub="Current outstanding across the book"
           icon={Wallet}
           trend={exposureTrend}
         />
         <FeaturedMetric
           label="Value under management"
-          value={ugx(valueUnderManagement)}
+          value={<CountUp value={valueUnderManagement} format="ugx" />}
           sub="Principal disbursed, active loans"
           icon={Layers}
           trend={exposureTrend}
         />
       </section>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-rule bg-surface px-5 py-3 text-sm shadow-theme-sm">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-rule bg-surface px-5 py-3 text-sm shadow-theme-sm animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75">
         <span className="text-ink-soft">
-          In progress <span className="num font-semibold text-ink">{inProgress}</span>
+          In progress <span className="num font-semibold text-ink"><CountUp value={inProgress} /></span>
         </span>
         <span className="text-ink-soft">
-          Settled <span className="num font-semibold text-ink">{settled}</span>
+          Settled <span className="num font-semibold text-ink"><CountUp value={settled} /></span>
         </span>
         <span className="text-ink-soft">
-          Rejected this year <span className="num font-semibold text-ink">{rejectedThisYear}</span>
+          Rejected this year <span className="num font-semibold text-ink"><CountUp value={rejectedThisYear} /></span>
         </span>
       </div>
 
       {/* Secondary: CEO-stage queue + product mix — both quiet, neither the hero. */}
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-2">
         <div>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Awaiting your sign-off</h2>

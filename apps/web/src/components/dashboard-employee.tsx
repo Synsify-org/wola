@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Wallet } from "lucide-react";
+import CountUp from "./count-up";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const shortDate = (d: string) =>
@@ -43,7 +44,7 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
   if (empty) {
     return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
+        <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
           <p className="text-sm text-ink-soft">You have no loans or applications yet.</p>
           <Link href="/apply" className="btn btn--primary mt-5 inline-block rounded-full">
             Apply for a loan
@@ -58,10 +59,11 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
       {/* HERO: position card(s) — one per active loan, stacked. */}
       {mine.loans.length > 0 ? (
         <div className="space-y-3">
-          {mine.loans.map((loan) => (
+          {mine.loans.map((loan, i) => (
             <div
               key={loan.loanId}
-              className="rounded-xl border border-rule bg-surface p-6 shadow-theme-md"
+              className="rounded-xl border border-rule bg-surface p-6 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500 transition-all hover:-translate-y-0.5 hover:shadow-theme-lg"
+              style={{ animationDelay: i * 75 + "ms" }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-medium text-ink-soft">
@@ -70,7 +72,7 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
                 </div>
                 <span className="chip chip--awaiting">{loan.progressPct}% repaid</span>
               </div>
-              <div className="num mt-1 text-3xl font-bold text-ink">{ugx(loan.outstanding)}</div>
+              <div className="num mt-1 text-3xl font-bold text-ink"><CountUp value={loan.outstanding} format="ugx" /></div>
               {loan.nextDueDate ? (
                 <p className="mt-1 text-sm text-ink-soft">
                   Next deduction <span className="num font-medium text-ink">{ugx(loan.monthlyDeduction)}</span> on{" "}
@@ -97,8 +99,8 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
       ) : null}
 
       {/* Secondary: applications in flight + eligibility preview, side by side. */}
-      <section className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 sm:grid-cols-2">
+        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
           <div className="caps mb-3">Applications in flight</div>
           {mine.applicationsInFlight.length === 0 ? (
             <p className="text-sm text-ink-soft">Nothing in review right now.</p>
@@ -121,7 +123,7 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
           )}
         </div>
 
-        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm">
+        <div className="rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
           <div className="caps mb-3">Eligibility</div>
           {mine.eligibility.length === 0 ? (
             <p className="text-sm text-ink-soft">No products currently available to you.</p>
@@ -130,7 +132,9 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
               {mine.eligibility.map((e) => (
                 <li key={e.productId} className="flex items-center justify-between gap-2">
                   <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">{e.productName}</span>
-                  <span className="num shrink-0 text-sm font-semibold text-brand-700">up to {ugx(e.maxAmount)}</span>
+                  <span className="num shrink-0 text-sm font-semibold text-brand-700">
+                    up to <CountUp value={e.maxAmount} format="ugx" />
+                  </span>
                 </li>
               ))}
             </ul>

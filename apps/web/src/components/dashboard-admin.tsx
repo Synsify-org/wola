@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ClipboardCheck, CheckCircle2, Circle, ArrowRight } from "lucide-react";
+import CountUp from "./count-up";
 
 export type ConfigurationStatus = {
   productsCount: number;
@@ -50,7 +51,7 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md">
+      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div className="mb-1 flex items-center gap-2">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand-700">
             <ClipboardCheck className="h-4 w-4" />
@@ -89,20 +90,20 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2">
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 sm:grid-cols-2">
         <Link
           href="/settings/employees"
-          className="flex items-center justify-between rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-colors hover:border-brand-200 hover:bg-brand-wash"
+          className="flex items-center justify-between rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-wash hover:shadow-theme-md"
         >
           <div>
             <div className="caps mb-1">Users & roles</div>
-            <div className="num text-lg font-semibold text-ink">{status.usersCount}</div>
+            <div className="num text-lg font-semibold text-ink"><CountUp value={status.usersCount} /></div>
           </div>
           <ArrowRight className="h-4 w-4 text-ink-faint" />
         </Link>
         <Link
           href="/book"
-          className="flex items-center justify-between rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-colors hover:border-brand-200 hover:bg-brand-wash"
+          className="flex items-center justify-between rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-wash hover:shadow-theme-md"
         >
           <div>
             <div className="caps mb-1">Loan book</div>

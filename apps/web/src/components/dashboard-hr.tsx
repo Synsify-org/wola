@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Users, AlertTriangle, ArrowRight } from "lucide-react";
 import PipelinePanel from "./pipeline-panel";
+import CountUp from "./count-up";
 
 export type RegisterHealth = {
   headcount: number;
@@ -46,7 +47,7 @@ export default function DashboardHR({
   return (
     <div className="space-y-6">
       {/* HERO: employee register health */}
-      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md">
+      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div className="mb-4 flex items-center gap-2">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand-700">
             <Users className="h-4 w-4" />
@@ -55,16 +56,16 @@ export default function DashboardHR({
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <div className="min-w-0">
-            <div className="num truncate text-2xl font-bold text-ink">{health.headcount}</div>
+          <div className="min-w-0 rounded-lg p-2 -m-2 transition-all duration-200 hover:-translate-y-0.5 hover:bg-paper">
+            <div className="num truncate text-2xl font-bold text-ink"><CountUp value={health.headcount} /></div>
             <div className="caps mt-1">Headcount</div>
           </div>
-          <div className="min-w-0">
-            <div className="num truncate text-2xl font-bold text-ink">{health.onProbation}</div>
+          <div className="min-w-0 rounded-lg p-2 -m-2 transition-all duration-200 hover:-translate-y-0.5 hover:bg-paper">
+            <div className="num truncate text-2xl font-bold text-ink"><CountUp value={health.onProbation} /></div>
             <div className="caps mt-1">On probation</div>
           </div>
-          <div className="min-w-0">
-            <div className="num truncate text-2xl font-bold text-ink">{health.onFinalWarning}</div>
+          <div className="min-w-0 rounded-lg p-2 -m-2 transition-all duration-200 hover:-translate-y-0.5 hover:bg-paper">
+            <div className="num truncate text-2xl font-bold text-ink"><CountUp value={health.onFinalWarning} /></div>
             <div className="caps mt-1">Final warning</div>
           </div>
         </div>
@@ -97,7 +98,7 @@ export default function DashboardHR({
       </div>
 
       {/* Secondary: HR-stage approval queue + applications overview */}
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-2">
         <div>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">At your stage</h2>

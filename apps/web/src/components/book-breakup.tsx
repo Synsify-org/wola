@@ -2,6 +2,7 @@
 import { PieChart, Pie, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import DashboardCard from "./dashboard-card";
+import CountUp from "./count-up";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 // Product names are free-text tenant config, not safe CSS custom-property
@@ -49,7 +50,9 @@ export default function BookBreakup({
           total to truncate (confirmed live: "UGX 83..."). */}
       <div className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:gap-6">
         <div className="min-w-0 flex-1">
-          <div className="num truncate text-2xl font-bold leading-tight text-ink" title={ugx(total)}>{ugx(total)}</div>
+          <div className="num truncate text-2xl font-bold leading-tight text-ink" title={ugx(total)}>
+            <CountUp value={total} format="ugx" />
+          </div>
           {delta ? (
             <div className="mt-2 flex items-center gap-1.5">
               <span

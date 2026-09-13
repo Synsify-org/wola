@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Metric from "./metric";
+import CountUp from "./count-up";
 import { Wallet, Layers, Banknote, TrendingUp } from "lucide-react";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
@@ -34,14 +35,14 @@ export default function DashboardCOO({
     <div className="space-y-6">
       {/* Compact book row — context, not a hero. Sits right under the
           welcome banner on every dashboard now (user request). */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Total exposure" value={ugx(totalExposure)} icon={Wallet} accent="brand" />
-        <Metric label="Active loans" value={String(activeLoans)} icon={Layers} accent="brand" />
-        <Metric label="Principal disbursed" value={ugx(principalDisbursed)} icon={Banknote} accent="brand" />
-        <Metric label="Interest book" value={ugx(interestBook)} icon={TrendingUp} accent="brand" />
+      <section className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Total exposure" value={<CountUp value={totalExposure} format="ugx" />} icon={Wallet} accent="brand" />
+        <Metric label="Active loans" value={<CountUp value={activeLoans} />} icon={Layers} accent="brand" />
+        <Metric label="Principal disbursed" value={<CountUp value={principalDisbursed} format="ugx" />} icon={Banknote} accent="brand" />
+        <Metric label="Interest book" value={<CountUp value={interestBook} format="ugx" />} icon={TrendingUp} accent="brand" />
       </section>
 
-      <div>
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink">Awaiting you at your stage</h2>
           {inbox.length > 0 ? (

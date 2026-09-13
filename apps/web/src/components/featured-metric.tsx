@@ -1,4 +1,5 @@
 ﻿import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
@@ -49,7 +50,9 @@ export default function FeaturedMetric({
   delta,
 }: {
   label: string;
-  value: string;
+  /** Usually a formatted string; a ReactNode is accepted so callers can pass
+   *  an animated number (see CountUp) without this component knowing about it. */
+  value: ReactNode;
   sub?: string;
   icon?: LucideIcon;
   trend?: number[];
@@ -68,7 +71,7 @@ export default function FeaturedMetric({
           </span>
         ) : null}
       </div>
-      <div className="num mt-3 truncate text-3xl font-bold leading-tight text-ink" title={value}>{value}</div>
+      <div className="num mt-3 truncate text-3xl font-bold leading-tight text-ink" title={typeof value === "string" ? value : undefined}>{value}</div>
       {delta ? (
         <div className="mt-2 flex items-center gap-1.5">
           <span
