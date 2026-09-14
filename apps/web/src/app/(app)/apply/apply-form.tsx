@@ -106,13 +106,13 @@ export default function ApplyForm({
       const res = await fetch("/api/apply", { method: "POST", body: new FormData(e.currentTarget) });
       const data = await res.json();
       if (!data.ok) {
-        setSubmitError(data.error ?? "Something went wrong. Please try again.");
+        setSubmitError(data.error ?? "We couldn't submit your application. Please try again.");
         setSubmitting(false);
         return;
       }
       router.push("/applications/" + data.applicationId);
     } catch {
-      setSubmitError("Something went wrong. Please try again.");
+      setSubmitError("We couldn't reach the server. Check your connection and try again.");
       setSubmitting(false);
     }
   }
