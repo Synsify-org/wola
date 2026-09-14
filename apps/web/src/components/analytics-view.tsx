@@ -9,8 +9,7 @@ import ProductBars from "./product-bars";
 import DashboardCard from "./dashboard-card";
 import CountUp from "./count-up";
 import { FileText, CheckCircle, Wallet, Layers, Clock3 } from "lucide-react";
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+import { formatMoney } from "@wola/engine";
 
 type Book = { totalExposure: number; activeLoans: number; principalDisbursed: number; interestBook: number };
 type StatusCount = { status: string; n: number };
@@ -30,7 +29,7 @@ const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUp
 
 export default function AnalyticsView({
   book, mix, statusCounts, totalApps, approvalRate, trend, byDepartment, sizeBands, productPerf,
-  avgDecisionDays, rejectionsByStage,
+  avgDecisionDays, rejectionsByStage, currency,
 }: {
   book: Book;
   mix: DeptRow[];
@@ -43,7 +42,9 @@ export default function AnalyticsView({
   productPerf: PerfRow[];
   avgDecisionDays: number;
   rejectionsByStage: RejectionRow[];
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const avgLoan = book.activeLoans > 0 ? book.principalDisbursed / book.activeLoans : 0;
   const maxBand = Math.max(...sizeBands.map((b) => b.n), 1);
   const donutData = statusCounts.map((s) => ({ name: label(s.status), value: s.n, key: s.status }));
@@ -72,8 +73,8 @@ export default function AnalyticsView({
         <Metric label="Applications" value={<CountUp value={totalApps} />} sub="All time" icon={FileText} accent="brand" />
         <Metric label="Approval rate" value={<CountUp value={approvalRate} format="percent" />} sub="Of all applications" icon={CheckCircle} accent="approved" />
         <Metric label="Avg. decision time" value={<CountUp value={avgDecisionDays} format="days" />} sub="Submission to final decision" icon={Clock3} accent="brand" />
-        <Metric label="Portfolio" value={<CountUp value={book.totalExposure} format="ugx" />} sub={book.activeLoans + " active loans"} icon={Wallet} accent="brand" />
-        <Metric label="Avg loan size" value={<CountUp value={avgLoan} format="ugx" />} sub="Per active loan" icon={Layers} accent="brand" />
+        <Metric label="Portfolio" value={<CountUp value={book.totalExposure} format="money" currency={currency} />} sub={book.activeLoans + " active loans"} icon={Wallet} accent="brand" />
+        <Metric label="Avg loan size" value={<CountUp value={avgLoan} format="money" currency={currency} />} sub="Per active loan" icon={Layers} accent="brand" />
       </section>
 
       {/* Trend + status */}
@@ -154,7 +155,7 @@ export default function AnalyticsView({
 
       {/* Book by product + department + rejection bottlenecks */}
       <section className="grid gap-4 lg:grid-cols-3">
-        {mix.length > 0 ? <ProductBars data={mix} /> : null}
+        {mix.length > 0 ? <ProductBars data={mix} currency={currency} /> : null}
         {/* Department bars */}
         <DashboardCard title="Exposure by department">
           {byDepartment.length === 0 ? (

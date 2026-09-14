@@ -3,8 +3,7 @@ import Link from "next/link";
 import { Banknote, AlertTriangle, ArrowRight } from "lucide-react";
 import { Progress } from "./ui/progress";
 import DisburseButton from "./disburse-button";
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+import { formatMoney } from "@wola/engine";
 
 export interface DisbursementQueueItem {
   loanId: string;
@@ -38,10 +37,13 @@ const daysWaiting = (iso: string) =>
 export default function CFOMoneyOps({
   queue,
   reconciliation,
+  currency,
 }: {
   queue: DisbursementQueueItem[];
   reconciliation: ReconciliationCycle | null;
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const collected = reconciliation && reconciliation.expected > 0
     ? Math.round((reconciliation.actual / reconciliation.expected) * 100)
     : 100;
@@ -79,7 +81,7 @@ export default function CFOMoneyOps({
                     {ugx(item.amount)} · approved {daysWaiting(item.approvedAt)}d ago
                   </p>
                 </div>
-                <DisburseButton loanId={item.loanId} amount={item.amount} />
+                <DisburseButton loanId={item.loanId} amount={item.amount} currency={currency} />
               </div>
             ))}
           </div>

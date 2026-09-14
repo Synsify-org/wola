@@ -1,6 +1,6 @@
 ﻿"use client";
 import DashboardCard from "./dashboard-card";
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+import { formatMoney } from "@wola/engine";
 
 // Forest-brand ramp - deepest for the largest book, never state colours.
 const RAMP = ["#064E3B", "#12583c", "#1b6b4a", "#40916c", "#6fae90"];
@@ -9,7 +9,8 @@ const RAMP = ["#064E3B", "#12583c", "#1b6b4a", "#40916c", "#6fae90"];
 // and DeptRow (kind?: string) satisfy this prop without a cast.
 type Row = { name: string; kind?: string; n: number; principal: number };
 
-export default function ProductBars({ data }: { data: Row[] }) {
+export default function ProductBars({ data, currency }: { data: Row[]; currency: string }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const rows = data
     .map((d) => ({ ...d, principal: Number(d.principal), n: Number(d.n) }))
     .sort((a, b) => b.principal - a.principal);

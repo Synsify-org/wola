@@ -4,6 +4,7 @@
 // formalizes it) and hands rows to the client table for sort/filter/search.
 import { requireSession, scopePredicate } from "@/lib/guard";
 import ApplicationsTable from "@/components/applications-table";
+import { getTenantCurrency } from "@/lib/tenant";
 
 export type ApplicationRow = {
   id: string;
@@ -48,5 +49,6 @@ export default async function ApplicationsPage() {
     })) satisfies ApplicationRow[];
   });
 
-  return <ApplicationsTable rows={applications} />;
+  const currency = await getTenantCurrency();
+  return <ApplicationsTable rows={applications} currency={currency} />;
 }

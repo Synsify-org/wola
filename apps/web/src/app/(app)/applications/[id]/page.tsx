@@ -6,8 +6,9 @@ import UnderwritingChecklist from "@/components/underwriting-checklist";
 import StatusTimeline from "@/components/status-timeline";
 import ScheduleTable from "@/components/schedule-table";
 import { User, FileText } from "lucide-react";
+import { formatMoney } from "@wola/engine";
+import { getTenantCurrency } from "@/lib/tenant";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default async function ApplicationDetail({
@@ -19,6 +20,8 @@ export default async function ApplicationDetail({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
+  const currency = await getTenantCurrency();
+  const ugx = (n: number) => formatMoney(n, currency);
 
   const data = await requireSession(async (tx, ctx) => {
     const loaded = await routeApplication(tx, id);
@@ -202,6 +205,7 @@ export default async function ApplicationDetail({
               // annual_rate is stored as a fraction (0.16 = 16%); ScheduleTable
               // wants a percent for display (16), not a fraction of a fraction.
               annualRate={loan ? Number(loan.annual_rate) * 100 : null}
+              currency={currency}
             />
           ) : null}
 
@@ -242,6 +246,7 @@ export default async function ApplicationDetail({
               amount={app.amount}
               tenorMonths={app.tenorMonths}
               externalDeclared={externalDeclared}
+              currency={currency}
             />
           ) : null}
 

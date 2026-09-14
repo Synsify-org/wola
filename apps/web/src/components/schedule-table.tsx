@@ -1,4 +1,5 @@
-﻿const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+﻿import { formatMoney } from "@wola/engine";
+
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -14,10 +15,13 @@ type Line = {
 export default function ScheduleTable({
   schedule,
   annualRate,
+  currency,
 }: {
   schedule: Line[];
   annualRate: number | null;
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   if (schedule.length === 0) return null;
 
   return (

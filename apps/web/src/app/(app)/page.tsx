@@ -231,6 +231,7 @@ export default async function Dashboard() {
                 : "Where do I stand, and what comes out of my next payslip?";
 
   const tenantDisplayName = (tenant?.name as string) ?? "Wola";
+  const currency = (tenant?.currency as string) ?? "UGX";
 
   return (
     <>
@@ -240,12 +241,14 @@ export default async function Dashboard() {
           queue={deptQueue as unknown as QueueItem[]}
           teamActiveLoans={teamActiveLoans}
           myOutstanding={myOutstanding}
+          currency={currency}
         />
       ) : health ? (
         <DashboardHR
           health={health}
           inbox={inbox as unknown as InboxItem[]}
           pipeline={pipeline}
+          currency={currency}
         />
       ) : ceoView && book ? (
         <DashboardCEO
@@ -257,6 +260,7 @@ export default async function Dashboard() {
           rejectedThisYear={book.rejectedThisYear}
           inbox={inbox as unknown as CEOInboxItem[]}
           mix={mix as unknown as MixRow[]}
+          currency={currency}
         />
       ) : configStatus ? (
         <DashboardAdmin status={configStatus} />
@@ -278,6 +282,7 @@ export default async function Dashboard() {
           activeLoans={book.activeLoans}
           principalDisbursed={book.principalDisbursed}
           interestBook={book.interestBook}
+          currency={currency}
         />
       ) : book ? (
         <DashboardCFO
@@ -290,9 +295,10 @@ export default async function Dashboard() {
           canDisburse={canDisburse}
           queue={queue}
           reconciliation={reconciliation}
+          currency={currency}
         />
       ) : (
-        <DashboardEmployee mine={mine} />
+        <DashboardEmployee mine={mine} currency={currency} />
       )}
     </>
   );

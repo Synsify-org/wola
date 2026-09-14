@@ -6,6 +6,8 @@ import { requireSession, scopePredicate } from "@/lib/guard";
 import Link from "next/link";
 import Metric from "@/components/metric";
 import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
+import { formatMoney } from "@wola/engine";
+import { getTenantCurrency } from "@/lib/tenant";
 
 type Row = {
   id: string;
@@ -20,9 +22,9 @@ type Row = {
   outstanding: string | null;
 };
 
-const ugx = (n: number | string) => "UGX " + Math.round(Number(n)).toLocaleString();
-
 export default async function LoanRegister() {
+  const currency = await getTenantCurrency();
+  const ugx = (n: number | string) => formatMoney(Number(n), currency);
   const loans = await requireSession(async (tx, ctx) => {
     const rows = (await tx`
       SELECT l.id, l.principal, l.annual_rate, l.tenor_months, l.status, l.start_date,

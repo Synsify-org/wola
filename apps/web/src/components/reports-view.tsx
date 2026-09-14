@@ -1,8 +1,8 @@
 "use client";
 import { FileDown, FileText, Printer, ShieldAlert, TrendingUp, Users2 } from "lucide-react";
 import DashboardCard from "./dashboard-card";
+import { formatMoney } from "@wola/engine";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const shortDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "-";
 const shortDateTime = (d: string | null) =>
@@ -33,7 +33,7 @@ function downloadCSV(filename: string, rows: (string | number)[][]) {
 
 export default function ReportsView({
   book, loans, applications, departments, tenantName, brandPrimary, brandAccent,
-  totalArrears, overdueCount, parRatio, actualInterestCollected, topBorrowers, approvalTrail,
+  totalArrears, overdueCount, parRatio, actualInterestCollected, topBorrowers, approvalTrail, currency,
 }: {
   book: Book;
   loans: Loan[];
@@ -48,7 +48,9 @@ export default function ReportsView({
   actualInterestCollected: number;
   topBorrowers: TopBorrower[];
   approvalTrail: TrailRow[];
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const now = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   const totalOutstanding = loans.reduce((s, l) => s + l.outstanding, 0);
   const interestCollectionRate = book.interestBook > 0 ? Math.round((actualInterestCollected / book.interestBook) * 100) : 0;

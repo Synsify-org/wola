@@ -1,18 +1,25 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { formatMoney } from "@wola/engine";
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+type Format = "integer" | "money" | "percent" | "days";
 
 // A string key, not a function — this component is rendered from plain
 // Server Components (the dashboards), and a function prop can't cross the
 // server/client boundary ("Functions cannot be passed directly to Client
 // Components"). Add a case here rather than accepting an arbitrary formatter.
-const FORMATTERS: Record<string, (n: number) => string> = {
-  integer: (n) => String(Math.round(n)),
-  ugx: (n) => "UGX " + Math.round(n).toLocaleString(),
-  percent: (n) => Math.round(n) + "%",
-  days: (n) => n.toFixed(1) + "d",
-};
+// `currency` is only consulted for format="money"; formatMoney itself is a
+// pure function (no I/O), safe to call from a Client Component.
+function formatValue(n: number, format: Format, currency: string): string {
+  switch (format) {
+    case "money": return formatMoney(n, currency);
+    case "percent": return Math.round(n) + "%";
+    case "days": return n.toFixed(1) + "d";
+    default: return String(Math.round(n));
+  }
+}
 
 /** Animates from its previous displayed value to `value` on every change.
  *  Kept separate from Metric's default (plain string) rendering — this is
@@ -20,10 +27,14 @@ const FORMATTERS: Record<string, (n: number) => string> = {
 export default function CountUp({
   value,
   format = "integer",
+  currency = "UGX",
   duration = 900,
 }: {
   value: number;
-  format?: keyof typeof FORMATTERS;
+  format?: Format;
+  /** Only used when format="money". Defaults to UGX so callers mid-migration
+   *  to per-tenant currency don't silently break. */
+  currency?: string;
   duration?: number;
 }) {
   const [display, setDisplay] = useState(value);
@@ -57,5 +68,5 @@ export default function CountUp({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, duration]);
 
-  return <>{FORMATTERS[format](display)}</>;
+  return <>{formatValue(display, format, currency)}</>;
 }

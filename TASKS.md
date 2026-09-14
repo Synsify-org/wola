@@ -455,8 +455,44 @@ spreadsheet. Progress:
       against a future regression.
 - [ ] Restructuring / top-up flow — `loan_schedules.version` exists in the
       schema for this, but no restructure action is built. Not started.
-- [ ] Multi-currency decimal handling verification across every display site
-      (UGX 0dp is the only one exercised in production so far). Not started.
+- [x] `DONE` — Multi-currency was actually an unfinished feature, not just a
+      verification task: `tenants.currency` (defaults `'UGX'`) has existed
+      since migration 0001, and `amortization.ts` was already documented as
+      currency-agnostic (`decimals` param), but neither was wired to
+      anything — every loan was created with `decimals: 0` hardcoded, and
+      the UI had 27 duplicated `const ugx = (n) => "UGX " + ...` helpers
+      that never read the tenant's actual currency. Added
+      [currency.ts](packages/engine/src/currency.ts) (`getCurrencyDecimals`/`formatMoney`, decimals resolved via
+      `Intl`'s real ISO 4217 data with an explicit 0-decimal override for
+      UGX/TZS/RWF — East African shillings/francs are dealt with as whole
+      units in practice, per amortization.ts's own header comment, even
+      though Intl reports TZS as 2). Added a per-request-cached
+      `getTenantCurrency()` in [tenant.ts](apps/web/src/lib/tenant.ts) for Server Components;
+      Client Components receive `currency` as a prop from their nearest
+      Server Component ancestor (5 dashboard components — CFO/COO/CEO/HR/
+      Employee — briefly became `async` Server Components calling this
+      internally, but that broke `render()`-based unit tests, since React
+      can't synchronously render an async component outside the Next.js
+      RSC runtime; reverted to plain sync components taking `currency` as
+      a prop from `(app)/page.tsx`, which already resolves the tenant
+      once). Fixed `createLoanFromApplication` and the lump-sum
+      re-amortization path (`packages/db/src/loans.ts`) to pass the
+      tenant's real decimal count instead of a hardcoded 0. Left
+      `admin/page.tsx`'s cross-tenant platform totals as UGX-labeled with
+      an explicit comment — summing different tenants' currencies into one
+      number has no honest single label without real FX conversion, which
+      doesn't exist anywhere in this app; `admin/tenants/page.tsx`'s
+      per-tenant table correctly uses each row's own currency instead.
+      Verified: new engine tests (`getCurrencyDecimals`/`formatMoney`,
+      4/4) and DB tests (a KES tenant's loan schedule genuinely carries
+      2-decimal instalments, a UGX tenant's stays whole-number, 2/2);
+      full suites green (78 DB + 16 web + 37 engine); live-verified by
+      temporarily setting `testco`'s currency to KES — dashboard, all 3
+      apply-flow steps, and the application detail page all correctly
+      showed "KES 1,234,567.89"-style amounts (caught and fixed one real
+      gap this way: the apply form's two input-prefix labels were still
+      hardcoded "UGX" even after the display-formatting sweep) — then
+      reverted the tenant back to UGX.
 
 ### Infrastructure fix that fell out of this work
 

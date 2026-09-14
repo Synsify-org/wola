@@ -82,6 +82,7 @@ export interface TenantRegistryRow {
   name: string;
   plan: string;
   status: string;
+  currency: string;
   createdAt: string;
   activeLoans: number;
   principalDisbursed: number;
@@ -93,7 +94,7 @@ export interface TenantRegistryRow {
  *  aggregates need the tenantTx loop. */
 export async function tenantRegistry(sql: Sql): Promise<TenantRegistryRow[]> {
   const tenants = await sql`
-    SELECT id, slug, name, plan, status, created_at FROM tenants ORDER BY created_at DESC`;
+    SELECT id, slug, name, plan, status, currency, created_at FROM tenants ORDER BY created_at DESC`;
 
   const rows: TenantRegistryRow[] = [];
   for (const t of tenants) {
@@ -106,6 +107,7 @@ export async function tenantRegistry(sql: Sql): Promise<TenantRegistryRow[]> {
       name: t.name as string,
       plan: t.plan as string,
       status: t.status as string,
+      currency: t.currency as string,
       createdAt: new Date(t.created_at as string).toISOString(),
       activeLoans: Number(book.n),
       principalDisbursed: Number(book.principal),

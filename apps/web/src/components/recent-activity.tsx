@@ -1,8 +1,8 @@
 ﻿"use client";
 import Link from "next/link";
 import DashboardCard from "./dashboard-card";
+import { formatMoney } from "@wola/engine";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const shortDate = (d: string | null) =>
   d
     ? new Date(d).toLocaleDateString("en-GB", {
@@ -20,7 +20,8 @@ type Item = {
   date: string | null;
 };
 
-export default function RecentActivity({ data }: { data: Item[] }) {
+export default function RecentActivity({ data, currency }: { data: Item[]; currency: string }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const action = (
     <Link href="/loans" className="text-xs font-medium text-brand hover:underline">
       View all

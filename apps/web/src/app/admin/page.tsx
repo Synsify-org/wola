@@ -5,8 +5,14 @@ import { platformOverview } from "@wola/db";
 import { db } from "@/lib/tenant";
 import SuperAdminShell from "@/components/super-admin-shell";
 import { Building2, Layers, Banknote, Wallet } from "lucide-react";
+import { formatMoney } from "@wola/engine";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+// This page sums across EVERY tenant regardless of each tenant's own
+// currency — a true multi-currency total would need real FX conversion,
+// which doesn't exist anywhere in this app. Formatting as UGX is today's
+// status quo (every tenant is UGX in practice); revisit if a non-UGX
+// tenant is ever onboarded and this total needs to mean something exact.
+const ugx = (n: number) => formatMoney(n, "UGX");
 
 export default async function SuperAdminOverview() {
   const data = await requireSuperSession(async (ctx) => {

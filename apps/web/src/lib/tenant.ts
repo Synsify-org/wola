@@ -4,6 +4,7 @@
 // tenantTx(). No other DB entry point is sanctioned.
 
 import "server-only";
+import { cache } from "react";
 import { headers } from "next/headers";
 import { makeDb, resolveTenant, tenantTx, type Tx } from "@wola/db";
 export { tenantTx, type Tx } from "@wola/db";
@@ -24,6 +25,15 @@ export async function requireTenant() {
   if (!tenant) throw new TenantError(404, `Unknown or inactive tenant: ${slug}`);
   return tenant;
 }
+
+/** The current request's tenant currency code (e.g. "UGX", "KES"). Wrapped
+ *  in React's cache() so every Server Component that formats an amount can
+ *  call this directly — repeated calls within one request dedupe to a
+ *  single resolveTenant() lookup instead of one per caller. */
+export const getTenantCurrency = cache(async () => {
+  const tenant = await requireTenant();
+  return tenant.currency as string;
+});
 
 /** Convenience: resolve tenant and run fn inside its RLS-scoped transaction. */
 export async function withTenant<T>(fn: (tx: Tx, tenant: Awaited<ReturnType<typeof requireTenant>>) => Promise<T>) {

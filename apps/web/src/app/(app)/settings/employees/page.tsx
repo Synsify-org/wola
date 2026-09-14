@@ -9,6 +9,8 @@ import EmployeeImport from "@/components/employee-import";
 import CreateAccountButton from "@/components/create-account-button";
 import EditEmployeeDialog from "@/components/edit-employee-dialog";
 import EmployeeStatusButton from "@/components/employee-status-button";
+import { formatMoney } from "@wola/engine";
+import { getTenantCurrency } from "@/lib/tenant";
 
 const HR_ROLES = ["hr", "cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
@@ -27,9 +29,9 @@ type Row = {
   has_account: boolean;
 };
 
-const ugx = (n: string) => "UGX " + Math.round(Number(n)).toLocaleString();
-
 export default async function EmployeesPage() {
+  const currency = await getTenantCurrency();
+  const ugx = (n: string) => formatMoney(Number(n), currency);
   const data = await requireSession(async (tx, ctx) => {
     if (!ctx.canSeeAllLoans) return { authorized: false as const };
 

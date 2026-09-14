@@ -4,6 +4,7 @@
 import { requireSession } from "@/lib/guard";
 import { loansByProduct, approverMetrics, inboxFor } from "@wola/db";
 import AnalyticsView, { type DeptRow } from "@/components/analytics-view";
+import { getTenantCurrency } from "@/lib/tenant";
 
 export default async function AnalyticsPage() {
   const data = await requireSession(async (tx, ctx) => {
@@ -141,6 +142,7 @@ export default async function AnalyticsPage() {
     );
   }
 
+  const currency = await getTenantCurrency();
   return (
     <AnalyticsView
       book={data.book}
@@ -154,6 +156,7 @@ export default async function AnalyticsPage() {
       productPerf={data.productPerf}
       avgDecisionDays={data.avgDecisionDays}
       rejectionsByStage={data.rejectionsByStage}
+      currency={currency}
     />
   );
 }

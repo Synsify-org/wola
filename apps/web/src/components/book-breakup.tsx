@@ -4,6 +4,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import DashboardCard from "./dashboard-card";
 import CountUp from "./count-up";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { formatMoney } from "@wola/engine";
 
 // Product names are free-text tenant config, not safe CSS custom-property
 // keys (spaces, arbitrary characters) — so this stays on direct Cell fill
@@ -12,8 +13,6 @@ import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 // consistent, theme-matched tooltip chrome (bg-background/border-border,
 // automatically tracking Theme B — no more hand-written contentStyle).
 const chartConfig = {} satisfies ChartConfig;
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 
 // Brand ramp for slices — never the state colours (those mean
 // approved/rejected, not product). CSS vars so a tenant's white-label
@@ -32,12 +31,15 @@ export default function BookBreakup({
   data,
   total,
   delta,
+  currency,
 }: {
   data: Row[];
   total: number;
   /** Real period-over-period change; omit rather than fabricate one. */
   delta?: { dir: "up" | "down"; pct: number; note: string };
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const rows = data
     .map((d) => ({ ...d, principal: Number(d.principal) }))
     .sort((a, b) => b.principal - a.principal);
@@ -51,7 +53,7 @@ export default function BookBreakup({
       <div className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:gap-6">
         <div className="min-w-0 flex-1">
           <div className="num truncate text-2xl font-bold leading-tight text-ink" title={ugx(total)}>
-            <CountUp value={total} format="ugx" />
+            <CountUp value={total} format="money" currency={currency} />
           </div>
           {delta ? (
             <div className="mt-2 flex items-center gap-1.5">

@@ -29,12 +29,12 @@ import {
   Wallet,
   TrendingDown,
 } from "lucide-react";
+import { formatMoney } from "@wola/engine";
+import { getTenantCurrency } from "@/lib/tenant";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
 const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
-const ugx = (n: number | string) =>
-  "UGX " + Math.round(Number(n)).toLocaleString();
 const shortDate = (d: string | null) =>
   d
     ? new Date(d).toLocaleDateString("en-GB", {
@@ -83,6 +83,8 @@ export default async function LoanDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const currency = await getTenantCurrency();
+  const ugx = (n: number | string) => formatMoney(Number(n), currency);
 
   const data = await requireSession(async (tx, ctx) => {
     // The loan header. RLS scopes to the tenant; scopePredicate enforces the
@@ -208,9 +210,9 @@ export default async function LoanDetail({
           </p>
         </div>
         {loan.status === "pending_disbursement" && canDisburse ? (
-          <DisburseButton loanId={loan.id} amount={Number(loan.principal)} />
+          <DisburseButton loanId={loan.id} amount={Number(loan.principal)} currency={currency} />
         ) : loan.status === "active" && canRepay ? (
-          <RepayButton loanId={loan.id} suggested={monthly} />
+          <RepayButton loanId={loan.id} suggested={monthly} currency={currency} />
         ) : (
           <Link href="/apply" className="btn btn--ghost rounded-full text-sm">
             Apply for another
@@ -279,7 +281,7 @@ export default async function LoanDetail({
       {/* Full schedule. annual_rate is a fraction; ratePct above already
           converted it to a percent for ScheduleTable. */}
       {schedule.length > 0 ? (
-        <ScheduleTable schedule={schedule} annualRate={ratePct} />
+        <ScheduleTable schedule={schedule} annualRate={ratePct} currency={currency} />
       ) : (
         <div className="rounded-xl border border-rule bg-surface p-12 text-center shadow-theme-sm">
           <p className="text-sm text-ink-soft">
