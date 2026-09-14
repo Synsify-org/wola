@@ -12,8 +12,8 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, Eye, Search } from "lucide-react";
 import type { ApplicationRow } from "@/app/(app)/applications/page";
+import { formatMoney } from "@wola/engine";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -41,7 +41,7 @@ const statusLabel = (s: string) =>
 
 const col = createColumnHelper<ApplicationRow>();
 
-export default function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
+export default function ApplicationsTable({ rows, currency }: { rows: ApplicationRow[]; currency: string }) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "appliedAt", desc: true },
   ]);
@@ -92,7 +92,7 @@ export default function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) 
       }),
       col.accessor("amount", {
         header: "Amount",
-        cell: (c) => <span className="num">{ugx(c.getValue())}</span>,
+        cell: (c) => <span className="num">{formatMoney(c.getValue(), currency)}</span>,
       }),
       col.accessor("tenorMonths", {
         header: "Term",
@@ -125,7 +125,7 @@ export default function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) 
         ),
       }),
     ],
-    [],
+    [currency],
   );
 
   const table = useReactTable({

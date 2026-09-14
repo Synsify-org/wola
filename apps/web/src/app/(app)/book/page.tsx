@@ -8,6 +8,8 @@ import { requireSession, scopePredicate } from "@/lib/guard";
 import Link from "next/link";
 import Metric from "@/components/metric";
 import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
+import { formatMoney } from "@wola/engine";
+import { getTenantCurrency } from "@/lib/tenant";
 
 type Row = {
   id: string;
@@ -22,9 +24,9 @@ type Row = {
   outstanding: string | null;
 };
 
-const ugx = (n: number | string) => "UGX " + Math.round(Number(n)).toLocaleString();
-
 export default async function BookPage() {
+  const currency = await getTenantCurrency();
+  const ugx = (n: number | string) => formatMoney(Number(n), currency);
   const result = await requireSession(async (tx, ctx) => {
     // Employees have no oversight scope — send them to their own loans.
     if (ctx.scope === "own") return { redirect: true as const };

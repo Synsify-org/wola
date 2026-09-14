@@ -3,8 +3,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { decideAction } from "@/app/(app)/applications/[id]/actions";
 import CountUp from "./count-up";
+import { formatMoney } from "@wola/engine";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const roleLabel = (r: string) =>
   r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const today = () => new Date().toISOString().slice(0, 10);
@@ -86,11 +86,14 @@ export default function DashboardDeptHead({
   queue,
   teamActiveLoans,
   myOutstanding,
+  currency,
 }: {
   queue: QueueItem[];
   teamActiveLoans: number;
   myOutstanding: number | null;
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -134,7 +137,7 @@ export default function DashboardDeptHead({
         <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
           <div className="caps mb-1">My outstanding</div>
           <div className="num truncate text-xl font-semibold text-ink">
-            {myOutstanding !== null ? <CountUp value={myOutstanding} format="ugx" /> : "No active loan"}
+            {myOutstanding !== null ? <CountUp value={myOutstanding} format="money" currency={currency} /> : "No active loan"}
           </div>
         </div>
         <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">

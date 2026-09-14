@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet, Loader2 } from "lucide-react";
 import { recordRepaymentAction } from "@/app/(app)/loans/[id]/repay-actions";
+import { formatMoney } from "@wola/engine";
 
 // Shown on an ACTIVE loan for finance roles. Records a repayment (default: the
 // scheduled instalment, the common payroll case) and revalidates so the true
@@ -10,9 +11,11 @@ import { recordRepaymentAction } from "@/app/(app)/loans/[id]/repay-actions";
 export default function RepayButton({
   loanId,
   suggested,
+  currency,
 }: {
   loanId: string;
   suggested: number;
+  currency: string;
 }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState(String(Math.round(suggested)));
@@ -21,7 +24,7 @@ export default function RepayButton({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+  const ugx = (n: number) => formatMoney(n, currency);
 
   function submit() {
     setError(null);

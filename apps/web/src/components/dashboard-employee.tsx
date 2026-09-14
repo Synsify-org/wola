@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Wallet } from "lucide-react";
 import CountUp from "./count-up";
+import { formatMoney } from "@wola/engine";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const roleLabel = (r: string) =>
@@ -38,7 +38,8 @@ export type Mine = {
 // payslip." A personal-finance card, not a data grid — the outstanding
 // balance is the biggest thing on the screen. Everything else (applications,
 // eligibility) is a quieter, secondary panel below it.
-export default function DashboardEmployee({ mine }: { mine: Mine }) {
+export default function DashboardEmployee({ mine, currency }: { mine: Mine; currency: string }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const empty = !mine || (mine.loans.length === 0 && mine.applicationsInFlight.length === 0);
 
   if (empty) {
@@ -72,7 +73,7 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
                 </div>
                 <span className="chip chip--awaiting">{loan.progressPct}% repaid</span>
               </div>
-              <div className="num mt-1 text-3xl font-bold text-ink"><CountUp value={loan.outstanding} format="ugx" /></div>
+              <div className="num mt-1 text-3xl font-bold text-ink"><CountUp value={loan.outstanding} format="money" currency={currency} /></div>
               {loan.nextDueDate ? (
                 <p className="mt-1 text-sm text-ink-soft">
                   Next deduction <span className="num font-medium text-ink">{ugx(loan.monthlyDeduction)}</span> on{" "}
@@ -133,7 +134,7 @@ export default function DashboardEmployee({ mine }: { mine: Mine }) {
                 <li key={e.productId} className="flex items-center justify-between gap-2">
                   <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">{e.productName}</span>
                   <span className="num shrink-0 text-sm font-semibold text-brand-700">
-                    up to <CountUp value={e.maxAmount} format="ugx" />
+                    up to <CountUp value={e.maxAmount} format="money" currency={currency} />
                   </span>
                 </li>
               ))}

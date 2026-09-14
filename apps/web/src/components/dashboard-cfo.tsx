@@ -6,8 +6,7 @@ import BookBreakup from "./book-breakup";
 import PipelinePanel from "./pipeline-panel";
 import RecentActivity from "./recent-activity";
 import CFOMoneyOps, { type DisbursementQueueItem, type ReconciliationCycle } from "./cfo-money-ops";
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+import { formatMoney } from "@wola/engine";
 
 type Book = {
   awaitingMe: number;
@@ -48,6 +47,7 @@ export default function DashboardCFO({
   canDisburse,
   queue,
   reconciliation,
+  currency,
 }: {
   book: Book;
   inbox: InboxItem[];
@@ -58,7 +58,9 @@ export default function DashboardCFO({
   canDisburse: boolean;
   queue: DisbursementQueueItem[];
   reconciliation: ReconciliationCycle | null;
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   // Real month-over-month delta on cumulative principal disbursed — omitted
   // (not fabricated) when there isn't a prior month to compare against, or
   // the prior month was zero (an undefined % change). This is what
@@ -100,7 +102,7 @@ export default function DashboardCFO({
       <section className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2 xl:grid-cols-4">
         <Metric
           label="Total exposure"
-          value={<CountUp value={book.totalExposure} format="ugx" />}
+          value={<CountUp value={book.totalExposure} format="money" currency={currency} />}
           sub={book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
           icon={Wallet}
           accent="brand"
@@ -119,7 +121,7 @@ export default function DashboardCFO({
         />
         <Metric
           label="Principal disbursed"
-          value={<CountUp value={book.principalDisbursed} format="ugx" />}
+          value={<CountUp value={book.principalDisbursed} format="money" currency={currency} />}
           sub="Total lent out"
           accent="brand"
           icon={Banknote}
@@ -127,7 +129,7 @@ export default function DashboardCFO({
         />
         <Metric
           label="Interest book"
-          value={<CountUp value={book.interestBook} format="ugx" />}
+          value={<CountUp value={book.interestBook} format="money" currency={currency} />}
           sub="If every loan runs to term"
           accent="brand"
           icon={TrendingUp}
@@ -140,7 +142,7 @@ export default function DashboardCFO({
           page.tsx). This is the one component no other role's dashboard has. */}
       {canDisburse ? (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75">
-          <CFOMoneyOps queue={queue} reconciliation={reconciliation} />
+          <CFOMoneyOps queue={queue} reconciliation={reconciliation} currency={currency} />
         </div>
       ) : null}
 
@@ -200,14 +202,14 @@ export default function DashboardCFO({
       {/* Book: product bars + application pipeline, side by side */}
       <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200 lg:grid-cols-2">
         {mix.length > 0 ? (
-          <BookBreakup data={mix} total={book.principalDisbursed} delta={disbursementDelta} />
+          <BookBreakup data={mix} total={book.principalDisbursed} delta={disbursementDelta} currency={currency} />
         ) : null}
         <PipelinePanel data={pipeline} />
       </section>
 
       {/* Recent activity */}
       <section className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300">
-        <RecentActivity data={recent} />
+        <RecentActivity data={recent} currency={currency} />
       </section>
 
       {/* Personal loans: demoted */}

@@ -4,12 +4,15 @@ import { requireSession } from "@/lib/guard";
 import { inboxFor } from "@wola/db";
 import Link from "next/link";
 import { Inbox } from "lucide-react";
+import { formatMoney } from "@wola/engine";
+import { getTenantCurrency } from "@/lib/tenant";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const label = (r: string) =>
   r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default async function ApprovalInbox() {
+  const currency = await getTenantCurrency();
+  const ugx = (n: number) => formatMoney(n, currency);
   const items = await requireSession(async (tx, ctx) => {
     const [me] = await tx`SELECT id FROM employees WHERE user_id = ${ctx.userId}`;
     return inboxFor(tx, ctx.tenantId, {

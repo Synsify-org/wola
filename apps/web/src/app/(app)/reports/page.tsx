@@ -191,6 +191,7 @@ export default async function ReportsPage() {
       actualInterestCollected={data.actualInterestCollected}
       topBorrowers={data.topBorrowers}
       approvalTrail={data.approvalTrail}
+      currency={(tenant?.currency as string) ?? "UGX"}
     />
   );
 }

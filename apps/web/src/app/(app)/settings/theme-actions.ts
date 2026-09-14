@@ -38,9 +38,9 @@ export async function saveThemeAction(
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save branding.";
       // Most likely cause: migration 0010 not applied (app role lacks the
-      // settings grant). Surface a clear hint rather than a raw pg error.
+      // settings grant). Surface a clear, non-technical message to the user.
       if (/permission denied/i.test(msg)) {
-        return { ok: false, error: "Branding permission missing — run migration 0010 (GRANT UPDATE (settings) ON tenants)." };
+        return { ok: false, error: "Unable to save branding right now. Please contact support." };
       }
       return { ok: false, error: msg };
     }

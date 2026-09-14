@@ -7,7 +7,7 @@
 // dead. The CEO sees a COMPUTED preview on the application page (the engine
 // runs, nothing persists); persistence happens once, at approval.
 import { persistSchedule, persistScheduleObject } from "./schedules";
-import { generateSchedule, applyEarlyPayment } from "@wola/engine";
+import { generateSchedule, applyEarlyPayment, getCurrencyDecimals } from "@wola/engine";
 import type { Tx } from "./client";
 
 export interface CreateLoanArgs {
@@ -50,6 +50,7 @@ export async function createLoanFromApplication(
        ${args.startDate}, ${appn.tenor_months}, 'pending_disbursement')
     RETURNING id`;
 
+  const [tenant] = await tx`SELECT currency FROM tenants WHERE id = ${args.tenantId}`;
   const sched = await persistSchedule(tx, {
     tenantId: args.tenantId,
     loanId: loan.id as string,
@@ -57,6 +58,7 @@ export async function createLoanFromApplication(
     annualRate: args.annualRate,
     tenorMonths: appn.tenor_months as number,
     startDate: args.startDate,
+    decimals: getCurrencyDecimals(tenant.currency as string),
   });
 
   return { loanId: loan.id as string, ...sched };
@@ -246,6 +248,7 @@ export async function recordRepayment(
       SELECT annual_rate, tenor_months, start_date
       FROM loans WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}`;
     if (meta) {
+      const [tenant] = await tx`SELECT currency FROM tenants WHERE id = ${args.tenantId}`;
       const input = {
         principal: Number(loan.principal),
         // annual_rate is stored as a FRACTION (0.16 = 16%) — see resolveRate()
@@ -256,7 +259,7 @@ export async function recordRepayment(
         tenorMonths: Number(meta.tenor_months),
         paymentsPerYear: 12,
         startDate: new Date(meta.start_date as string),
-        decimals: 0,
+        decimals: getCurrencyDecimals(tenant.currency as string),
       };
       const base = generateSchedule(input);
       // The period the borrower has reached (paid through). extraAmount is the

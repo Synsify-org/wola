@@ -1,7 +1,6 @@
 ﻿"use client";
 import { Check, X, Minus } from "lucide-react";
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+import { formatMoney } from "@wola/engine";
 
 type Profile = {
   grossSalary: number;
@@ -48,13 +47,16 @@ export default function UnderwritingChecklist({
   amount,
   tenorMonths,
   externalDeclared,
+  currency,
 }: {
   profile: Profile;
   rules: Rules;
   amount: number;
   tenorMonths: number;
   externalDeclared: boolean;
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const cap = computeCap(profile, rules);
   const checks: Check[] = [];
 

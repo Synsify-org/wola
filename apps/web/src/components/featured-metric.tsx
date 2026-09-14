@@ -2,8 +2,6 @@
 import type { ReactNode } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
-
 function Sparkline({ data }: { data: number[] }) {
   if (data.length < 2) return null;
   const w = 240;

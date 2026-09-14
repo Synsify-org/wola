@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Users, AlertTriangle, ArrowRight } from "lucide-react";
 import PipelinePanel from "./pipeline-panel";
 import CountUp from "./count-up";
+import { formatMoney } from "@wola/engine";
 
 export type RegisterHealth = {
   headcount: number;
@@ -19,8 +20,6 @@ export type HRInboxItem = {
 };
 type PipelineRow = { status: string; n: number };
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
-
 // The HR hero: a data-quality panel, not a financial one. HR owns the inputs
 // eligibility runs on, so "is my people-data healthy" is the one question —
 // not "where is the money" (that's the CFO's hero, deliberately not this
@@ -30,11 +29,14 @@ export default function DashboardHR({
   health,
   inbox,
   pipeline,
+  currency,
 }: {
   health: RegisterHealth;
   inbox: HRInboxItem[];
   pipeline: PipelineRow[];
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const blockers = [
     health.missingDeptHead > 0
       ? { label: `${health.missingDeptHead} staff missing a department head`, }

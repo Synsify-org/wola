@@ -2,8 +2,7 @@ import Link from "next/link";
 import Metric from "./metric";
 import CountUp from "./count-up";
 import { Wallet, Layers, Banknote, TrendingUp } from "lucide-react";
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+import { formatMoney } from "@wola/engine";
 
 export type COOInboxItem = {
   applicationId: string;
@@ -24,22 +23,25 @@ export default function DashboardCOO({
   activeLoans,
   principalDisbursed,
   interestBook,
+  currency,
 }: {
   inbox: COOInboxItem[];
   totalExposure: number;
   activeLoans: number;
   principalDisbursed: number;
   interestBook: number;
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   return (
     <div className="space-y-6">
       {/* Compact book row — context, not a hero. Sits right under the
           welcome banner on every dashboard now (user request). */}
       <section className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Total exposure" value={<CountUp value={totalExposure} format="ugx" />} icon={Wallet} accent="brand" />
+        <Metric label="Total exposure" value={<CountUp value={totalExposure} format="money" currency={currency} />} icon={Wallet} accent="brand" />
         <Metric label="Active loans" value={<CountUp value={activeLoans} />} icon={Layers} accent="brand" />
-        <Metric label="Principal disbursed" value={<CountUp value={principalDisbursed} format="ugx" />} icon={Banknote} accent="brand" />
-        <Metric label="Interest book" value={<CountUp value={interestBook} format="ugx" />} icon={TrendingUp} accent="brand" />
+        <Metric label="Principal disbursed" value={<CountUp value={principalDisbursed} format="money" currency={currency} />} icon={Banknote} accent="brand" />
+        <Metric label="Interest book" value={<CountUp value={interestBook} format="money" currency={currency} />} icon={TrendingUp} accent="brand" />
       </section>
 
       <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150">

@@ -16,7 +16,7 @@ const RESET_TEMPLATE = {
   html: `
     <p>Hi,</p>
     <p>Someone requested a password reset for your Wola account at {{tenantName}}.</p>
-    <p><a href="{{resetUrl}}">Click here to set a new password</a> — this link expires in 1 hour and can only be used once.</p>
+    <p><a href="{{resetUrl}}">Set a new password</a> — this link expires in 1 hour and can only be used once.</p>
     <p>If you didn't request this, you can ignore this email; your password won't change.</p>
   `,
 };

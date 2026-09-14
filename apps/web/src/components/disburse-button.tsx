@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Banknote, Loader2 } from "lucide-react";
 import { disburseAction } from "@/app/(app)/loans/[id]/actions";
+import { formatMoney } from "@wola/engine";
 
 // Shown on a pending_disbursement loan for finance roles. Confirms the pay-out,
 // captures an optional reference (cheque no / transfer ref), and calls the
@@ -10,9 +11,11 @@ import { disburseAction } from "@/app/(app)/loans/[id]/actions";
 export default function DisburseButton({
   loanId,
   amount,
+  currency,
 }: {
   loanId: string;
   amount: number;
+  currency: string;
 }) {
   const [open, setOpen] = useState(false);
   const [reference, setReference] = useState("");
@@ -20,7 +23,7 @@ export default function DisburseButton({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const ugx = "UGX " + Math.round(amount).toLocaleString();
+  const ugx = formatMoney(amount, currency);
 
   function submit() {
     setError(null);

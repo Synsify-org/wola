@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   assessEligibility,
+  formatMoney,
   type ProductRules,
   type EmployeeFinancials,
 } from "@wola/engine";
@@ -30,7 +31,6 @@ type Identity = {
   departmentHead: string | null;
 };
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const DOT = " \u00B7 ";
 
 const STEPS = [
@@ -52,11 +52,14 @@ export default function ApplyForm({
   products,
   employee,
   identity,
+  currency,
 }: {
   products: ProductRules[];
   employee: EmployeeFinancials;
   identity: Identity;
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [productId, setProductId] = useState(products[0]?.productId ?? "");
@@ -106,13 +109,13 @@ export default function ApplyForm({
       const res = await fetch("/api/apply", { method: "POST", body: new FormData(e.currentTarget) });
       const data = await res.json();
       if (!data.ok) {
-        setSubmitError(data.error ?? "Something went wrong. Please try again.");
+        setSubmitError(data.error ?? "We couldn't submit your application. Please try again.");
         setSubmitting(false);
         return;
       }
       router.push("/applications/" + data.applicationId);
     } catch {
-      setSubmitError("Something went wrong. Please try again.");
+      setSubmitError("We couldn't reach the server. Check your connection and try again.");
       setSubmitting(false);
     }
   }
@@ -282,7 +285,7 @@ export default function ApplyForm({
                       Monthly recovery on any bank or SACCO loan. This reduces what you qualify for.
                     </p>
                     <div className="flex items-center rounded-lg border border-info-200 bg-paper focus-within:ring-2 focus-within:ring-info-500">
-                      <span className="pl-3 text-sm font-medium text-ink-soft">UGX</span>
+                      <span className="pl-3 text-sm font-medium text-ink-soft">{currency}</span>
                       <input
                         id="ext"
                         type="number"
@@ -341,7 +344,7 @@ export default function ApplyForm({
                 <div>
                   <label htmlFor="amt" className="caps">Loan amount</label>
                   <div className="mt-2 flex items-center rounded-xl border border-rule bg-paper focus-within:border-info-500 focus-within:ring-4 focus-within:ring-info-500/10">
-                    <span className="pl-4 text-sm font-medium text-ink-soft">UGX</span>
+                    <span className="pl-4 text-sm font-medium text-ink-soft">{currency}</span>
                     <input
                       id="amt"
                       inputMode="numeric"

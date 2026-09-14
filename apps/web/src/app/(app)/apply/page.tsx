@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/guard";
 import { getEmployeeProfile, loadProductRules } from "@wola/db";
 import ApplyForm from "./apply-form";
 import { AlertTriangle } from "lucide-react";
+import { getTenantCurrency } from "@/lib/tenant";
 
 export default async function ApplyPage() {
   const data = await requireSession(async (tx, ctx) => {
@@ -31,10 +32,12 @@ export default async function ApplyPage() {
   }
 
   const p = data.profile;
+  const currency = await getTenantCurrency();
 
   return (
     <ApplyForm
       products={data.products}
+      currency={currency}
       employee={{
         grossSalary: p.grossSalary,
         netSalary: p.netSalary,

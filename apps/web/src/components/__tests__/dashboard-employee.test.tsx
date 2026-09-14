@@ -10,7 +10,7 @@ vi.mock("next/link", () => ({
 
 describe("DashboardEmployee", () => {
   test("shows the apply CTA, not the position card, when there's nothing at all", () => {
-    render(<DashboardEmployee mine={null} />);
+    render(<DashboardEmployee mine={null} currency="UGX" />);
     expect(screen.getByText(/no loans or applications yet/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /apply for a loan/i })).toBeInTheDocument();
     expect(screen.queryByText(/outstanding/i)).not.toBeInTheDocument();
@@ -32,7 +32,7 @@ describe("DashboardEmployee", () => {
       applicationsInFlight: [],
       eligibility: [],
     };
-    render(<DashboardEmployee mine={mine} />);
+    render(<DashboardEmployee mine={mine} currency="UGX" />);
 
     expect(screen.getByText("UGX 1,140,000")).toBeInTheDocument();
     expect(screen.getByText("62% repaid")).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe("DashboardEmployee", () => {
       applicationsInFlight: [],
       eligibility: [],
     };
-    render(<DashboardEmployee mine={mine} />);
+    render(<DashboardEmployee mine={mine} currency="UGX" />);
     expect(screen.getByText("UGX 200,000")).toBeInTheDocument();
     expect(screen.getByText("UGX 3,000,000")).toBeInTheDocument();
   });
@@ -60,7 +60,7 @@ describe("DashboardEmployee", () => {
       applicationsInFlight: [{ applicationId: "app-1", product: "Staff Car Loan", amount: 20_000_000, stageRole: "cfo" }],
       eligibility: [],
     };
-    render(<DashboardEmployee mine={mine} />);
+    render(<DashboardEmployee mine={mine} currency="UGX" />);
     expect(screen.getByText("Staff Car Loan")).toBeInTheDocument();
     expect(screen.getByText("Cfo stage")).toBeInTheDocument();
   });
@@ -71,7 +71,23 @@ describe("DashboardEmployee", () => {
       applicationsInFlight: [{ applicationId: "app-1", product: "x", amount: 1, stageRole: null }],
       eligibility: [{ productId: "p1", productName: "Development Loan", maxAmount: 9_000_000 }],
     };
-    render(<DashboardEmployee mine={mine} />);
+    render(<DashboardEmployee mine={mine} currency="UGX" />);
     expect(screen.getByText("up to UGX 9,000,000")).toBeInTheDocument();
+  });
+
+  test("a KES tenant sees KES with 2 decimals, not a hardcoded UGX", () => {
+    const mine: Mine = {
+      loans: [{
+        loanId: "loan-1", product: "Development Loan", principal: 3_000_000,
+        outstanding: 1_140_000.5, monthlyDeduction: 275_000.75,
+        nextDueDate: "2026-08-28T00:00:00.000Z", progressPct: 62,
+      }],
+      applicationsInFlight: [],
+      eligibility: [],
+    };
+    render(<DashboardEmployee mine={mine} currency="KES" />);
+    expect(screen.getByText("KES 1,140,000.50")).toBeInTheDocument();
+    expect(screen.getByText("KES 275,000.75")).toBeInTheDocument();
+    expect(screen.queryByText(/UGX/)).not.toBeInTheDocument();
   });
 });

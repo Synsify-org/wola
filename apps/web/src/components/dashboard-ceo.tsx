@@ -3,8 +3,7 @@ import { Wallet, Layers } from "lucide-react";
 import FeaturedMetric from "./featured-metric";
 import BookBreakup from "./book-breakup";
 import CountUp from "./count-up";
-
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
+import { formatMoney } from "@wola/engine";
 
 export type CEOInboxItem = {
   applicationId: string;
@@ -28,6 +27,7 @@ export default function DashboardCEO({
   rejectedThisYear,
   inbox,
   mix,
+  currency,
 }: {
   totalExposure: number;
   valueUnderManagement: number;
@@ -37,21 +37,23 @@ export default function DashboardCEO({
   rejectedThisYear: number;
   inbox: CEOInboxItem[];
   mix: MixRow[];
+  currency: string;
 }) {
+  const ugx = (n: number) => formatMoney(n, currency);
   return (
     <div className="space-y-6">
       {/* HERO: programme health + trend */}
       <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2">
         <FeaturedMetric
           label="Total exposure"
-          value={<CountUp value={totalExposure} format="ugx" />}
+          value={<CountUp value={totalExposure} format="money" currency={currency} />}
           sub="Current outstanding across the book"
           icon={Wallet}
           trend={exposureTrend}
         />
         <FeaturedMetric
           label="Value under management"
-          value={<CountUp value={valueUnderManagement} format="ugx" />}
+          value={<CountUp value={valueUnderManagement} format="money" currency={currency} />}
           sub="Principal disbursed, active loans"
           icon={Layers}
           trend={exposureTrend}
@@ -118,7 +120,7 @@ export default function DashboardCEO({
           )}
         </div>
 
-        {mix.length > 0 ? <BookBreakup data={mix} total={valueUnderManagement} /> : null}
+        {mix.length > 0 ? <BookBreakup data={mix} total={valueUnderManagement} currency={currency} /> : null}
       </section>
     </div>
   );

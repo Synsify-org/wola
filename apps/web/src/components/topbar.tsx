@@ -14,7 +14,7 @@ import {
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/apply": "Apply for a loan",
-  "/loans": "Loans",
+  "/loans": "My loans",
   "/approvals": "Approvals",
 };
 

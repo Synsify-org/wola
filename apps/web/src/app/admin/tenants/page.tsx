@@ -4,8 +4,8 @@ import { requireSuperSession } from "@/lib/super-admin-guard";
 import { tenantRegistry } from "@wola/db";
 import { db } from "@/lib/tenant";
 import SuperAdminShell from "@/components/super-admin-shell";
+import { formatMoney } from "@wola/engine";
 
-const ugx = (n: number) => "UGX " + Math.round(n).toLocaleString();
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -56,7 +56,7 @@ export default async function TenantRegistryPage() {
                     </span>
                   </td>
                   <td className="r num">{t.activeLoans}</td>
-                  <td className="r num">{ugx(t.principalDisbursed)}</td>
+                  <td className="r num">{formatMoney(t.principalDisbursed, t.currency)}</td>
                   <td className="text-ink-soft">{shortDate(t.createdAt)}</td>
                 </tr>
               ))}
