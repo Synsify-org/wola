@@ -165,6 +165,17 @@ export async function decide(
     return { ok: false, error: "A disbursement date is required for the final approval." };
   }
 
+  // Every refusal must happen BEFORE the approval row is written. Returning
+  // { ok: false } does not roll back the caller's transaction — a refusal
+  // after the INSERT used to commit a final approval with no loan, leaving
+  // the application routed "approved" but stuck at in_review forever.
+  let rate: { rate: number; mode: "fixed" | "index_plus_margin" } | null = null;
+  if (wouldComplete) {
+    const resolved = await resolveRate(tx, app.loanProductId);
+    if (!resolved.ok) return { ok: false, error: resolved.error };
+    rate = resolved;
+  }
+
   try {
     await tx`
       INSERT INTO approvals
@@ -194,8 +205,10 @@ export async function decide(
   }
 
   if (after.state === "approved") {
-    const rate = await resolveRate(tx, app.loanProductId);
-    if (!rate.ok) return { ok: false, error: rate.error };
+    // Past the INSERT, failures must THROW so the whole transaction rolls
+    // back. wouldComplete and route() agree by construction; this guards a
+    // future divergence rather than committing a loan-less approval.
+    if (!rate) throw new Error("Final approval reached without a resolved rate.");
 
     await tx`UPDATE loan_applications SET status='approved', updated_at=now() WHERE id=${args.applicationId}`;
 

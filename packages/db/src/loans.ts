@@ -7,7 +7,7 @@
 // dead. The CEO sees a COMPUTED preview on the application page (the engine
 // runs, nothing persists); persistence happens once, at approval.
 import { persistSchedule, persistScheduleObject } from "./schedules";
-import { generateSchedule, applyEarlyPayment, getCurrencyDecimals } from "@wola/engine";
+import { applyEarlyPayment, getCurrencyDecimals, ENGINE_VERSION, type Schedule } from "@wola/engine";
 import type { Tx } from "./client";
 
 export interface CreateLoanArgs {
@@ -83,9 +83,13 @@ export interface DisburseArgs {
 export async function disburseLoan(
   tx: Tx, args: DisburseArgs,
 ): Promise<{ loanId: string; amount: number; disbursedAt: string }> {
+  // FOR UPDATE: a concurrent disbursement of the same loan blocks here until
+  // this transaction commits, then re-reads status 'active' and is refused.
+  // Without the lock both read 'pending_disbursement' and both pay out.
   const [loan] = await tx`
     SELECT id, principal, status FROM loans
-    WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}`;
+    WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}
+    FOR UPDATE`;
   if (!loan) throw new Error("Loan not found.");
   if (loan.status !== "pending_disbursement") {
     throw new Error(
@@ -154,19 +158,32 @@ export async function loanOutstanding(
   };
 }
 
-/** Record a repayment against an ACTIVE loan. The interest/principal split is
- *  taken from the next unpaid schedule line (on-schedule path). If the payment
- *  clears the loan, it flips to 'settled'. Guards: loan must be active; amount
- *  must be > 0 and not exceed the outstanding balance by more than one
- *  instalment (guards against fat-finger double-deductions). */
+/** Record a repayment against an ACTIVE loan.
+ *
+ *  Allocation (interest first, then principal) is driven by the LEDGER, not by
+ *  how many instalments' worth of cash has come in:
+ *   - the "current" schedule line is the first one whose closing balance is
+ *     still below the true outstanding, or whose interest isn't fully paid;
+ *   - interest owed = scheduled interest through that line − interest already
+ *     allocated. So a split instalment pays its interest ONCE, not once per
+ *     payment, and the loan still settles on schedule.
+ *
+ *  Guards: loan must be active (row-locked, so concurrent repayments
+ *  serialise); amount must be > 0 and no more than the full payoff (interest
+ *  owed + outstanding principal) — an excess would otherwise vanish from the
+ *  ledger unallocated. If the payment clears the loan it flips to 'settled'. */
 export async function recordRepayment(
   tx: Tx, args: RepaymentArgs,
 ): Promise<{ repaymentId: string; outstanding: number; settled: boolean; reamortized: boolean }> {
   if (!(args.amount > 0)) throw new Error("Repayment amount must be positive.");
 
+  // FOR UPDATE serialises concurrent repayments on one loan: the second waits,
+  // then sees the first's allocation (or 'settled') instead of the same stale
+  // outstanding — two payoffs can't both allocate the full principal.
   const [loan] = await tx`
-    SELECT principal, status FROM loans
-    WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}`;
+    SELECT principal, status, annual_rate, tenor_months, start_date FROM loans
+    WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}
+    FOR UPDATE`;
   if (!loan) throw new Error("Loan not found.");
   if (loan.status !== "active") {
     throw new Error(`Only an active loan can take a repayment; this one is '${loan.status}'.`);
@@ -177,35 +194,46 @@ export async function recordRepayment(
     throw new Error("This loan is already fully repaid.");
   }
 
-  // Determine the interest/principal split. Find the next unpaid schedule line:
-  // walk periods until cumulative instalment exceeds what's already been paid.
-  const paidAgg = await tx`
-    SELECT COALESCE(sum(amount), 0) AS paid
+  const [paid] = await tx`
+    SELECT COALESCE(sum((allocation->>'interest')::numeric), 0) AS interest
     FROM repayments
     WHERE tenant_id = ${args.tenantId} AND loan_id = ${args.loanId}`;
-  const paidToDate = Number(paidAgg[0]?.paid ?? 0);
+  const interestPaid = Number(paid?.interest ?? 0);
 
-  const lines = await tx`
-    SELECT sl.period_no, sl.instalment, sl.principal_due, sl.interest_due
+  type SchedLine = {
+    period_no: number; due_date: string | Date; opening_balance: string; principal_due: string;
+    interest_due: string; instalment: string; closing_balance: string;
+  };
+  const lines = (await tx`
+    SELECT sl.period_no, sl.due_date, sl.opening_balance, sl.principal_due,
+           sl.interest_due, sl.instalment, sl.closing_balance
     FROM schedule_lines sl
     JOIN loan_schedules s ON s.id = sl.schedule_id
     WHERE s.loan_id = ${args.loanId} AND s.is_active = true
-    ORDER BY sl.period_no ASC`;
+    ORDER BY sl.period_no ASC`) as unknown as SchedLine[];
 
-  // The line this payment lands on = first line whose cumulative instalment
-  // total crosses paidToDate.
-  type SchedLine = { period_no: number; instalment: string; principal_due: string; interest_due: string };
-  let cumulative = 0;
+  const EPS = 0.001;
+  let cumInterest = 0;
   let line: SchedLine | null = null;
-  for (const l of lines as unknown as SchedLine[]) {
-    cumulative += Number(l.instalment);
-    if (cumulative > paidToDate + 0.001) { line = l; break; }
+  for (const l of lines) {
+    cumInterest += Number(l.interest_due);
+    if (Number(l.closing_balance) < before.outstanding - EPS || cumInterest > interestPaid + EPS) {
+      line = l;
+      break;
+    }
   }
 
-  // Split the payment: interest first (as scheduled), remainder to principal.
-  // Capped so we never allocate more principal than remains outstanding.
-  const interestPortion = line ? Math.min(Number(line.interest_due), args.amount) : 0;
-  const principalPortion = Math.min(args.amount - interestPortion, before.outstanding);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const interestOwed = line ? round2(Math.max(0, cumInterest - interestPaid)) : 0;
+  const payoff = round2(interestOwed + before.outstanding);
+  if (args.amount > payoff + EPS) {
+    throw new Error(
+      `A payment of ${args.amount} exceeds the full payoff of ${payoff} (interest owed + outstanding principal).`,
+    );
+  }
+
+  const interestPortion = Math.min(interestOwed, args.amount);
+  const principalPortion = round2(args.amount - interestPortion);
   const allocation = { interest: interestPortion, principal: principalPortion };
 
   const [rep] = await tx`
@@ -218,65 +246,71 @@ export async function recordRepayment(
     RETURNING id`;
 
   const after = await loanOutstanding(tx, args.tenantId, args.loanId);
-  const settled = after.outstanding <= 0.001;
+  const settled = after.outstanding <= EPS;
   if (settled) {
     await tx`UPDATE loans SET status = 'settled'
              WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}`;
   }
 
   // ---- Lump-sum re-amortization -------------------------------------------
-  // If this payment was materially LARGER than a scheduled instalment (a lump
-  // sum / early payment), the fixed schedule no longer reflects reality — the
-  // borrower is ahead and the loan will finish early. Regenerate the remaining
-  // schedule so future instalments and the payoff date are correct. We keep the
-  // same instalment amount (loan finishes SOONER) rather than lowering payments,
-  // which is the standard treatment for staff loans.
+  // A payment materially LARGER than the scheduled instalment puts the
+  // borrower ahead, so the fixed schedule no longer reflects reality. Rebuild
+  // the remainder, keeping the same instalment (loan finishes SOONER) — the
+  // standard treatment for staff loans.
   //
-  // Skipped when the loan just settled (nothing left to re-amortize) or when the
-  // payment was a normal on-schedule instalment (no divergence to fix).
+  // Built from the CURRENT active schedule (not regenerated from the original
+  // terms, which would erase any earlier lump sum), and pinned to the LEDGER:
+  // the extra is whatever takes the current line's scheduled closing balance
+  // down to the true outstanding. Passing the whole principal portion instead
+  // double-counted the line's own scheduled principal.
   const scheduledInstalment = line ? Number(line.instalment) : 0;
   const isLumpSum =
-    !settled &&
+    !settled && line !== null &&
     scheduledInstalment > 0 &&
     args.amount > scheduledInstalment * 1.5; // clearly more than one instalment
 
   let reamortized = false;
-  if (isLumpSum) {
-    // Rebuild the current schedule object and apply the extra payment beyond the
-    // period this payment covers, then persist the recalculated remainder.
-    const [meta] = await tx`
-      SELECT annual_rate, tenor_months, start_date
-      FROM loans WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}`;
-    if (meta) {
-      const [tenant] = await tx`SELECT currency FROM tenants WHERE id = ${args.tenantId}`;
-      const input = {
-        principal: Number(loan.principal),
-        // annual_rate is stored as a FRACTION (0.16 = 16%) — see resolveRate()
-        // in approvals.ts and the write in applications/[id]/actions.ts. Do
-        // NOT divide by 100 here; that was a stale assumption that silently
-        // undercharged interest ~100x on any re-amortized schedule.
-        annualRate: Number(meta.annual_rate),
-        tenorMonths: Number(meta.tenor_months),
-        paymentsPerYear: 12,
-        startDate: new Date(meta.start_date as string),
-        decimals: getCurrencyDecimals(tenant.currency as string),
-      };
-      const base = generateSchedule(input);
-      // The period the borrower has reached (paid through). extraAmount is the
-      // principal paid beyond that period's scheduled closing balance.
-      const afterPeriod = line ? Number(line.period_no) : 0;
-      const recalculated = applyEarlyPayment(base, input, afterPeriod, principalPortion);
-      await persistScheduleObject(tx, {
-        tenantId: args.tenantId,
-        loanId: args.loanId,
-        lines: recalculated.lines.map((l) => ({
-          period: l.period, dueDate: l.dueDate, openingBalance: l.openingBalance,
-          principal: l.principal, interest: l.interest, instalment: l.instalment,
-          closingBalance: l.closingBalance,
-        })),
-      });
-      reamortized = true;
-    }
+  const extra = line ? round2(Number(line.closing_balance) - after.outstanding) : 0;
+  if (isLumpSum && extra > EPS) {
+    const [tenant] = await tx`SELECT currency FROM tenants WHERE id = ${args.tenantId}`;
+    const input = {
+      principal: Number(loan.principal),
+      // annual_rate is stored as a FRACTION (0.16 = 16%) — see resolveRate()
+      // in approvals.ts. Do NOT divide by 100 here.
+      annualRate: Number(loan.annual_rate),
+      tenorMonths: Number(loan.tenor_months),
+      paymentsPerYear: 12,
+      startDate: new Date(loan.start_date as string),
+      decimals: getCurrencyDecimals(tenant.currency as string),
+    };
+    let cum = 0;
+    const current: Schedule = {
+      instalment: scheduledInstalment,
+      engineVersion: ENGINE_VERSION,
+      totalInterest: 0,
+      lines: lines.map((l) => {
+        cum += Number(l.interest_due);
+        return {
+          period: Number(l.period_no), dueDate: new Date(l.due_date),
+          openingBalance: Number(l.opening_balance), interest: Number(l.interest_due),
+          principal: Number(l.principal_due), instalment: Number(l.instalment),
+          closingBalance: Number(l.closing_balance), cumulativeInterest: cum,
+        };
+      }),
+    };
+    current.totalInterest = cum;
+
+    const recalculated = applyEarlyPayment(current, input, Number(line!.period_no), extra);
+    await persistScheduleObject(tx, {
+      tenantId: args.tenantId,
+      loanId: args.loanId,
+      lines: recalculated.lines.map((l) => ({
+        period: l.period, dueDate: l.dueDate, openingBalance: l.openingBalance,
+        principal: l.principal, interest: l.interest, instalment: l.instalment,
+        closingBalance: l.closingBalance,
+      })),
+    });
+    reamortized = true;
   }
 
   return { repaymentId: rep.id as string, outstanding: after.outstanding, settled, reamortized };
