@@ -77,7 +77,7 @@ export default async function EmployeesPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+        <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
           <table className="ledger">
             <thead>
               <tr>

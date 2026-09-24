@@ -42,7 +42,7 @@ export default async function SuperAdminOverview() {
         <p className="mt-1 text-sm text-ink-soft">Across every tenant on the platform.</p>
       </div>
 
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="Tenants"
           value={`${overview.activeTenantCount} / ${overview.tenantCount}`}

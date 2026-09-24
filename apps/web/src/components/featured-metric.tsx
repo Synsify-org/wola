@@ -1,6 +1,6 @@
 ﻿import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DeltaPill } from "./metric";
 
 function Sparkline({ data }: { data: number[] }) {
   if (data.length < 2) return null;
@@ -59,39 +59,26 @@ export default function FeaturedMetric({
    *  compare against (e.g. the first month on the book). */
   delta?: { dir: "up" | "down"; pct: number; note: string };
 }) {
+  const context = [delta?.note, sub].filter(Boolean).join(" · ");
+
   return (
-    <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-rule bg-surface p-6 shadow-theme-md">
-      <div className="flex items-start justify-between gap-2">
-        <span className="caps">{label}</span>
-        {Icon ? (
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700">
-            <Icon className="h-5 w-5" strokeWidth={2} />
-          </span>
-        ) : null}
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-rule bg-surface p-5 shadow-theme-xs sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-base font-medium text-ink">{label}</span>
+        {Icon ? <Icon className="h-5 w-5 shrink-0 text-brand" strokeWidth={2} aria-hidden /> : null}
       </div>
-      <div className="num mt-3 truncate text-3xl font-bold leading-tight text-ink" title={typeof value === "string" ? value : undefined}>{value}</div>
-      {delta ? (
-        <div className="mt-2 flex items-center gap-1.5">
-          <span
-            className={
-              "grid h-5.5 w-5.5 shrink-0 place-items-center rounded-full " +
-              (delta.dir === "up" ? "bg-success-100 text-success-700" : "bg-error-100 text-error-700")
-            }
-          >
-            {delta.dir === "up" ? (
-              <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-            ) : (
-              <ArrowDownRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-            )}
-          </span>
-          <span className="num text-xs font-semibold text-ink">{Math.abs(delta.pct)}%</span>
-          <span className="text-xs text-ink-soft">{delta.note}</span>
-        </div>
-      ) : sub ? (
-        <div className="mt-1 text-sm text-ink-soft">{sub}</div>
-      ) : null}
+      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span
+          className="num text-[1.75rem] font-semibold leading-none tracking-tight text-ink sm:text-[2.125rem]"
+          title={typeof value === "string" ? value : undefined}
+        >
+          {value}
+        </span>
+        {delta ? <DeltaPill delta={delta} /> : null}
+      </div>
+      {context ? <p className="mt-2 text-[0.8125rem] text-ink-soft">{context}</p> : null}
       {trend && trend.length >= 2 ? (
-        <div className="mt-4">
+        <div className="mt-auto pt-5">
           <Sparkline data={trend} />
         </div>
       ) : null}

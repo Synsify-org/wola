@@ -98,7 +98,9 @@
 
   /* ── Surfaces & ink (Theme B: warm near-white paper, pure-white
      cards, green-cast ink instead of neutral black) ───────────────── */
-  --color-paper:      oklch(0.9870 0.0031 91.4370);
+  /* Canvas: a cool light grey (hue matched to the ink) so white cards lift
+     off it — the near-white warm paper left cards barely distinguishable. */
+  --color-paper:      oklch(0.9745 0.0045 164);
   --color-surface:    oklch(1.0000 0 0);
   --color-rule:       oklch(0.9297 0.0128 164.7776);
   --color-ink:        oklch(0.1759 0.0275 161.2531);
@@ -124,13 +126,19 @@
   --color-chart-3: oklch(0.3227 0.0644 157.5659);
   --color-chart-4: oklch(0.6758 0.1453 238.4620);
   --color-chart-5: oklch(0.7410 0.1645 52.1676);
+  /* Comparison ("target") line in two-series trend charts — the dashed
+     line an actual is measured against. Pink: distinct from any brand
+     green/blue and from the system red used for rejections. */
+  --color-chart-target: oklch(0.6560 0.2410 354.31);
 
   /* ── Type ───────────────────────────────────────────────────────
-     One uniform typeface for both words and numbers, per direct
-     request — was Outfit for text / Tahoma for numbers, which read as
-     two different fonts on the same page. Tahoma for everything. ─── */
-  --font-sans:  Tahoma, Geneva, Verdana, sans-serif;
-  --font-mono:  Tahoma, Geneva, Verdana, sans-serif;
+     One uniform typeface for both words and numbers (the original
+     request: text and numbers must not read as two fonts). Outfit is
+     the family theme.ts already calls the default and layout.tsx
+     already loads; Tahoma is only the fallback. Numbers stay in the
+     same family via .num's tabular figures. ─────────────────────── */
+  --font-sans:  var(--font-outfit), Tahoma, Geneva, Verdana, sans-serif;
+  --font-mono:  var(--font-outfit), Tahoma, Geneva, Verdana, sans-serif;
   --font-serif: Georgia, serif;
 
   --text-title-md: 36px;
@@ -179,7 +187,7 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
+  h1, h2, h3 { font-weight: 600; letter-spacing: -0.015em; text-wrap: balance; }
   :focus-visible {
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
@@ -201,34 +209,41 @@
     font-feature-settings: "tnum" 1;
   }
 
+  /* Section/field label. Sentence case, not shouted caps — the class name
+     is historical; call sites already write labels in sentence case, so
+     this one rule restyles every label in the app. */
   .caps {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--color-ink-faint);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-soft);
   }
 
   /* Ledger table — light header, hairline rules. */
   .ledger { width: 100%; border-collapse: collapse; }
   .ledger th {
     text-align: left;
-    padding: 0.625rem 0.875rem;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--color-rule);
-    background: var(--color-gray-50);
-    font-size: 0.6875rem;
+    font-size: 0.8125rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--color-ink-faint);
+    color: var(--color-ink);
     white-space: nowrap;
   }
   .ledger td {
-    padding: 0.875rem;
+    padding: 0.875rem 1rem;
     border-bottom: 1px solid var(--color-rule);
+    font-size: 0.875rem;
   }
   .ledger tbody tr:last-child td { border-bottom: 0; }
   .ledger .r { text-align: right; }
+  /* Money and counts never break mid-figure ("UGX / 30,000,000"). */
+  .ledger .num { white-space: nowrap; }
+  /* Phones: a data table scrolls sideways inside its (overflow-x-auto) card
+     rather than squeezing every column until words break letter by letter
+     ("S / t / a / f / f"). Wider screens keep normal wrapping. */
+  @media (max-width: 639.98px) {
+    .ledger th, .ledger td { white-space: nowrap; }
+  }
   .ledger tbody tr:hover { background: var(--color-gray-25); }
 
   /* Status chips. */

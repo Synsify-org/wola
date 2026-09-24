@@ -211,7 +211,7 @@ export default async function ApplicationDetail({
 
           {/* Decisions history */}
           {decisions.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+            <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
               <div className="caps px-5 pt-4">Decisions</div>
               <table className="ledger mt-2">
                 <tbody>

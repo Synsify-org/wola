@@ -190,7 +190,7 @@ export default function ApplicationsTable({ rows, currency }: { rows: Applicatio
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border border-rule bg-surface">
+      <div className="overflow-x-auto rounded-lg border border-rule bg-surface">
         <table className="ledger">
           <thead>
             {table.getHeaderGroups().map((hg) => (

@@ -1,8 +1,7 @@
-import Link from "next/link";
+import DecisionQueue from "./decision-queue";
 import Metric from "./metric";
 import CountUp from "./count-up";
 import { Wallet, Layers, Banknote, TrendingUp } from "lucide-react";
-import { formatMoney } from "@wola/engine";
 
 export type COOInboxItem = {
   applicationId: string;
@@ -32,63 +31,24 @@ export default function DashboardCOO({
   interestBook: number;
   currency: string;
 }) {
-  const ugx = (n: number) => formatMoney(n, currency);
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 xl:space-y-5">
       {/* Compact book row — context, not a hero. Sits right under the
           welcome banner on every dashboard now (user request). */}
-      <section className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Total exposure" value={<CountUp value={totalExposure} format="money" currency={currency} />} icon={Wallet} accent="brand" />
-        <Metric label="Active loans" value={<CountUp value={activeLoans} />} icon={Layers} accent="brand" />
-        <Metric label="Principal disbursed" value={<CountUp value={principalDisbursed} format="money" currency={currency} />} icon={Banknote} accent="brand" />
-        <Metric label="Interest book" value={<CountUp value={interestBook} format="money" currency={currency} />} icon={TrendingUp} accent="brand" />
+      <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+        <Metric label="Total exposure" value={<CountUp value={totalExposure} format="money" currency={currency} />} sub="Current outstanding" icon={Wallet} accent="brand" />
+        <Metric label="Active loans" value={<CountUp value={activeLoans} />} sub="Across the whole book" icon={Layers} accent="brand" />
+        <Metric label="Principal disbursed" value={<CountUp value={principalDisbursed} format="money" currency={currency} />} sub="Total lent out" icon={Banknote} accent="brand" />
+        <Metric label="Interest book" value={<CountUp value={interestBook} format="money" currency={currency} />} sub="If every loan runs to term" icon={TrendingUp} accent="brand" />
       </section>
 
-      <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-ink">Awaiting you at your stage</h2>
-          {inbox.length > 0 ? (
-            <Link href="/approvals" className="text-xs font-medium text-brand hover:underline">
-              View all
-            </Link>
-          ) : null}
-        </div>
-        {inbox.length === 0 ? (
-          <div className="rounded-xl border border-rule bg-surface p-6 text-center shadow-theme-sm">
-            <p className="text-sm text-ink-soft">Nothing awaiting you.</p>
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>Applicant</th>
-                  <th>Product</th>
-                  <th className="r">Amount</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {inbox.map((item) => (
-                  <tr key={item.applicationId}>
-                    <td className="font-medium text-ink">{item.employeeName}</td>
-                    <td className="text-ink-soft">{item.productName}</td>
-                    <td className="r num">{ugx(item.amount)}</td>
-                    <td className="r">
-                      <Link
-                        href={"/approvals?app=" + item.applicationId}
-                        className="text-xs font-medium text-brand hover:underline"
-                      >
-                        Review
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <DecisionQueue
+        title="Awaiting you at your stage"
+        items={inbox}
+        currency={currency}
+        emptyText="Nothing awaiting you."
+        className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150"
+      />
     </div>
   );
 }

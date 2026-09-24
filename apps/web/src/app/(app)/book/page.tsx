@@ -79,7 +79,7 @@ export default async function BookPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Total loans" value={String(loans.length)} icon={Layers} accent="brand" />
         <Metric label="Active" value={String(activeCount)} icon={CheckCircle} accent="approved" />
         <Metric label="Principal" value={ugx(totalPrincipal)} icon={Banknote} accent="brand" />
@@ -93,7 +93,7 @@ export default async function BookPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+        <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
           <table className="ledger">
             <thead>
               <tr>

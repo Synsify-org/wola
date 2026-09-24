@@ -49,15 +49,15 @@ export default function CFOMoneyOps({
     : 100;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-md">
+    <div className="h-full overflow-hidden rounded-2xl border border-rule bg-surface shadow-theme-xs">
       {/* Disbursement queue */}
-      <div className="p-5">
+      <div className="p-5 sm:p-6">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand-700">
               <Banknote className="h-4 w-4" />
             </span>
-            <h2 className="text-sm font-semibold text-ink">
+            <h2 className="text-[1.0625rem] font-semibold text-ink">
               Disbursement queue{queue.length > 0 ? ` (${queue.length} awaiting)` : ""}
             </h2>
           </div>
@@ -91,9 +91,9 @@ export default function CFOMoneyOps({
       <div className="border-t border-rule" />
 
       {/* Reconciliation */}
-      <div className="p-5">
+      <div className="p-5 sm:p-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-ink">
+          <h2 className="text-[1.0625rem] font-semibold text-ink">
             Reconciliation — {reconciliation?.cycleLabel ?? "this cycle"}
           </h2>
           {reconciliation && reconciliation.exceptions.length > 0 ? (
@@ -126,12 +126,16 @@ export default function CFOMoneyOps({
                 {reconciliation.exceptions.map((e) => (
                   <div
                     key={e.loanId}
-                    className="flex items-center justify-between gap-3 rounded-lg bg-rejected-wash px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-xl bg-rejected-wash px-3 py-2.5"
                   >
-                    <div className="flex min-w-0 items-center gap-2 text-sm">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rejected" />
-                      <span className="truncate font-medium text-ink">{e.borrower}</span>
-                      <span className="shrink-0 text-ink-soft">short {ugx(e.shortfall)}</span>
+                    <div className="flex min-w-0 items-start gap-2 text-sm sm:items-center">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rejected sm:mt-0" />
+                      {/* Name over shortfall on phones, side by side from sm:
+                          — inline on a 375px screen truncated names to "Davi…". */}
+                      <div className="min-w-0 sm:flex sm:items-center sm:gap-2">
+                        <span className="block truncate font-medium text-ink">{e.borrower}</span>
+                        <span className="num block whitespace-nowrap text-[0.8125rem] text-ink-soft sm:text-sm">short {ugx(e.shortfall)}</span>
+                      </div>
                     </div>
                     <Link
                       href={`/loans/${e.loanId}`}

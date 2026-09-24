@@ -84,7 +84,7 @@ export default function ReportsView({
       {/* Branded header — tenant's actual white-label colours, not a generic
           treatment. A colour band + formal framing for a document that's
           meant to leave the app (print/board pack), not just live on-screen. */}
-      <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+      <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
         <div className="h-2 w-full" style={{ background: `linear-gradient(90deg, ${brandPrimary}, ${brandAccent})` }} />
         <div className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -191,7 +191,7 @@ export default function ReportsView({
       </div>
 
       {/* Loan register */}
-      <section className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+      <section className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
         <div className="flex items-center justify-between px-5 pt-4">
           <div className="caps">Loan register ({loans.length})</div>
           <button onClick={exportLoans} className="no-print inline-flex items-center gap-1.5 rounded-lg border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700">
@@ -224,7 +224,7 @@ export default function ReportsView({
       </section>
 
       {/* Department exposure */}
-      <section className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+      <section className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
         <div className="flex items-center justify-between px-5 pt-4">
           <div className="caps">Exposure by department</div>
           <button onClick={exportDepts} className="no-print inline-flex items-center gap-1.5 rounded-lg border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700">
@@ -250,7 +250,7 @@ export default function ReportsView({
       </section>
 
       {/* Application register */}
-      <section className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+      <section className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
         <div className="flex items-center justify-between px-5 pt-4">
           <div className="caps">Applications ({applications.length})</div>
           <button onClick={exportApps} className="no-print inline-flex items-center gap-1.5 rounded-lg border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700">
@@ -274,7 +274,7 @@ export default function ReportsView({
       </section>
 
       {/* Approval audit trail — the paper trail an audit actually asks for */}
-      <section className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+      <section className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
         <div className="flex items-center justify-between px-5 pt-4">
           <div>
             <div className="caps">Approval audit trail ({approvalTrail.length})</div>

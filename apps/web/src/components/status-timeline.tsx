@@ -20,7 +20,7 @@ export default function StatusTimeline({
   const done = new Set(completedIds);
 
   return (
-    <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
+    <div className="rounded-2xl border border-rule bg-surface p-5 shadow-theme-xs">
       <div className="caps mb-4">Approval timeline</div>
       <ol className="relative">
         {stages.map((s, i) => {
