@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import DashboardCard from "./dashboard-card";
 import CountUp from "./count-up";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DeltaPill } from "./metric";
 import { formatMoney } from "@wola/engine";
 
 // Product names are free-text tenant config, not safe CSS custom-property
@@ -46,33 +46,20 @@ export default function BookBreakup({
 
   return (
     <DashboardCard title="Book breakup">
-      {/* Stacked until there's genuinely enough width for the donut to sit
-          beside the total without squeezing it — sharing a row at exactly
-          the outer grid's own lg: breakpoint (1024px) is what caused the
-          total to truncate (confirmed live: "UGX 83..."). */}
-      <div className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:gap-6">
+      {/* Stacked until the CARD (not the viewport) is wide enough for the
+          donut to sit beside the total — a container query, because this card
+          lives in a 1/3 column on some dashboards and a 1/2 on others, so no
+          viewport breakpoint is right for both. */}
+      <div className="@container">
+      <div className="flex flex-col items-start gap-5 @[24rem]:flex-row @[24rem]:items-center @[24rem]:gap-6">
         <div className="min-w-0 flex-1">
-          <div className="num truncate text-2xl font-bold leading-tight text-ink" title={ugx(total)}>
-            <CountUp value={total} format="money" currency={currency} />
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="num whitespace-nowrap text-2xl font-semibold leading-none tracking-tight text-ink" title={ugx(total)}>
+              <CountUp value={total} format="money" currency={currency} />
+            </span>
+            {delta ? <DeltaPill delta={delta} /> : null}
           </div>
-          {delta ? (
-            <div className="mt-2 flex items-center gap-1.5">
-              <span
-                className={
-                  "grid h-5 w-5 shrink-0 place-items-center rounded-full " +
-                  (delta.dir === "up" ? "bg-success-100 text-success-700" : "bg-error-100 text-error-700")
-                }
-              >
-                {delta.dir === "up" ? (
-                  <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
-                ) : (
-                  <ArrowDownRight className="h-3 w-3" strokeWidth={2.5} />
-                )}
-              </span>
-              <span className="num text-xs font-semibold text-ink">{Math.abs(delta.pct)}%</span>
-              <span className="text-xs text-ink-soft">{delta.note}</span>
-            </div>
-          ) : null}
+          {delta ? <p className="mt-2 text-[0.8125rem] text-ink-soft">{delta.note}</p> : null}
 
           <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2">
             {rows.slice(0, 5).map((r, i) => (
@@ -87,7 +74,7 @@ export default function BookBreakup({
           </div>
         </div>
 
-        <div className="h-32 w-32 shrink-0">
+        <div className="h-32 w-32 shrink-0 self-center">
           <ChartContainer config={chartConfig} className="aspect-square h-full w-full">
             <PieChart>
               <Pie
@@ -107,6 +94,7 @@ export default function BookBreakup({
             </PieChart>
           </ChartContainer>
         </div>
+      </div>
       </div>
     </DashboardCard>
   );

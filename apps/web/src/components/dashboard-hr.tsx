@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Users, AlertTriangle, ArrowRight } from "lucide-react";
+import { Users, AlertTriangle, ArrowRight, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
+import Metric from "./metric";
+import DashboardCard from "./dashboard-card";
+import DecisionQueue from "./decision-queue";
 import PipelinePanel from "./pipeline-panel";
 import CountUp from "./count-up";
-import { formatMoney } from "@wola/engine";
 
 export type RegisterHealth = {
   headcount: number;
@@ -36,7 +38,6 @@ export default function DashboardHR({
   pipeline: PipelineRow[];
   currency: string;
 }) {
-  const ugx = (n: number) => formatMoney(n, currency);
   const blockers = [
     health.missingDeptHead > 0
       ? { label: `${health.missingDeptHead} staff missing a department head`, }
@@ -46,114 +47,60 @@ export default function DashboardHR({
       : null,
   ].filter((b): b is { label: string } => b !== null);
 
+  const issues = health.missingDeptHead + health.missingSalary;
+
   return (
-    <div className="space-y-6">
-      {/* HERO: employee register health */}
-      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <div className="mb-4 flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand-700">
-            <Users className="h-4 w-4" />
-          </span>
-          <h2 className="text-sm font-semibold text-ink">Employee register health</h2>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <div className="min-w-0 rounded-lg p-2 -m-2 transition-all duration-200 hover:-translate-y-0.5 hover:bg-paper">
-            <div className="num truncate text-2xl font-bold text-ink"><CountUp value={health.headcount} /></div>
-            <div className="caps mt-1">Headcount</div>
-          </div>
-          <div className="min-w-0 rounded-lg p-2 -m-2 transition-all duration-200 hover:-translate-y-0.5 hover:bg-paper">
-            <div className="num truncate text-2xl font-bold text-ink"><CountUp value={health.onProbation} /></div>
-            <div className="caps mt-1">On probation</div>
-          </div>
-          <div className="min-w-0 rounded-lg p-2 -m-2 transition-all duration-200 hover:-translate-y-0.5 hover:bg-paper">
-            <div className="num truncate text-2xl font-bold text-ink"><CountUp value={health.onFinalWarning} /></div>
-            <div className="caps mt-1">Final warning</div>
-          </div>
-        </div>
-
-        {blockers.length > 0 ? (
-          <div className="mt-4 space-y-2 border-t border-rule pt-4">
-            {blockers.map((b) => (
-              <div
-                key={b.label}
-                className="flex items-center justify-between gap-3 rounded-lg bg-awaiting-wash px-3 py-2"
-              >
-                <span className="flex items-center gap-2 text-sm text-ink">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-awaiting" />
-                  {b.label}
-                </span>
-                <Link
-                  href="/settings/employees"
-                  className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-brand hover:underline"
-                >
-                  Fix <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-4 border-t border-rule pt-4 text-sm text-ink-soft">
-            No blocking data issues — every active employee has a department head and a salary on file.
-          </p>
-        )}
-      </div>
-
-      {/* Secondary: HR-stage approval queue + applications overview */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-2">
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink">At your stage</h2>
-            {inbox.length > 0 ? (
-              <Link href="/approvals" className="text-xs font-medium text-brand hover:underline">
-                View all
-              </Link>
-            ) : null}
-          </div>
-          {inbox.length === 0 ? (
-            <div className="rounded-xl border border-rule bg-surface p-6 text-center shadow-theme-sm">
-              <p className="text-sm text-ink-soft">Nothing is waiting on you.</p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
-              <table className="ledger">
-                <thead>
-                  <tr>
-                    <th>Applicant</th>
-                    <th>Product</th>
-                    <th className="r">Amount</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inbox.map((item) => (
-                    <tr key={item.applicationId}>
-                      <td className="font-medium text-ink">{item.employeeName}</td>
-                      <td className="text-ink-soft">{item.productName}</td>
-                      <td className="r num">{ugx(item.amount)}</td>
-                      <td className="r">
-                        <Link
-                          href={"/approvals?app=" + item.applicationId}
-                          className="text-xs font-medium text-brand hover:underline"
-                        >
-                          Review
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <PipelinePanel data={pipeline} />
+    <div className="space-y-4 xl:space-y-5">
+      {/* HERO (row 1): employee register health as KPI cards. */}
+      <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+        <Metric label="Headcount" value={<CountUp value={health.headcount} />} sub="Active employees" icon={Users} />
+        <Metric label="On probation" value={<CountUp value={health.onProbation} />} sub="Not yet loan-eligible" icon={Clock} accent="awaiting" />
+        <Metric
+          label="Final warning"
+          value={<CountUp value={health.onFinalWarning} />}
+          sub="Blocked from new loans"
+          icon={ShieldAlert}
+          accent={health.onFinalWarning > 0 ? "rejected" : "approved"}
+        />
+        <Metric
+          label="Data issues"
+          value={<CountUp value={issues} />}
+          sub={issues > 0 ? "Fix before they block applications" : "Register is complete"}
+          icon={issues > 0 ? AlertTriangle : CheckCircle2}
+          accent={issues > 0 ? "awaiting" : "approved"}
+        />
       </section>
 
-      <section className="border-t border-rule pt-6">
-        <Link href="/settings/employees" className="text-sm text-ink-soft hover:text-ink">
-          Open the employee directory &rarr;
-        </Link>
+      {/* Row 2 (2/3 + 1/3): HR-stage queue beside register issues + pipeline. */}
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+        <DecisionQueue title="At your stage" items={inbox} currency={currency} className="lg:col-span-2" />
+        <div className="flex min-w-0 flex-col gap-4 xl:gap-5">
+          <DashboardCard title="Register issues">
+            {blockers.length > 0 ? (
+              <ul className="space-y-2">
+                {blockers.map((b) => (
+                  <li key={b.label} className="flex items-center justify-between gap-3 rounded-xl bg-awaiting-wash px-3 py-2.5">
+                    <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-awaiting" aria-hidden />
+                      {b.label}
+                    </span>
+                    <Link
+                      href="/settings/employees"
+                      className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand hover:underline"
+                    >
+                      Fix <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-soft">
+                No blocking data issues — every active employee has a department head and a salary on file.
+              </p>
+            )}
+          </DashboardCard>
+          <PipelinePanel data={pipeline} />
+        </div>
       </section>
     </div>
   );

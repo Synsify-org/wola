@@ -1,9 +1,9 @@
 ﻿"use client";
 import {
   PieChart, Pie, Cell,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import TrendLineChart from "./trend-line-chart";
 import Metric from "./metric";
 import ProductBars from "./product-bars";
 import DashboardCard from "./dashboard-card";
@@ -29,7 +29,7 @@ const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUp
 
 export default function AnalyticsView({
   book, mix, statusCounts, totalApps, approvalRate, trend, byDepartment, sizeBands, productPerf,
-  avgDecisionDays, rejectionsByStage, currency,
+  avgDecisionDays, rejectionsByStage, currency, collections,
 }: {
   book: Book;
   mix: DeptRow[];
@@ -43,6 +43,7 @@ export default function AnalyticsView({
   avgDecisionDays: number;
   rejectionsByStage: RejectionRow[];
   currency: string;
+  collections: { label: string; month: string; expected: number; collected: number; current: boolean }[];
 }) {
   const ugx = (n: number) => formatMoney(n, currency);
   const avgLoan = book.activeLoans > 0 ? book.principalDisbursed / book.activeLoans : 0;
@@ -56,10 +57,6 @@ export default function AnalyticsView({
     Object.entries(STATUS_COLOR).map(([status, color]) => [status, { label: label(status), color }]),
   ) satisfies ChartConfig;
 
-  const trendChartConfig = {
-    total: { label: "Applications", color: "var(--color-gray-400)" },
-    approved: { label: "Approved", color: "var(--color-approved)" },
-  } satisfies ChartConfig;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -69,7 +66,7 @@ export default function AnalyticsView({
       </div>
 
       {/* KPI strip */}
-      <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <Metric label="Applications" value={<CountUp value={totalApps} />} sub="All time" icon={FileText} accent="brand" />
         <Metric label="Approval rate" value={<CountUp value={approvalRate} format="percent" />} sub="Of all applications" icon={CheckCircle} accent="approved" />
         <Metric label="Avg. decision time" value={<CountUp value={avgDecisionDays} format="days" />} sub="Submission to final decision" icon={Clock3} accent="brand" />
@@ -77,49 +74,39 @@ export default function AnalyticsView({
         <Metric label="Avg loan size" value={<CountUp value={avgLoan} format="money" currency={currency} />} sub="Per active loan" icon={Layers} accent="brand" />
       </section>
 
+      {/* Collections: a full year of money in vs instalments due. */}
+      <TrendLineChart
+        title="Collections"
+        subtitle={`Money received against instalments due, last 12 months · ${currency}`}
+        data={collections}
+        actual={{ key: "collected", label: "Collected", color: "var(--color-brand)" }}
+        target={{ key: "expected", label: "Expected", color: "var(--color-chart-target)" }}
+        currency={currency}
+        markerX={collections.find((c) => c.current)?.label}
+        compareNote="vs expected"
+        emptyText="No instalments fell due in the last twelve months, so there's nothing to compare yet."
+        csvName="collections-12-months"
+        reportHref="/reports"
+      />
+
       {/* Trend + status */}
       <section className="grid gap-4 lg:grid-cols-3">
         {/* Trend */}
-        <div className="lg:col-span-2">
-        <DashboardCard title="Applications over time">
-          {trend.length === 0 ? (
-            <p className="text-sm text-ink-soft">No applications yet.</p>
-          ) : trend.length === 1 ? (
-            // A line/area chart needs 2+ points to draw anything — with one
-            // month of history it collapses to a lone dot in empty gridlines,
-            // which reads as broken rather than "not enough data yet".
-            <div className="flex h-[260px] flex-col items-center justify-center text-center">
-              <div className="num text-3xl font-bold text-ink">{trend[0].total}</div>
-              <p className="mt-1 text-sm text-ink-soft">applications in {trend[0].label}</p>
-              <p className="mt-3 max-w-xs text-xs text-ink-faint">
-                The trend line appears once there&apos;s more than one month of history.
-              </p>
-            </div>
-          ) : (
-            <ChartContainer config={trendChartConfig} className="aspect-auto h-[260px] w-full">
-              <AreaChart data={trend} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="totalFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="approvedFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-approved)" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="var(--color-approved)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-rule)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: "var(--color-ink-faint)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: "var(--color-ink-faint)" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Area type="monotone" dataKey="total" stroke="var(--color-total)" fill="url(#totalFill)" strokeWidth={2} dot={{ r: 3 }} animationDuration={900} />
-                <Area type="monotone" dataKey="approved" stroke="var(--color-approved)" fill="url(#approvedFill)" strokeWidth={2} dot={{ r: 3 }} animationDuration={900} animationBegin={150} />
-              </AreaChart>
-            </ChartContainer>
-          )}
-        </DashboardCard>
-        </div>
+        <TrendLineChart
+          title="Applications over time"
+          data={trend}
+          actual={{ key: "approved", label: "Approved", color: "var(--color-brand)" }}
+          target={{ key: "total", label: "Applied", color: "var(--color-chart-target)" }}
+          format="count"
+          showDelta={false}
+          emptyText={
+            trend.length === 1
+              ? `${trend[0].total} application${trend[0].total === 1 ? "" : "s"} in ${trend[0].label}. The trend line appears once there's more than one month of history.`
+              : "No applications yet."
+          }
+          csvName="applications-by-month"
+          className="lg:col-span-2"
+        />
 
         {/* Status donut */}
         <DashboardCard title="By status">
@@ -238,7 +225,7 @@ export default function AnalyticsView({
       </DashboardCard>
 
       {/* Product performance table */}
-      <section className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+      <section className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
         <div className="caps px-5 pt-4">Product performance</div>
         <table className="ledger mt-2">
           <thead>

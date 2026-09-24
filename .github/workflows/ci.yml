@@ -26,4 +26,25 @@ jobs:
       - name: isolation suite (merge-blocking)
         run: npm run test:isolation
       - name: engine tests
-        run: npm run test --workspace @wola/engine 
+        run: npm run test --workspace @wola/engine
+
+  # Web app: typecheck, component tests, production build. No database —
+  # every route is dynamic, so `next build` never connects (verified by
+  # building against an unreachable DATABASE_URL). Runs in parallel with
+  # the isolation job above.
+  web:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://unused:unused@127.0.0.1:1/unused
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: typecheck
+        run: npx tsc --noEmit -p apps/web
+      - name: component tests
+        run: npm run test --workspace @wola/web
+      - name: production build
+        run: npm run build --workspace @wola/web

@@ -25,7 +25,7 @@ export default function ScheduleTable({
   if (schedule.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
+    <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
       <div className="flex items-center justify-between px-5 pt-4">
         <div className="caps">Repayment schedule</div>
         {annualRate != null ? (

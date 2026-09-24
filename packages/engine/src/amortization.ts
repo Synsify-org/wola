@@ -174,7 +174,14 @@ export function applyEarlyPayment(
     }
 
     let closing = round(opening - principalDue, decimals);
-    if (closing < 0) { principalDue = opening; closing = 0; }
+    if (closing < 0) {
+      // Early finish: the loan closes before its original tenor, so the final
+      // instalment is only what's left — not the full level payment, which
+      // would bill the borrower for principal they no longer owe.
+      principalDue = opening;
+      payment = round(opening + interest, decimals);
+      closing = 0;
+    }
 
     cumInterest = round(cumInterest + interest, decimals);
     newLines.push({

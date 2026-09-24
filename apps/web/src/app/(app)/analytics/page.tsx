@@ -2,7 +2,7 @@
 // Admin-only. All aggregate queries here are inline stopgaps.
 // TODO: move to @wola/db (Willy) as analytics.ts functions.
 import { requireSession } from "@/lib/guard";
-import { loansByProduct, approverMetrics, inboxFor } from "@wola/db";
+import { loansByProduct, approverMetrics, inboxFor, collectionsTrend } from "@wola/db";
 import AnalyticsView, { type DeptRow } from "@/components/analytics-view";
 import { getTenantCurrency } from "@/lib/tenant";
 
@@ -118,6 +118,8 @@ export default async function AnalyticsPage() {
       approvalRate: Number(r.apps) > 0 ? Math.round((Number(r.approved) / Number(r.apps)) * 100) : 0,
     }));
 
+    const collections = await collectionsTrend(tx, 12);
+
     return {
       authorized: true as const,
       book,
@@ -131,6 +133,7 @@ export default async function AnalyticsPage() {
       productPerf,
       avgDecisionDays,
       rejectionsByStage,
+      collections,
     };
   });
 
@@ -156,6 +159,7 @@ export default async function AnalyticsPage() {
       productPerf={data.productPerf}
       avgDecisionDays={data.avgDecisionDays}
       rejectionsByStage={data.rejectionsByStage}
+      collections={data.collections}
       currency={currency}
     />
   );

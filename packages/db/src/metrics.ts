@@ -163,3 +163,67 @@ export async function loansByProduct(tx: Tx) {
     GROUP BY lp.name, lp.kind
     ORDER BY principal DESC`;
 }
+
+export interface CollectionsPoint {
+  /** Short month label, e.g. "Sep 26". */
+  label: string;
+  /** First day of the month, ISO date (YYYY-MM-DD). */
+  month: string;
+  /** Instalments falling due that month on each loan's ACTIVE schedule. */
+  expected: number;
+  /** Money actually received that month (every repayment source). */
+  collected: number;
+  /** True for the current calendar month (still in progress). */
+  current: boolean;
+}
+
+/** Month-by-month collections: what the schedules said would come back vs
+ *  what the ledger shows actually came back — the lending equivalent of
+ *  "sales vs goals". Covers the last `months` months including this one,
+ *  zero-filled so a month with no activity still plots.
+ *
+ *  Expected counts loans that are active OR settled (a settled loan still
+ *  had instalments due in the months before it closed); an active schedule
+ *  keeps its already-due periods through re-amortization, so history stays
+ *  stable. Collected counts every source (payroll, manual, early) — this is
+ *  cash in, unlike reconciliationThisCycle(), which isolates payroll to find
+ *  deduction exceptions. RLS scopes every table to the caller's tenant. */
+export async function collectionsTrend(tx: Tx, months = 6): Promise<CollectionsPoint[]> {
+  const n = Math.max(1, Math.min(24, Math.floor(months)));
+  const rows = await tx`
+    WITH m AS (
+      SELECT generate_series(
+        date_trunc('month', CURRENT_DATE) - make_interval(months => ${n - 1}),
+        date_trunc('month', CURRENT_DATE),
+        interval '1 month'
+      )::date AS month
+    ),
+    due AS (
+      SELECT date_trunc('month', sl.due_date)::date AS month, sum(sl.instalment) AS expected
+      FROM schedule_lines sl
+      JOIN loan_schedules s ON s.id = sl.schedule_id AND s.is_active
+      JOIN loans l ON l.id = s.loan_id AND l.status IN ('active', 'settled')
+      GROUP BY 1
+    ),
+    paid AS (
+      SELECT date_trunc('month', r.value_date)::date AS month, sum(r.amount) AS collected
+      FROM repayments r
+      GROUP BY 1
+    )
+    SELECT to_char(m.month, 'Mon YY') AS label,
+           to_char(m.month, 'YYYY-MM-DD') AS month,
+           COALESCE(due.expected, 0) AS expected,
+           COALESCE(paid.collected, 0) AS collected,
+           m.month = date_trunc('month', CURRENT_DATE)::date AS current
+    FROM m
+    LEFT JOIN due ON due.month = m.month
+    LEFT JOIN paid ON paid.month = m.month
+    ORDER BY m.month`;
+  return rows.map((r) => ({
+    label: r.label as string,
+    month: r.month as string,
+    expected: Number(r.expected),
+    collected: Number(r.collected),
+    current: Boolean(r.current),
+  }));
+}

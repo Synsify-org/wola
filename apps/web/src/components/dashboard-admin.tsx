@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ClipboardCheck, CheckCircle2, Circle, ArrowRight } from "lucide-react";
+import { ClipboardCheck, CheckCircle2, Circle, ArrowRight, Building2, GitBranch, Package, Users } from "lucide-react";
+import Metric from "./metric";
+import DashboardCard from "./dashboard-card";
 import CountUp from "./count-up";
 
 export type ConfigurationStatus = {
@@ -48,69 +50,87 @@ function ChecklistItem({
 export default function DashboardAdmin({ status }: { status: ConfigurationStatus }) {
   const pipelinesReady = status.productsCount > 0 && status.productsWithoutPipeline.length === 0;
   const rateIndexReady = status.productsMissingRateIndex.length === 0;
+  const checks = [status.productsCount > 0, pipelinesReady, rateIndexReady];
+  const done = checks.filter(Boolean).length;
+  const linkCard =
+    "group flex items-center justify-between gap-3 rounded-2xl border border-rule bg-surface p-5 shadow-theme-xs transition-all duration-200 hover:border-brand-200 hover:shadow-theme-sm active:scale-[0.99]";
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand-700">
-            <ClipboardCheck className="h-4 w-4" />
-          </span>
-          <h2 className="text-sm font-semibold text-ink">Configuration status</h2>
-        </div>
-        <div className="divide-y divide-rule">
-          <ChecklistItem
-            done={status.productsCount > 0}
-            label={`Loan products defined (${status.productsCount})`}
-            action="Configure"
-            href="/settings"
-          />
-          <ChecklistItem
-            done={pipelinesReady}
-            label={
-              pipelinesReady
-                ? `Approval pipelines defined (${status.pipelinesCount})`
-                : `${status.productsWithoutPipeline.length} product${status.productsWithoutPipeline.length === 1 ? "" : "s"} missing an approval pipeline`
-            }
-            action="Configure"
-            href="/settings"
-          />
-          <ChecklistItem
-            done={rateIndexReady}
-            label={
-              rateIndexReady
-                ? "Rate index set for every interest-bearing product"
-                : `${status.productsMissingRateIndex.length} product${status.productsMissingRateIndex.length === 1 ? "" : "s"} missing a rate index`
-            }
-            action="Set"
-            href="/settings"
-          />
-          {/* No disbursement-channel/bank concept exists in the schema yet —
-              deliberately not shown as a fake checked/unchecked line. */}
-        </div>
-      </div>
+    <div className="space-y-4 xl:space-y-5">
+      {/* Row 1: readiness at a glance. */}
+      <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-3 xl:gap-5">
+        <Metric
+          label="Setup progress"
+          value={`${done} of ${checks.length}`}
+          sub={done === checks.length ? "Ready to lend" : "Finish the checklist below"}
+          icon={ClipboardCheck}
+          accent={done === checks.length ? "approved" : "awaiting"}
+        />
+        <Metric label="Loan products" value={<CountUp value={status.productsCount} />} sub="Configured for this tenant" icon={Package} />
+        <Metric label="Approval pipelines" value={<CountUp value={status.pipelinesCount} />} sub="Routing rules in force" icon={GitBranch} />
+      </section>
 
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 sm:grid-cols-2">
-        <Link
-          href="/settings/employees"
-          className="flex items-center justify-between rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-wash hover:shadow-theme-md"
-        >
-          <div>
-            <div className="caps mb-1">Users & roles</div>
-            <div className="num text-lg font-semibold text-ink"><CountUp value={status.usersCount} /></div>
+      {/* Row 2 (2/3 + 1/3): the checklist beside the admin shortcuts. */}
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+        <DashboardCard title="Configuration status" className="lg:col-span-2">
+          <div className="-mt-3 divide-y divide-rule">
+            <ChecklistItem
+              done={status.productsCount > 0}
+              label={`Loan products defined (${status.productsCount})`}
+              action="Configure"
+              href="/settings"
+            />
+            <ChecklistItem
+              done={pipelinesReady}
+              label={
+                pipelinesReady
+                  ? `Approval pipelines defined (${status.pipelinesCount})`
+                  : `${status.productsWithoutPipeline.length} product${status.productsWithoutPipeline.length === 1 ? "" : "s"} missing an approval pipeline`
+              }
+              action="Configure"
+              href="/settings"
+            />
+            <ChecklistItem
+              done={rateIndexReady}
+              label={
+                rateIndexReady
+                  ? "Rate index set for every interest-bearing product"
+                  : `${status.productsMissingRateIndex.length} product${status.productsMissingRateIndex.length === 1 ? "" : "s"} missing a rate index`
+              }
+              action="Set"
+              href="/settings"
+            />
+            {/* No disbursement-channel/bank concept exists in the schema yet —
+                deliberately not shown as a fake checked/unchecked line. */}
           </div>
-          <ArrowRight className="h-4 w-4 text-ink-faint" />
-        </Link>
-        <Link
-          href="/book"
-          className="flex items-center justify-between rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-wash hover:shadow-theme-md"
-        >
-          <div>
-            <div className="caps mb-1">Loan book</div>
-            <div className="text-sm text-ink-soft">Read-only view</div>
-          </div>
-          <ArrowRight className="h-4 w-4 text-ink-faint" />
-        </Link>
+        </DashboardCard>
+
+        <div className="grid content-start gap-4 xl:gap-5">
+          <Link href="/settings/employees" className={linkCard}>
+            <div className="flex items-center gap-3.5">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700">
+                <Users className="h-5 w-5" strokeWidth={1.75} />
+              </span>
+              <div>
+                <div className="text-sm font-medium text-ink">Users & roles</div>
+                <div className="num text-xl font-semibold text-ink"><CountUp value={status.usersCount} /></div>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+          </Link>
+          <Link href="/book" className={linkCard}>
+            <div className="flex items-center gap-3.5">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700">
+                <Building2 className="h-5 w-5" strokeWidth={1.75} />
+              </span>
+              <div>
+                <div className="text-sm font-medium text-ink">Loan book</div>
+                <div className="text-[0.8125rem] text-ink-soft">Read-only view</div>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       </section>
     </div>
   );

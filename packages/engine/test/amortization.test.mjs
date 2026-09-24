@@ -89,6 +89,22 @@ test("early payment reduces balance directly, never goes negative", () => {
   assert.ok(after.lines.length < 36, `expected early settlement, got ${after.lines.length} periods`);
 });
 
+test("early payment: the early-finish final line bills only what's left", () => {
+  const input = {
+    principal: 10_000_000, annualRate: 0.16, tenorMonths: 36,
+    startDate: new Date(2020, 7, 30), decimals: 0,
+  };
+  const after = applyEarlyPayment(generateSchedule(input), input, 5, 4_000_000);
+  const last = after.lines[after.lines.length - 1];
+  assert.equal(last.closingBalance, 0);
+  assert.equal(last.instalment, last.openingBalance + last.interest,
+    "final instalment must be opening + interest, not the full level payment");
+  // Every principal the new tail bills sums to exactly the post-payment balance.
+  const tail = after.lines.filter((l) => l.period > 5);
+  const kept = after.lines.find((l) => l.period === 5);
+  assert.equal(tail.reduce((s, l) => s + l.principal, 0), kept.closingBalance);
+});
+
 test("engine version is stamped", () => {
   assert.equal(ENGINE_VERSION, "amort-1.0.0");
 });

@@ -2,7 +2,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { decideAction } from "@/app/(app)/applications/[id]/actions";
+import { CheckCircle2, Clock, Users, Wallet } from "lucide-react";
 import CountUp from "./count-up";
+import Metric from "./metric";
+import DashboardCard from "./dashboard-card";
 import { formatMoney } from "@wola/engine";
 
 const roleLabel = (r: string) =>
@@ -64,14 +67,14 @@ function DecideRow({ applicationId }: { applicationId: string }) {
         <input type="hidden" name="startDate" value={today()} />
         <button
           type="submit"
-          className="rounded-full bg-approved px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+          className="h-9 rounded-full bg-approved px-4 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97]"
         >
           Approve
         </button>
       </form>
       <button
         onClick={() => setRejecting(true)}
-        className="rounded-full border border-rejected px-3 py-1 text-xs font-semibold text-rejected hover:bg-rejected-wash"
+        className="h-9 rounded-full border border-rejected px-4 text-sm font-semibold text-rejected transition-all hover:bg-rejected-wash active:scale-[0.97]"
       >
         Reject
       </button>
@@ -95,24 +98,26 @@ export default function DashboardDeptHead({
 }) {
   const ugx = (n: number) => formatMoney(n, currency);
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-md animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-ink">
-            Needs your decision{queue.length > 0 ? ` (${queue.length})` : ""}
-          </h2>
-        </div>
+    <div className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      {/* HERO (2/3): the team queue, decided inline. */}
+      <DashboardCard
+        title={"Needs your decision" + (queue.length > 0 ? ` (${queue.length})` : "")}
+        className="animate-in fade-in slide-in-from-bottom-2 duration-500 lg:col-span-2"
+      >
         {queue.length === 0 ? (
-          <p className="py-3 text-sm text-ink-soft">Nothing awaiting you. Your team&apos;s queue is clear.</p>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <CheckCircle2 className="h-8 w-8 text-success-500" strokeWidth={1.5} aria-hidden />
+            <p className="text-sm text-ink-soft">Nothing awaiting you. Your team&apos;s queue is clear.</p>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <ul className="space-y-2.5">
             {queue.map((item) => (
-              <div
+              <li
                 key={item.applicationId}
-                className="flex flex-col gap-3 rounded-lg border border-rule bg-paper p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-sm sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-xl border border-rule bg-paper/60 p-3.5 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/applications/${item.applicationId}`}
                       className="text-sm font-semibold text-ink hover:text-brand"
@@ -121,38 +126,33 @@ export default function DashboardDeptHead({
                     </Link>
                     <span className="chip chip--awaiting">{item.productName}</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-ink-soft">
-                    {ugx(item.amount)} · {item.tenorMonths} mo · {roleLabel(item.stageRole)} stage
+                  <p className="mt-0.5 text-[0.8125rem] text-ink-soft">
+                    <span className="num">{ugx(item.amount)}</span> · {item.tenorMonths} mo · {roleLabel(item.stageRole)} stage
                   </p>
                 </div>
                 <DecideRow applicationId={item.applicationId} />
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </div>
+      </DashboardCard>
 
-      {/* Secondary, quieter: my own position (shrunk) + team size context. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 sm:grid-cols-2">
-        <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
-          <div className="caps mb-1">My outstanding</div>
-          <div className="num truncate text-xl font-semibold text-ink">
-            {myOutstanding !== null ? <CountUp value={myOutstanding} format="money" currency={currency} /> : "No active loan"}
-          </div>
-        </div>
-        <div className="min-w-0 overflow-hidden rounded-xl border border-rule bg-surface p-4 shadow-theme-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-theme-md">
-          <div className="caps mb-1">Team active loans</div>
-          <div className="num truncate text-xl font-semibold text-ink"><CountUp value={teamActiveLoans} /></div>
-        </div>
-      </section>
-
-      <div className="flex gap-3">
-        <Link href="/loans?mine=1" className="btn btn--ghost rounded-full">
-          View my loans
-        </Link>
-        <Link href="/apply" className="btn btn--primary rounded-full">
-          Apply for a loan
-        </Link>
+      {/* 1/3 column: queue depth, team context, my own position (demoted). */}
+      <div className="grid content-start gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 sm:grid-cols-3 lg:grid-cols-1 xl:gap-5">
+        <Metric
+          label="Awaiting you"
+          value={<CountUp value={queue.length} />}
+          sub={queue.length > 0 ? "Decide from the list" : "Queue is clear"}
+          icon={Clock}
+          accent={queue.length > 0 ? "awaiting" : "approved"}
+        />
+        <Metric label="Team active loans" value={<CountUp value={teamActiveLoans} />} sub="People reporting to you" icon={Users} />
+        <Metric
+          label="My outstanding"
+          value={myOutstanding !== null ? <CountUp value={myOutstanding} format="money" currency={currency} /> : "No active loan"}
+          sub="Your own loans"
+          icon={Wallet}
+        />
       </div>
     </div>
   );

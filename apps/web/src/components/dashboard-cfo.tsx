@@ -5,8 +5,9 @@ import { Clock, Wallet, Banknote, TrendingUp } from "lucide-react";
 import BookBreakup from "./book-breakup";
 import PipelinePanel from "./pipeline-panel";
 import RecentActivity from "./recent-activity";
+import DecisionQueue from "./decision-queue";
+import TrendLineChart from "./trend-line-chart";
 import CFOMoneyOps, { type DisbursementQueueItem, type ReconciliationCycle } from "./cfo-money-ops";
-import { formatMoney } from "@wola/engine";
 
 type Book = {
   awaitingMe: number;
@@ -26,6 +27,7 @@ export type InboxItem = {
 };
 export type MixRow = { name: string; kind: string; n: number; principal: number };
 type PipelineRow = { status: string; n: number };
+export type CollectionsPoint = { label: string; month: string; expected: number; collected: number; current: boolean };
 type RecentRow = {
   id: string;
   borrower: string;
@@ -34,8 +36,6 @@ type RecentRow = {
   date: string | null;
 };
 
-const roleLabel = (r: string) =>
-  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function DashboardCFO({
   book,
@@ -48,6 +48,7 @@ export default function DashboardCFO({
   queue,
   reconciliation,
   currency,
+  collections,
 }: {
   book: Book;
   inbox: InboxItem[];
@@ -59,8 +60,8 @@ export default function DashboardCFO({
   queue: DisbursementQueueItem[];
   reconciliation: ReconciliationCycle | null;
   currency: string;
+  collections: CollectionsPoint[];
 }) {
-  const ugx = (n: number) => formatMoney(n, currency);
   // Real month-over-month delta on cumulative principal disbursed — omitted
   // (not fabricated) when there isn't a prior month to compare against, or
   // the prior month was zero (an undefined % change). This is what
@@ -96,10 +97,10 @@ export default function DashboardCFO({
       : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 xl:space-y-5">
       {/* Book at a glance — sits right under the welcome banner on every
           dashboard now (user request), ahead of the role-specific hero. */}
-      <section className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <Metric
           label="Total exposure"
           value={<CountUp value={book.totalExposure} format="money" currency={currency} />}
@@ -137,87 +138,59 @@ export default function DashboardCFO({
         />
       </section>
 
-      {/* HERO: money-operations console — disbursement + reconciliation.
-          Only for roles that can actually disburse (see DISBURSER_ROLES in
-          page.tsx). This is the one component no other role's dashboard has. */}
-      {canDisburse ? (
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75">
-          <CFOMoneyOps queue={queue} reconciliation={reconciliation} currency={currency} />
-        </div>
-      ) : null}
-
-      {/* Needs your decision */}
-      <section className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-ink">Needs your decision</h2>
-          {inbox.length > 0 ? (
-            <Link href="/approvals" className="text-xs font-medium text-brand hover:underline">
-              View all
-            </Link>
-          ) : null}
-        </div>
-        {inbox.length === 0 ? (
-          <div className="rounded-xl border border-rule bg-surface p-6 text-center shadow-theme-sm">
-            <p className="text-sm text-ink-soft">Nothing is waiting on you. The queue is clear.</p>
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>Applicant</th>
-                  <th>Product</th>
-                  <th className="r">Amount</th>
-                  <th className="r">Tenor</th>
-                  <th>Stage</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {inbox.map((item) => (
-                  <tr key={item.applicationId}>
-                    <td className="font-medium text-ink">{item.employeeName}</td>
-                    <td className="text-ink-soft">{item.productName}</td>
-                    <td className="r num">{ugx(item.amount)}</td>
-                    <td className="r num">{item.tenorMonths} mo</td>
-                    <td>
-                      <span className="chip chip--awaiting">{roleLabel(item.stageRole)}</span>
-                    </td>
-                    <td className="r">
-                      <Link
-                        href={"/approvals?app=" + item.applicationId}
-                        className="text-xs font-medium text-brand hover:underline"
-                      >
-                        Review
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* Book: product bars + application pipeline, side by side */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200 lg:grid-cols-2">
-        {mix.length > 0 ? (
-          <BookBreakup data={mix} total={book.principalDisbursed} delta={disbursementDelta} currency={currency} />
-        ) : null}
+      {/* Row 1 (2/3 + 1/3): collections trend beside the application pipeline. */}
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75 lg:grid-cols-3 xl:gap-5">
+        <TrendLineChart
+          title="Collections"
+          subtitle={`Money received against instalments due, last 6 months · ${currency}`}
+          data={collections}
+          actual={{ key: "collected", label: "Collected", color: "var(--color-brand)" }}
+          target={{ key: "expected", label: "Expected", color: "var(--color-chart-target)" }}
+          currency={currency}
+          markerX={collections.find((c) => c.current)?.label}
+          compareNote="vs expected"
+          emptyText="No instalments fell due in the last six months, so there's nothing to compare yet."
+          csvName="collections"
+          reportHref="/reports"
+          className="lg:col-span-2"
+        />
         <PipelinePanel data={pipeline} />
       </section>
 
-      {/* Recent activity */}
-      <section className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300">
+      {/* Row 2 (2/3 + 1/3): the money-operations console — the CFO's hero,
+          only for roles that can actually disburse — beside the book breakup. */}
+      {canDisburse || mix.length > 0 ? (
+        <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+          {canDisburse ? (
+            <div className={"min-w-0 " + (mix.length > 0 ? "lg:col-span-2" : "lg:col-span-3")}>
+              <CFOMoneyOps queue={queue} reconciliation={reconciliation} currency={currency} />
+            </div>
+          ) : null}
+          {mix.length > 0 ? (
+            <div className={"min-w-0 " + (canDisburse ? "" : "lg:col-span-3")}>
+              <BookBreakup data={mix} total={book.principalDisbursed} delta={disbursementDelta} currency={currency} />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* Row 3 (2/3 + 1/3): decision worklist beside recent activity. */}
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200 lg:grid-cols-3 xl:gap-5">
+        <DecisionQueue
+          title="Needs your decision"
+          items={inbox}
+          currency={currency}
+          showTenor
+          showStage
+          className="lg:col-span-2"
+        />
         <RecentActivity data={recent} currency={currency} />
       </section>
 
       {/* Personal loans: demoted */}
-      <section className="border-t border-rule pt-6">
-        <Link href="/loans?mine=1" className="text-sm text-ink-soft hover:text-ink">
-          View my own loans and applications &rarr;
-        </Link>
-      </section>
+      <Link href="/loans?mine=1" className="inline-block text-sm text-ink-soft transition-colors hover:text-ink">
+        View my own loans and applications &rarr;
+      </Link>
     </div>
   );
 }

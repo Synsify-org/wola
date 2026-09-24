@@ -229,7 +229,7 @@ export default async function LoanDetail({
       ) : null}
 
       {/* Key figures — the numbers an employee opens this page to see */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="Next deduction"
           value={nextLine ? ugx(nextLine.instalment) : "—"}

@@ -16,6 +16,8 @@ import {
   reconciliationThisCycle,
   registerHealth,
   configurationStatus,
+  collectionsTrend,
+  type CollectionsPoint,
 } from "@wola/db";
 import { db } from "@/lib/tenant";
 import DashboardCFO, { type InboxItem, type MixRow } from "@/components/dashboard-cfo";
@@ -26,7 +28,9 @@ import DashboardAdmin from "@/components/dashboard-admin";
 import DashboardAuditor, { type AuditRow } from "@/components/dashboard-auditor";
 import DashboardDeptHead, { type QueueItem } from "@/components/dashboard-depthead";
 import DashboardEmployee from "@/components/dashboard-employee";
-import DashboardWelcomeBanner from "@/components/dashboard-welcome-banner";
+import DashboardWelcomeBanner, { type BannerHighlight, type HeaderAction } from "@/components/dashboard-welcome-banner";
+import { formatMoney } from "@wola/engine";
+import { CheckSquare, FileBarChart, FilePlus, ScrollText, Settings, Users, Wallet } from "lucide-react";
 
 // Money-operations console (§6.2's CFO hero) is scoped to the roles that can
 // actually disburse — must match DISBURSER_ROLES in loans/[id]/actions.ts.
@@ -72,7 +76,7 @@ export default async function Dashboard() {
       return {
         displayName, role: ctx.role, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
-        deptQueue: null, teamActiveLoans: 0, myOutstanding: null,
+        deptQueue: null, teamActiveLoans: 0, myOutstanding: null, collections: [] as CollectionsPoint[],
       };
     }
 
@@ -108,7 +112,7 @@ export default async function Dashboard() {
       return {
         displayName, role: ctx.role, mine: null, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
-        deptQueue: inbox, teamActiveLoans: Number(teamRow?.n ?? 0), myOutstanding,
+        deptQueue: inbox, teamActiveLoans: Number(teamRow?.n ?? 0), myOutstanding, collections: [] as CollectionsPoint[],
       };
     }
 
@@ -126,9 +130,14 @@ export default async function Dashboard() {
       !EXEC_APPROVER_ROLES.includes(ctx.role) &&
       !ADMIN_ROLES.includes(ctx.role);
 
+    // Which dashboards plot collections: the CFO-style book view and the CEO.
+    const showsCollections =
+      ctx.role !== "hr" && ctx.role !== "auditor" &&
+      !ADMIN_ROLES.includes(ctx.role) && !EXEC_APPROVER_ROLES.includes(ctx.role);
+
     const [
       book, mix, pipelineRows, recentRows, growthRows,
-      queue, reconciliation, health, settledRows, configStatus, auditRowsRaw,
+      queue, reconciliation, health, settledRows, configStatus, auditRowsRaw, collections,
     ] = await Promise.all([
       approverMetrics(tx, inbox.length),
       loansByProduct(tx),
@@ -172,6 +181,8 @@ export default async function Dashboard() {
             ORDER BY a.at DESC
             LIMIT 20`
         : Promise.resolve(null),
+      // Collected vs Expected chart — the CFO and CEO dashboards only.
+      showsCollections ? collectionsTrend(tx, 6) : Promise.resolve([] as CollectionsPoint[]),
     ]);
 
     const pipeline = pipelineRows.map((r) => ({
@@ -202,14 +213,14 @@ export default async function Dashboard() {
 
     return {
       displayName, role: ctx.role, mine: null, book, inbox, mix, pipeline, recent, exposureTrend,
-      canDisburse: showsMoneyOps, queue, reconciliation, health, ceoView, configStatus, auditRows,
+      canDisburse: showsMoneyOps, queue, reconciliation, health, ceoView, configStatus, auditRows, collections,
       deptQueue: null, teamActiveLoans: 0, myOutstanding: null,
     };
   });
 
   const {
     displayName, role, mine, book, inbox, mix, pipeline, recent, exposureTrend, canDisburse, queue, reconciliation, health, ceoView,
-    configStatus, auditRows, deptQueue, teamActiveLoans, myOutstanding,
+    configStatus, auditRows, deptQueue, teamActiveLoans, myOutstanding, collections,
   } = data;
 
   // Same "one question" per role as before, now spoken once by the banner
@@ -233,9 +244,74 @@ export default async function Dashboard() {
   const tenantDisplayName = (tenant?.name as string) ?? "Wola";
   const currency = (tenant?.currency as string) ?? "UGX";
 
+  // Header actions: each role's most frequent next step, primary last. Every
+  // href is a page the role can already reach (same gates as nav-links.tsx).
+  const approvals: HeaderAction = { href: "/approvals", label: "Approvals", icon: CheckSquare, primary: true };
+  const reports: HeaderAction = { href: "/reports", label: "Reports", icon: FileBarChart };
+  const apply: HeaderAction = { href: "/apply", label: "Apply for a loan", icon: FilePlus, primary: true };
+  const actions: HeaderAction[] = deptQueue
+    ? [{ href: "/loans?mine=1", label: "My loans", icon: Wallet }, apply]
+    : health
+      ? [{ href: "/settings/employees", label: "Employees", icon: Users }, approvals]
+      : configStatus
+        ? [{ href: "/settings", label: "Settings", icon: Settings, primary: true }]
+        : auditRows
+          ? [reports, { href: "/audit-log", label: "Audit log", icon: ScrollText, primary: true }]
+          : book
+            ? [reports, approvals]
+            : [{ href: "/loans", label: "My loans", icon: Wallet }, apply];
+
+  // Banner highlight: ONE live figure per role — what needs this person now.
+  // Built only from data already loaded above; no extra queries.
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const waiting = (n: number, what: string): BannerHighlight =>
+    n > 0
+      ? { label: `${plural(n, "application", "applications")} ${what}`, href: "/approvals", tone: "attention" }
+      : { label: "Nothing is waiting on you", tone: "calm" };
+  const nextDeduction = mine?.loans
+    .filter((l) => l.nextDueDate)
+    .sort((a, b) => String(a.nextDueDate).localeCompare(String(b.nextDueDate)))[0];
+  const bestLimit = Math.max(0, ...(mine?.eligibility ?? []).map((e) => e.maxAmount));
+  const configured =
+    configStatus &&
+    configStatus.productsCount > 0 &&
+    configStatus.productsWithoutPipeline.length === 0 &&
+    configStatus.productsMissingRateIndex.length === 0;
+  const exceptions = reconciliation?.exceptions.length ?? 0;
+
+  const highlight: BannerHighlight | undefined = deptQueue
+    ? waiting(deptQueue.length, "from your team need your decision")
+    : health
+      ? waiting(inbox.length, "waiting at the HR stage")
+      : configStatus
+        ? configured
+          ? { label: "Tenant is fully configured and ready to lend", tone: "calm" }
+          : { label: "Setup is incomplete. Finish the checklist to start lending", href: "/settings", tone: "attention" }
+        : auditRows
+          ? { label: "Read-only access. Nothing here can be changed", tone: "calm" }
+          : book
+            ? book.awaitingMe > 0
+              ? waiting(book.awaitingMe, "awaiting your decision")
+              : exceptions > 0
+                ? { label: `${plural(exceptions, "payroll exception", "payroll exceptions")} this cycle`, tone: "attention" }
+                : waiting(0, "")
+            : nextDeduction
+              ? {
+                  label: `Next deduction ${formatMoney(nextDeduction.monthlyDeduction, currency)} on ${new Date(
+                    String(nextDeduction.nextDueDate),
+                  ).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`,
+                  href: `/loans/${nextDeduction.loanId}`,
+                  tone: "calm",
+                }
+              : (mine?.applicationsInFlight.length ?? 0) > 0
+                ? { label: `${plural(mine!.applicationsInFlight.length, "application", "applications")} in review`, href: "/loans", tone: "calm" }
+                : bestLimit > 0
+                  ? { label: `You can borrow up to ${formatMoney(bestLimit, currency)}`, href: "/apply", tone: "calm" }
+                  : undefined;
+
   return (
     <>
-      <DashboardWelcomeBanner name={displayName} tenantName={tenantDisplayName} subtitle={subtitle} />
+      <DashboardWelcomeBanner name={displayName} tenantName={tenantDisplayName} subtitle={subtitle} actions={actions} highlight={highlight} />
       {deptQueue ? (
         <DashboardDeptHead
           queue={deptQueue as unknown as QueueItem[]}
@@ -260,6 +336,7 @@ export default async function Dashboard() {
           rejectedThisYear={book.rejectedThisYear}
           inbox={inbox as unknown as CEOInboxItem[]}
           mix={mix as unknown as MixRow[]}
+          collections={collections}
           currency={currency}
         />
       ) : configStatus ? (
@@ -289,6 +366,7 @@ export default async function Dashboard() {
           book={book}
           inbox={inbox as unknown as InboxItem[]}
           mix={mix as unknown as MixRow[]}
+          collections={collections}
           pipeline={pipeline}
           recent={recent}
           exposureTrend={exposureTrend ?? []}

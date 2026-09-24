@@ -1,9 +1,11 @@
-import Link from "next/link";
+import DashboardCard from "./dashboard-card";
+import DecisionQueue from "./decision-queue";
+import TrendLineChart from "./trend-line-chart";
+import type { CollectionsPoint } from "./dashboard-cfo";
 import { Wallet, Layers } from "lucide-react";
 import FeaturedMetric from "./featured-metric";
 import BookBreakup from "./book-breakup";
 import CountUp from "./count-up";
-import { formatMoney } from "@wola/engine";
 
 export type CEOInboxItem = {
   applicationId: string;
@@ -27,6 +29,7 @@ export default function DashboardCEO({
   rejectedThisYear,
   inbox,
   mix,
+  collections,
   currency,
 }: {
   totalExposure: number;
@@ -37,13 +40,20 @@ export default function DashboardCEO({
   rejectedThisYear: number;
   inbox: CEOInboxItem[];
   mix: MixRow[];
+  collections: CollectionsPoint[];
   currency: string;
 }) {
-  const ugx = (n: number) => formatMoney(n, currency);
+  const activity = [
+    { label: "In progress", value: inProgress, tone: "bg-warning-500" },
+    { label: "Settled", value: settled, tone: "bg-success-500" },
+    { label: "Rejected this year", value: rejectedThisYear, tone: "bg-error-500" },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* HERO: programme health + trend */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-2">
+    <div className="space-y-4 xl:space-y-5">
+      {/* HERO (row 1): programme health + trend, with the activity counts as
+          the third column instead of a loose strip underneath. */}
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 md:grid-cols-2 xl:grid-cols-3 xl:gap-5">
         <FeaturedMetric
           label="Total exposure"
           value={<CountUp value={totalExposure} format="money" currency={currency} />}
@@ -58,70 +68,48 @@ export default function DashboardCEO({
           icon={Layers}
           trend={exposureTrend}
         />
+        <DashboardCard title="Programme activity" className="md:col-span-2 xl:col-span-1">
+          <ul className="space-y-4">
+            {activity.map((a) => (
+              <li key={a.label} className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2.5 text-sm text-ink-soft">
+                  <span className={"h-2.5 w-2.5 rounded-full " + a.tone} aria-hidden />
+                  {a.label}
+                </span>
+                <span className="num text-xl font-semibold text-ink"><CountUp value={a.value} /></span>
+              </li>
+            ))}
+          </ul>
+        </DashboardCard>
       </section>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-rule bg-surface px-5 py-3 text-sm shadow-theme-sm animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75">
-        <span className="text-ink-soft">
-          In progress <span className="num font-semibold text-ink"><CountUp value={inProgress} /></span>
-        </span>
-        <span className="text-ink-soft">
-          Settled <span className="num font-semibold text-ink"><CountUp value={settled} /></span>
-        </span>
-        <span className="text-ink-soft">
-          Rejected this year <span className="num font-semibold text-ink"><CountUp value={rejectedThisYear} /></span>
-        </span>
-      </div>
-
-      {/* Secondary: CEO-stage queue + product mix — both quiet, neither the hero. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-2">
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink">Awaiting your sign-off</h2>
-            {inbox.length > 0 ? (
-              <Link href="/approvals" className="text-xs font-medium text-brand hover:underline">
-                View all
-              </Link>
-            ) : null}
-          </div>
-          {inbox.length === 0 ? (
-            <div className="rounded-xl border border-rule bg-surface p-6 text-center shadow-theme-sm">
-              <p className="text-sm text-ink-soft">Nothing awaiting your sign-off.</p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-theme-sm">
-              <table className="ledger">
-                <thead>
-                  <tr>
-                    <th>Applicant</th>
-                    <th>Product</th>
-                    <th className="r">Amount</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inbox.map((item) => (
-                    <tr key={item.applicationId}>
-                      <td className="font-medium text-ink">{item.employeeName}</td>
-                      <td className="text-ink-soft">{item.productName}</td>
-                      <td className="r num">{ugx(item.amount)}</td>
-                      <td className="r">
-                        <Link
-                          href={"/approvals?app=" + item.applicationId}
-                          className="text-xs font-medium text-brand hover:underline"
-                        >
-                          Review
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
+      {/* Row 2 (2/3 + 1/3): collections trend beside the product mix. */}
+      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+        <TrendLineChart
+          title="Collections"
+          subtitle={`Money received against instalments due, last 6 months · ${currency}`}
+          data={collections}
+          actual={{ key: "collected", label: "Collected", color: "var(--color-brand)" }}
+          target={{ key: "expected", label: "Expected", color: "var(--color-chart-target)" }}
+          currency={currency}
+          markerX={collections.find((c) => c.current)?.label}
+          compareNote="vs expected"
+          emptyText="No instalments fell due in the last six months, so there's nothing to compare yet."
+          csvName="collections"
+          reportHref="/reports"
+          className={mix.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}
+        />
         {mix.length > 0 ? <BookBreakup data={mix} total={valueUnderManagement} currency={currency} /> : null}
       </section>
+
+      {/* Row 3: the CEO-stage queue — quiet, not the hero. */}
+      <DecisionQueue
+        title="Awaiting your sign-off"
+        items={inbox}
+        currency={currency}
+        emptyText="Nothing awaiting your sign-off."
+        className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200"
+      />
     </div>
   );
 }
