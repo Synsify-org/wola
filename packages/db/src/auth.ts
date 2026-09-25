@@ -20,28 +20,43 @@ export async function verifyPassword(hash: string, pw: string) {
 }
 
 // ---- Login rate limiting ------------------------------------------------
-// 5 attempts / 15 min / (email, IP) pair. Deliberately keyed on the PAIR,
-// not either alone: rate-limiting by email alone lets an attacker lock a
-// real user out from many IPs (a denial-of-service on the victim); by IP
-// alone lets one attacker spray many emails from one machine unlimited
-// times per email. The pair is what the spec actually asks for.
+// Two limits over a rolling 15 minutes, both counting FAILED attempts only
+// (migration 0018):
+//
+//   - 5 failures per (email, IP) pair: stops brute-forcing one account.
+//     Keyed on the PAIR, not the email alone, so an attacker can't lock a
+//     real user out by failing from many IPs (a denial-of-service on the
+//     victim).
+//   - 30 failures per IP across every email: stops password spraying (one
+//     machine trying a common password against many accounts), which the
+//     pair limit alone never sees. Successes don't count, so an office
+//     signing in together from one NAT'd IP can't lock itself out.
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const RATE_LIMIT_MAX_IP_FAILURES = 30;
 
 /** Record one login attempt — call for EVERY attempt, success or failure,
  *  before returning to the caller. An attempt that's never recorded is a
- *  gap in the limit. */
-export async function recordLoginAttempt(sql: Sql, email: string, ip: string): Promise<void> {
-  await sql`INSERT INTO login_attempts (email, ip) VALUES (${email}, ${ip})`;
+ *  gap in the limit. `succeeded` defaults to false: an unrecorded outcome
+ *  counts against the limit, never for it. */
+export async function recordLoginAttempt(
+  sql: Sql, email: string, ip: string, succeeded = false,
+): Promise<void> {
+  await sql`INSERT INTO login_attempts (email, ip, succeeded) VALUES (${email}, ${ip}, ${succeeded})`;
 }
 
-/** True if this (email, ip) pair has hit the cap in the last 15 minutes.
+/** True if either limit is hit: this (email, ip) pair has 5+ recent
+ *  failures, or this IP has 30+ recent failures across all emails.
  *  Call BEFORE attempting the password check — a rate-limited request
  *  shouldn't even run argon2.verify (that's the expensive part). */
 export async function isRateLimited(sql: Sql, email: string, ip: string): Promise<boolean> {
   const [row] = await sql`
-    SELECT count(*)::int AS n FROM login_attempts
-    WHERE email = ${email} AND ip = ${ip} AND created_at > now() - interval '15 minutes'`;
-  return Number(row?.n ?? 0) >= RATE_LIMIT_MAX_ATTEMPTS;
+    SELECT
+      count(*) FILTER (WHERE email = ${email})::int AS pair,
+      count(*)::int AS ip_total
+    FROM login_attempts
+    WHERE ip = ${ip} AND NOT succeeded AND created_at > now() - interval '15 minutes'`;
+  return Number(row?.pair ?? 0) >= RATE_LIMIT_MAX_ATTEMPTS
+    || Number(row?.ip_total ?? 0) >= RATE_LIMIT_MAX_IP_FAILURES;
 }
 
 // ---- Password reset -------------------------------------------------------

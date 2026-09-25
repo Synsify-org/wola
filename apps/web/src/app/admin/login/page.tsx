@@ -1,5 +1,6 @@
 // apps/web/src/app/admin/login/page.tsx — super-admin sign-in.
 // Outside the tenant model entirely: no subdomain/tenant resolution here.
+import { clientIp } from "@/lib/client-ip";
 import { cookies, headers } from "next/headers";
 import { superLogin, SUPER_SESSION_COOKIE } from "@/lib/super-admin-auth";
 import SuperLoginForm from "./login-form";
@@ -9,7 +10,7 @@ export type SuperLoginState = { error?: string; ok?: boolean };
 async function doSuperLogin(_prev: SuperLoginState, formData: FormData): Promise<SuperLoginState> {
   "use server";
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(h);
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");

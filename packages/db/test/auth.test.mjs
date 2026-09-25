@@ -110,6 +110,32 @@ test("rate limiting is per (email, ip) pair — a different ip is not limited by
   assert.equal(await isRateLimited(admin, email, "203.0.113.2"), false);
 });
 
+test("successful sign-ins don't count toward the (email, ip) limit", async () => {
+  const email = "regular@pwr.t";
+  const ip = "198.51.100.10";
+  for (let i = 0; i < 8; i++) await recordLoginAttempt(admin, email, ip, true);
+  assert.equal(await isRateLimited(admin, email, ip), false, "signing in and out repeatedly must not lock a user out");
+  for (let i = 0; i < 5; i++) await recordLoginAttempt(admin, email, ip, false);
+  assert.equal(await isRateLimited(admin, email, ip), true, "failures still count");
+});
+
+test("password spraying: 30 failures from one IP across different emails limits that IP", async () => {
+  const ip = "198.51.100.20";
+  // Each email fails only once — the pair limit never trips — but together
+  // they're one machine trying one password against many accounts.
+  for (let i = 0; i < 29; i++) await recordLoginAttempt(admin, `spray${i}@pwr.t`, ip);
+  assert.equal(await isRateLimited(admin, "fresh-target@pwr.t", ip), false, "29 failures: still allowed");
+  await recordLoginAttempt(admin, "spray29@pwr.t", ip);
+  assert.equal(await isRateLimited(admin, "fresh-target@pwr.t", ip), true, "30th failure limits the IP for any email");
+  assert.equal(await isRateLimited(admin, "fresh-target@pwr.t", "198.51.100.21"), false, "other IPs unaffected");
+});
+
+test("a whole office signing in from one shared IP is never limited", async () => {
+  const ip = "198.51.100.30";
+  for (let i = 0; i < 120; i++) await recordLoginAttempt(admin, `staff${i}@pwr.t`, ip, true);
+  assert.equal(await isRateLimited(admin, "staff120@pwr.t", ip), false);
+});
+
 test("attempts older than the 15-minute window don't count toward the limit", async () => {
   const email = "stale@pwr.t";
   const ip = "203.0.113.9";

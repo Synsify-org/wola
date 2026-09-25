@@ -104,7 +104,11 @@ export async function requireSession<T>(
     const [m] = await tx`
       SELECT role FROM memberships
       WHERE user_id = ${session.userId} AND tenant_id = ${tenant.id}`;
-    const role = (m?.role as string) ?? "employee";
+    // No membership = no access. This used to fall back to "employee", so a
+    // person removed from the tenant kept employee access through any session
+    // issued before the removal. Fail closed instead.
+    if (!m) redirect("/login");
+    const role = m.role as string;
     const canSeeAllLoans = FULL_BOOK_ROLES.includes(role);
 
     // The caller's own employee row in this tenant (may be null for pure
