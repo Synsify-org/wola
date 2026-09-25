@@ -2,6 +2,7 @@
 // NOTE: redirect() inside a server action can DISCARD the Set-Cookie header in
 // Next 16 — the cookie is only written to the response when the action returns
 // normally. So this action returns state, and the client navigates.
+import { clientIp } from "@/lib/client-ip";
 import { cookies, headers } from "next/headers";
 import { resolveTenant } from "@wola/db";
 import { db, TenantError } from "@/lib/tenant";
@@ -17,10 +18,7 @@ async function doLogin(_prev: LoginState, formData: FormData): Promise<LoginStat
   const tenant = slug ? await resolveTenant(db, slug) : null;
   if (!tenant) throw new TenantError(404, "Unknown tenant");
 
-  // First hop in x-forwarded-for is the original client; behind no proxy
-  // (local dev) this header is absent, so fall back to a fixed key rather
-  // than leaving rate limiting keyed on `undefined` for everyone.
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(h);
 
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
@@ -47,6 +45,19 @@ async function doLogin(_prev: LoginState, formData: FormData): Promise<LoginStat
   return { ok: true };
 }
 
-export default function LoginPage() {
-  return <LoginForm action={doLogin} />;
+// The tenant's name and address are shown on the form so people can see
+// which company they're signing into before typing a password — the
+// cheapest defence against a look-alike phishing page. Display only; the
+// action above re-resolves the tenant itself.
+export default async function LoginPage() {
+  const h = await headers();
+  const slug = h.get("x-tenant-slug");
+  const tenant = slug ? await resolveTenant(db, slug) : null;
+  return (
+    <LoginForm
+      action={doLogin}
+      tenantName={(tenant?.name as string | undefined) ?? null}
+      host={(h.get("host") ?? "").split(":")[0] || null}
+    />
+  );
 }

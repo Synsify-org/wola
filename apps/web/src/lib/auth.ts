@@ -50,11 +50,31 @@ export async function createSession(
  *  is RLS-protected: without a tenant context, Postgres hides the row
  *  and the JOIN returns nothing. We resolved the tenant from the
  *  subdomain before calling this, so scoping the read is correct. */
+// Input caps, checked before any hashing. argon2 cost scales with input, so an
+// unbounded password is a cheap way to burn server CPU (a denial-of-service).
+// 254 is the RFC 5321 maximum address length; 256 characters is far beyond
+// any real passphrase.
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 256;
+
 export async function login(
-  email: string, password: string, tenantId: string, ip: string, remember = false,
+  rawEmail: string, password: string, tenantId: string, ip: string, remember = false,
 ): Promise<LoginResult> {
+  // Normalise so " Grace@Co.com " and "grace@co.com" share one rate-limit
+  // key and one lookup (users.email and login_attempts.email are citext, so
+  // case already matches; surrounding whitespace did not).
+  const email = rawEmail.trim().toLowerCase();
+
   if (await isRateLimited(db, email, ip)) {
     return { ok: false, reason: "rate_limited" };
+  }
+
+  // Oversized or empty input: refuse without running argon2 at all. Still
+  // recorded as a failure, and the same "invalid" answer as a wrong
+  // password, so it reveals nothing about the account.
+  if (!email || email.length > MAX_EMAIL_LENGTH || !password || password.length > MAX_PASSWORD_LENGTH) {
+    await recordLoginAttempt(db, email.slice(0, MAX_EMAIL_LENGTH) || "(empty)", ip, false);
+    return { ok: false, reason: "invalid" };
   }
 
   const [user] = await tenantTx(db, tenantId, (tx: Tx) => tx`
@@ -69,10 +89,13 @@ export async function login(
   const hash = user?.password_hash ?? "$argon2id$v=19$m=65536,t=3,p=4$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
   const ok = await verifyPassword(hash, password);
 
-  // Recorded for EVERY attempt, success or failure, before returning.
-  await recordLoginAttempt(db, email, ip);
+  const succeeded = Boolean(user && user.password_hash && ok);
 
-  if (!user || !user.password_hash || !ok) {
+  // Recorded for EVERY attempt, with its outcome, before returning — the
+  // rate limits count failures only (see packages/db/src/auth.ts).
+  await recordLoginAttempt(db, email, ip, succeeded);
+
+  if (!succeeded || !user) {
     return { ok: false, reason: "invalid" };
   }
 
@@ -85,9 +108,12 @@ export async function login(
  *  hasn't expired. Tenant mismatch => null (the core isolation check). */
 export async function verifySession(token: string | undefined, tenantId: string) {
   if (!token) return null;
+  // The user must still be active: a deactivated account's existing
+  // sessions stop working immediately, not when they happen to expire.
   const [s] = await db`
-    SELECT user_id, tenant_id, expires_at FROM sessions
-    WHERE token_hash = ${sha256(token)}`;
+    SELECT s.user_id, s.tenant_id, s.expires_at FROM sessions s
+    JOIN users u ON u.id = s.user_id AND u.status = 'active'
+    WHERE s.token_hash = ${sha256(token)}`;
   if (!s) return null;
   if (new Date(s.expires_at) < new Date()) return null;
   if (s.tenant_id !== tenantId) return null; // the cross-tenant replay block
