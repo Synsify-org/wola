@@ -11,19 +11,21 @@
 // This page converts to a percent (×100) once here for display; ScheduleTable
 // expects a percent, not a fraction of a fraction.
 //
-// NOTE ON outstanding: scheduled balance only (assumes on-schedule payroll
-// deduction). True outstanding needs the repayments table — deferred for the
-// demo, same caveat as the register. Marked TODO for @wola/db (Willy).
+// NOTE ON outstanding and next deduction: both come from the repayment LEDGER
+// via repaymentPosition() (@wola/db), the same source the repayment allocator
+// uses, never from schedule dates alone, which kept showing a "next
+// deduction" on loans already repaid early or in full.
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireSession, scopePredicate } from "@/lib/guard";
-import { loanOutstanding } from "@wola/db";
+import { repaymentPosition, type RepaymentPosition } from "@wola/db";
 import Metric from "@/components/metric";
 import ScheduleTable from "@/components/schedule-table";
 import DisburseButton from "@/components/disburse-button";
 import RepayButton from "@/components/repay-button";
 import {
   ArrowLeft,
+  CheckCircle2,
   Banknote,
   CalendarClock,
   Wallet,
@@ -107,7 +109,7 @@ export default async function LoanDetail({
     if (!loan) return {
       loan: null, lines: [] as LineRow[],
       scope: ctx.scope, canDisburse: false, canRepay: false,
-      trueOutstanding: 0, principalRepaid: 0,
+      position: null as RepaymentPosition | null,
     };
 
     // Active schedule lines, ordered. schedule_lines.closing_balance is the
@@ -121,22 +123,19 @@ export default async function LoanDetail({
       WHERE s.loan_id = ${loan.id} AND s.is_active = true
       ORDER BY sl.period_no ASC`) as unknown as LineRow[];
 
-    // TRUE outstanding from the repayment ledger (principal repaid to date),
-    // not the scheduled balance. This is what makes the number visibly drop
-    // when a repayment is recorded.
-    const paid = await loanOutstanding(tx, ctx.tenantId, loan.id as string);
+    // Outstanding, progress and the next deduction, all from the ledger.
+    const position = await repaymentPosition(tx, ctx.tenantId, loan.id as string);
 
     return {
       loan, lines, scope: ctx.scope,
       canDisburse: DISBURSER_ROLES.includes(ctx.role),
       canRepay: DISBURSER_ROLES.includes(ctx.role),
-      trueOutstanding: paid.outstanding,
-      principalRepaid: paid.principalRepaid,
+      position,
     };
   });
 
-  const { loan, lines, scope, canDisburse, canRepay, trueOutstanding, principalRepaid } = data;
-  if (!loan) notFound();
+  const { loan, lines, scope, canDisburse, canRepay, position } = data;
+  if (!loan || !position) notFound();
 
   // ScheduleTable wants { period, dueDate, instalment, principal, interest,
   // balance } — note it names the balance field `balance`, while the column is
@@ -153,24 +152,38 @@ export default async function LoanDetail({
   const ratePct = Number(loan.annual_rate) * 100; // fraction -> percent, e.g. 0.16 -> 16.0
   const monthly = schedule.length ? schedule[0].instalment : 0;
 
-  // Next deduction = first unpaid scheduled line (first line due today or
-  // later). Scheduled-only: we have no repayments table yet, so "unpaid" ==
-  // "due date not in the past". Good enough for the demo; revisit with
-  // repayments for true arrears handling.
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const nextLine =
-    schedule.find((l) => new Date(l.dueDate) >= today) ??
-    schedule[schedule.length - 1] ??
-    null;
+  // Everything below is ledger-derived (repaymentPosition), so a loan repaid
+  // early or in full never shows a pending deduction, and a part-paid
+  // instalment shows only its remainder.
+  const { next, outstanding, principalRepaid } = position;
+  const settled = loan.status === "settled" || (loan.status === "active" && outstanding <= 0);
+  const progress = settled
+    ? 100
+    : Number(loan.principal) > 0
+      ? Math.round((principalRepaid / Number(loan.principal)) * 100)
+      : 0;
 
-  // Outstanding now comes from the repayment LEDGER (true paid-down balance),
-  // not the schedule. This is the number that drops when a repayment is
-  // recorded. Progress = principal repaid / principal.
-  const outstanding = trueOutstanding;
-  const progress = Number(loan.principal) > 0
-    ? Math.round((principalRepaid / Number(loan.principal)) * 100)
-    : 0;
+  const nextDeduction: { value: string; sub?: string; accent: "brand" | "approved" | "awaiting"; icon: typeof CalendarClock } =
+    settled
+      ? { value: "Nothing due", sub: "Fully repaid", accent: "approved", icon: CheckCircle2 }
+      : next
+        ? {
+            value: ugx(next.amount),
+            sub: (next.overdue ? "Overdue since " : "Due ") + shortDate(next.dueDate),
+            accent: next.overdue ? "awaiting" : "brand",
+            icon: CalendarClock,
+          }
+        : {
+            value: "—",
+            sub: loan.status === "pending_disbursement" ? "Starts after disbursement" : statusLabel(loan.status),
+            accent: "brand",
+            icon: CalendarClock,
+          };
+
+  // Pre-fill the repayment form with what's actually due (never more than the
+  // payoff — the server refuses overpayments, and the final instalment is
+  // often smaller than the level one).
+  const suggestedRepayment = next?.amount ?? position.payoff;
 
   return (
     <>
@@ -212,7 +225,7 @@ export default async function LoanDetail({
         {loan.status === "pending_disbursement" && canDisburse ? (
           <DisburseButton loanId={loan.id} amount={Number(loan.principal)} currency={currency} />
         ) : loan.status === "active" && canRepay ? (
-          <RepayButton loanId={loan.id} suggested={monthly} currency={currency} />
+          <RepayButton key={position.payoff} loanId={loan.id} suggested={suggestedRepayment} currency={currency} />
         ) : (
           <Link href="/apply" className="btn btn--ghost rounded-full text-sm">
             Apply for another
@@ -232,17 +245,17 @@ export default async function LoanDetail({
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="Next deduction"
-          value={nextLine ? ugx(nextLine.instalment) : "—"}
-          sub={nextLine ? shortDate(nextLine.dueDate) : undefined}
-          icon={CalendarClock}
-          accent="brand"
+          value={nextDeduction.value}
+          sub={nextDeduction.sub}
+          icon={nextDeduction.icon}
+          accent={nextDeduction.accent}
         />
         <Metric
           label="Outstanding"
           value={ugx(outstanding)}
-          sub="Ledger"
+          sub={settled ? "Fully repaid" : "Ledger balance"}
           icon={Wallet}
-          accent="brand"
+          accent={settled ? "approved" : "brand"}
         />
         <Metric
           label="Monthly payment"
@@ -266,12 +279,14 @@ export default async function LoanDetail({
           <div className="flex items-center justify-between">
             <div className="caps">Repayment progress</div>
             <div className="num text-xs text-ink-soft">
-              {ugx(principalRepaid)} of {ugx(Number(loan.principal))} principal · {progress}%
+              {settled
+                ? <>Fully repaid · {ugx(Number(loan.principal))} principal · 100%</>
+                : <>{ugx(principalRepaid)} of {ugx(Number(loan.principal))} principal · {progress}%</>}
             </div>
           </div>
           <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
             <div
-              className="h-full rounded-full bg-brand transition-all"
+              className={"h-full rounded-full transition-[width] duration-500 ease-out " + (settled ? "bg-approved" : "bg-brand")}
               style={{ width: `${progress}%` }}
             />
           </div>

@@ -25,6 +25,7 @@
 ## 2026-07 — Testing conventions (learned the hard way)
 - DB test files share ONE Postgres. Each file MUST use file-scoped tenant slugs and delete ONLY its own data. NEVER blanket `DELETE FROM tenants` — it orphans other files' rows mid-run.
 - `node --test` runs files CONCURRENTLY by default. Scoped slugs avoid collisions; if races persist, force `--test-concurrency=1`.
+- 2026-09-25: races persisted, so `test:isolation` now runs with `--test-concurrency=1`. super_admin.test.mjs asserts that platform-WIDE totals move by exactly one new loan; with files in parallel, another file creating loans at the same instant made it fail about half the time (8/8 alone). Serial costs about 9s (11s to 20s) and removes the whole class of cross-file races.
 - Every new tenant table MUST add adversarial isolation tests in the same PR. Untested RLS is unproven RLS.
 - Dev-login users MUST be seeded under a tenant the tests DON'T touch, AND a NON-RESERVED slug. Tests wipe acme/umoja/cfg-*/auth-*. Reserved slugs (rejected by the slug_reserved constraint): www, app, api, admin, docs, status, mail, staging, assets, cdn, auth, billing, support, demo. Use 'testco'/'other'. Seeding under 'demo' FAILS the constraint; seeding under 'acme' gets wiped by tests.
 - Put dev seed data in a re-runnable scripts/seed-dev.sql, not retyped each time (cost several re-seeds this session).

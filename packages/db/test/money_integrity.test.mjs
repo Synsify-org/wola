@@ -22,7 +22,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import postgres from "postgres";
 import { persistSchedule } from "../src/schedules.ts";
-import { recordRepayment, loanOutstanding, disburseLoan } from "../src/loans.ts";
+import { recordRepayment, loanOutstanding, disburseLoan, repaymentPosition } from "../src/loans.ts";
 import { decide } from "../src/approvals.ts";
 
 const ADMIN = process.env.DATABASE_ADMIN_URL;
@@ -299,4 +299,63 @@ test("bug 4: the database refuses a second loan for one application", async () =
       VALUES (${T},${applicationId},${principal},0.16,'fixed','2024-01-01',12,'pending_disbursement')`,
     (e) => e.code === "23505",
   );
+});
+
+// ---- Next deduction comes from the ledger, not the calendar ----------------
+// Reported: a fully repaid loan still showed a "next deduction". The page
+// picked the first schedule line dated today or later, ignoring payments.
+
+const position = (loanId) => inTenant((tx) => repaymentPosition(tx, T, loanId));
+
+test("next deduction: a fresh loan owes its first instalment", async () => {
+  const { loanId } = await makeLoan({ tenor: 6 });
+  const [l1] = await activeLines(loanId);
+  const p = await position(loanId);
+  assert.equal(p.next.periodNo, 1);
+  assert.equal(p.next.amount, Number(l1.instalment));
+});
+
+test("next deduction: after a part payment it's only the remainder of that instalment", async () => {
+  const { loanId } = await makeLoan({ tenor: 6 });
+  const [l1] = await activeLines(loanId);
+  await pay(loanId, 100000);
+  const p = await position(loanId);
+  assert.equal(p.next.periodNo, 1, "still on instalment 1");
+  assert.equal(p.next.amount, Number(l1.instalment) - 100000);
+});
+
+test("next deduction: paying exactly what it says, every time, settles the loan on schedule", async () => {
+  const { loanId } = await makeLoan({ tenor: 6 });
+  let payments = 0;
+  for (let p = await position(loanId); p.next; p = await position(loanId)) {
+    const res = await pay(loanId, p.next.amount); // must never be refused as an overpayment
+    payments++;
+    if (res.settled) break;
+    assert.ok(payments <= 6, "should settle within the tenor");
+  }
+  assert.equal(payments, 6);
+  const done = await position(loanId);
+  assert.equal(done.status, "settled");
+  assert.equal(done.outstanding, 0);
+  assert.equal(done.next, null, "a settled loan has no next deduction");
+});
+
+test("next deduction: the final instalment is the payoff, not the level instalment", async () => {
+  const { loanId } = await makeLoan({ tenor: 6 });
+  const [l1] = await activeLines(loanId);
+  await pay(loanId, Number(l1.instalment) * 3); // lump sum -> re-amortized, loan finishes early
+  let p = await position(loanId);
+  while (p.next && p.next.amount < p.payoff) {
+    await pay(loanId, p.next.amount);
+    p = await position(loanId);
+  }
+  assert.equal(p.next.amount, p.payoff, "last deduction = exactly what's owed");
+  assert.ok(p.payoff < Number(l1.instalment), "and here it's less than the level instalment");
+  const res = await pay(loanId, p.next.amount);
+  assert.equal(res.settled, true);
+});
+
+test("next deduction: none for a loan not yet disbursed", async () => {
+  const { loanId } = await makeLoan({ status: "pending_disbursement" });
+  assert.equal((await position(loanId)).next, null);
 });

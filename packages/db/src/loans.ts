@@ -158,6 +158,105 @@ export async function loanOutstanding(
   };
 }
 
+// ---- Where the ledger stands against the schedule --------------------------
+// ONE definition of "the current instalment", shared by recordRepayment (what
+// a payment is allocated to) and repaymentPosition (what the app tells people
+// is due next), so the two can never disagree.
+
+const EPS = 0.001;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+type SchedLine = {
+  period_no: number; due_date: string | Date; opening_balance: string; principal_due: string;
+  interest_due: string; instalment: string; closing_balance: string;
+  due_iso: string; overdue: boolean;
+};
+
+/** The active schedule's lines plus the interest already allocated. */
+async function loadLedgerState(tx: Tx, tenantId: string, loanId: string) {
+  const [paid] = await tx`
+    SELECT COALESCE(sum((allocation->>'interest')::numeric), 0) AS interest
+    FROM repayments
+    WHERE tenant_id = ${tenantId} AND loan_id = ${loanId}`;
+  const lines = (await tx`
+    SELECT sl.period_no, sl.due_date, sl.opening_balance, sl.principal_due,
+           sl.interest_due, sl.instalment, sl.closing_balance,
+           to_char(sl.due_date, 'YYYY-MM-DD') AS due_iso,
+           sl.due_date < CURRENT_DATE AS overdue
+    FROM schedule_lines sl
+    JOIN loan_schedules s ON s.id = sl.schedule_id
+    WHERE s.loan_id = ${loanId} AND s.is_active = true
+    ORDER BY sl.period_no ASC`) as unknown as SchedLine[];
+  return { lines, interestPaid: Number(paid?.interest ?? 0) };
+}
+
+/** The current line is the first one whose closing balance is still below the
+ *  true outstanding, or whose interest isn't fully paid. interestOwed =
+ *  scheduled interest through that line − interest already allocated. */
+function locateCurrentLine(lines: SchedLine[], outstanding: number, interestPaid: number) {
+  let cumInterest = 0;
+  for (const l of lines) {
+    cumInterest += Number(l.interest_due);
+    if (Number(l.closing_balance) < outstanding - EPS || cumInterest > interestPaid + EPS) {
+      return { line: l, interestOwed: round2(Math.max(0, cumInterest - interestPaid)) };
+    }
+  }
+  return { line: null, interestOwed: 0 };
+}
+
+export interface RepaymentPosition {
+  status: string;
+  principal: number;
+  principalRepaid: number;
+  outstanding: number;
+  /** Interest + outstanding principal: the most a payment may be. */
+  payoff: number;
+  /** What's due next, from the LEDGER — null when nothing is owed (settled,
+   *  written off, or not yet disbursed). */
+  next: { amount: number; dueDate: string; periodNo: number; overdue: boolean } | null;
+}
+
+/** A loan's repayment position, derived from the ledger. Use this for any
+ *  "next deduction" shown to people: dates alone can't tell whether a loan
+ *  was paid early, in part, or in full.
+ *
+ *  next.amount is what clears the current instalment — its unpaid interest
+ *  plus the principal still standing above its scheduled closing balance. A
+ *  fresh instalment is exactly its scheduled amount; a part-paid one is the
+ *  remainder; the final one is the full payoff (often less than the level
+ *  instalment). */
+export async function repaymentPosition(tx: Tx, tenantId: string, loanId: string): Promise<RepaymentPosition> {
+  const [loan] = await tx`SELECT status FROM loans WHERE tenant_id = ${tenantId} AND id = ${loanId}`;
+  if (!loan) throw new Error("Loan not found.");
+  const o = await loanOutstanding(tx, tenantId, loanId);
+  const status = loan.status as string;
+  const base = { status, principal: o.principal, principalRepaid: o.principalRepaid, outstanding: o.outstanding };
+
+  if (status !== "active" || o.outstanding <= EPS) return { ...base, payoff: 0, next: null };
+
+  const { lines, interestPaid } = await loadLedgerState(tx, tenantId, loanId);
+  const { line, interestOwed } = locateCurrentLine(lines, o.outstanding, interestPaid);
+  const payoff = round2(interestOwed + o.outstanding);
+  if (!line) {
+    // Outstanding principal but no schedule line left to carry it (shouldn't
+    // happen on a well-formed schedule): the payoff is all that's due.
+    return { ...base, payoff, next: null };
+  }
+
+  const principalOnLine = Math.min(o.outstanding, Math.max(0, o.outstanding - Number(line.closing_balance)));
+  const amount = Math.min(payoff, round2(principalOnLine + interestOwed));
+  return {
+    ...base,
+    payoff,
+    next: {
+      amount,
+      dueDate: line.due_iso,
+      periodNo: Number(line.period_no),
+      overdue: Boolean(line.overdue),
+    },
+  };
+}
+
 /** Record a repayment against an ACTIVE loan.
  *
  *  Allocation (interest first, then principal) is driven by the LEDGER, not by
@@ -194,37 +293,8 @@ export async function recordRepayment(
     throw new Error("This loan is already fully repaid.");
   }
 
-  const [paid] = await tx`
-    SELECT COALESCE(sum((allocation->>'interest')::numeric), 0) AS interest
-    FROM repayments
-    WHERE tenant_id = ${args.tenantId} AND loan_id = ${args.loanId}`;
-  const interestPaid = Number(paid?.interest ?? 0);
-
-  type SchedLine = {
-    period_no: number; due_date: string | Date; opening_balance: string; principal_due: string;
-    interest_due: string; instalment: string; closing_balance: string;
-  };
-  const lines = (await tx`
-    SELECT sl.period_no, sl.due_date, sl.opening_balance, sl.principal_due,
-           sl.interest_due, sl.instalment, sl.closing_balance
-    FROM schedule_lines sl
-    JOIN loan_schedules s ON s.id = sl.schedule_id
-    WHERE s.loan_id = ${args.loanId} AND s.is_active = true
-    ORDER BY sl.period_no ASC`) as unknown as SchedLine[];
-
-  const EPS = 0.001;
-  let cumInterest = 0;
-  let line: SchedLine | null = null;
-  for (const l of lines) {
-    cumInterest += Number(l.interest_due);
-    if (Number(l.closing_balance) < before.outstanding - EPS || cumInterest > interestPaid + EPS) {
-      line = l;
-      break;
-    }
-  }
-
-  const round2 = (n: number) => Math.round(n * 100) / 100;
-  const interestOwed = line ? round2(Math.max(0, cumInterest - interestPaid)) : 0;
+  const { lines, interestPaid } = await loadLedgerState(tx, args.tenantId, args.loanId);
+  const { line, interestOwed } = locateCurrentLine(lines, before.outstanding, interestPaid);
   const payoff = round2(interestOwed + before.outstanding);
   if (args.amount > payoff + EPS) {
     throw new Error(
