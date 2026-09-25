@@ -2,39 +2,34 @@
 // Loads the type and injects the TENANT BRAND.
 //
 // Only --color-brand moves per tenant. State colours (approved / rejected /
-// awaiting) are system-owned and defined in globals.css â€” a tenant cannot
+// awaiting) are system-owned and defined in globals.css — a tenant cannot
 // brand them, because an approver must never misread a rejected document as
 // a header colour.
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Hanken_Grotesk, JetBrains_Mono, Inter, Libre_Franklin, Source_Sans_3, Outfit } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { resolveTenant } from "@wola/db";
 import { db } from "@/lib/tenant";
 import { themeStyle } from "@/lib/theme";
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+// Fonts are self-hosted from ./fonts (Latin, variable weight axis), not
+// fetched from Google at build time. next/font/google made every build depend
+// on live requests to fonts.googleapis.com; a bad response from Google failed
+// a production deploy outright (2026-09-24). Files come from the
+// @fontsource-variable/* 5.3.0 packages, SIL OFL 1.1 (licences alongside).
+// next/font/local still preloads, emits font-display: swap and generates
+// size-adjusted fallbacks, so behaviour is unchanged. The five families are
+// the tenant font choices in lib/theme.ts (FONT_OPTIONS) — keep them in sync.
+const inter = localFont({ src: "./fonts/inter.woff2", weight: "100 900", variable: "--font-inter", display: "swap" });
 
 // Default sans since the Theme B refresh — see globals.css --font-sans.
-const outfit = Outfit({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-outfit", display: "swap" });
+const outfit = localFont({ src: "./fonts/outfit.woff2", weight: "100 900", variable: "--font-outfit", display: "swap" });
 
-const libre = Libre_Franklin({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-libre", display: "swap" });
-const source = Source_Sans_3({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-source", display: "swap" });
-
-const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-hanken",
-  display: "swap",
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
+const libre = localFont({ src: "./fonts/libre-franklin.woff2", weight: "100 900", variable: "--font-libre", display: "swap" });
+const source = localFont({ src: "./fonts/source-sans-3.woff2", weight: "200 900", variable: "--font-source", display: "swap" });
+const hanken = localFont({ src: "./fonts/hanken-grotesk.woff2", weight: "100 900", variable: "--font-hanken", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Wola",
@@ -66,7 +61,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(inter.variable, outfit.variable, hanken.variable, libre.variable, source.variable, jetbrains.variable, "font-sans")}
+      className={cn(inter.variable, outfit.variable, hanken.variable, libre.variable, source.variable, "font-sans")}
       suppressHydrationWarning
     >
       <body
