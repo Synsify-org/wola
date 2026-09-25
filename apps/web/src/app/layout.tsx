@@ -19,17 +19,19 @@ import { themeStyle } from "@/lib/theme";
 // on live requests to fonts.googleapis.com; a bad response from Google failed
 // a production deploy outright (2026-09-24). Files come from the
 // @fontsource-variable/* 5.3.0 packages, SIL OFL 1.1 (licences alongside).
-// next/font/local still preloads, emits font-display: swap and generates
-// size-adjusted fallbacks, so behaviour is unchanged. The five families are
-// the tenant font choices in lib/theme.ts (FONT_OPTIONS) — keep them in sync.
-const inter = localFont({ src: "./fonts/inter.woff2", weight: "100 900", variable: "--font-inter", display: "swap" });
+// The app default is Segoe UI, a system font (globals.css --font-system), so
+// these five are only tenant choices (lib/theme.ts FONT_OPTIONS — keep in
+// sync). preload: false — a browser fetches a file only when a tenant has
+// picked that font, so most users download no font at all. next/font/local
+// still emits font-display: swap and size-adjusted fallbacks.
+const inter = localFont({ src: "./fonts/inter.woff2", weight: "100 900", variable: "--font-inter", display: "swap", preload: false });
 
-// Default sans since the Theme B refresh — see globals.css --font-sans.
-const outfit = localFont({ src: "./fonts/outfit.woff2", weight: "100 900", variable: "--font-outfit", display: "swap" });
+// Was the default sans; now a tenant option (Segoe UI is the default).
+const outfit = localFont({ src: "./fonts/outfit.woff2", weight: "100 900", variable: "--font-outfit", display: "swap", preload: false });
 
-const libre = localFont({ src: "./fonts/libre-franklin.woff2", weight: "100 900", variable: "--font-libre", display: "swap" });
-const source = localFont({ src: "./fonts/source-sans-3.woff2", weight: "200 900", variable: "--font-source", display: "swap" });
-const hanken = localFont({ src: "./fonts/hanken-grotesk.woff2", weight: "100 900", variable: "--font-hanken", display: "swap" });
+const libre = localFont({ src: "./fonts/libre-franklin.woff2", weight: "100 900", variable: "--font-libre", display: "swap", preload: false });
+const source = localFont({ src: "./fonts/source-sans-3.woff2", weight: "200 900", variable: "--font-source", display: "swap", preload: false });
+const hanken = localFont({ src: "./fonts/hanken-grotesk.woff2", weight: "100 900", variable: "--font-hanken", display: "swap", preload: false });
 
 export const metadata: Metadata = {
   title: "Wola",
