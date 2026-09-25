@@ -11,12 +11,15 @@
 
 export type TenantBrand = { primary?: string; accent?: string; font?: string };
 
-// The fonts a tenant may choose. Keys match CSS variables loaded in the root
+// The fonts a tenant may choose. "segoe" is the system stack (--font-system in
+// globals.css, the default; nothing to load). The rest match CSS variables
+// loaded in the root
 // layout via next/font (fonts must be loaded at build time — an admin can only
 // pick from this curated set, not an arbitrary font). Value is the CSS var the
 // app's --font-sans will point at.
 export const FONT_OPTIONS: { id: string; label: string; varName: string }[] = [
-  { id: "outfit", label: "Outfit (default)", varName: "--font-outfit" },
+  { id: "segoe", label: "Segoe UI (default)", varName: "--font-system" },
+  { id: "outfit", label: "Outfit", varName: "--font-outfit" },
   { id: "inter", label: "Inter", varName: "--font-inter" },
   { id: "hanken", label: "Hanken Grotesk", varName: "--font-hanken" },
   { id: "libre", label: "Libre Franklin", varName: "--font-libre" },

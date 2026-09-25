@@ -132,13 +132,17 @@
   --color-chart-target: oklch(0.6560 0.2410 354.31);
 
   /* ── Type ───────────────────────────────────────────────────────
-     One uniform typeface for both words and numbers (the original
-     request: text and numbers must not read as two fonts). Outfit is
-     the family theme.ts already calls the default and layout.tsx
-     already loads; Tahoma is only the fallback. Numbers stay in the
-     same family via .num's tabular figures. ─────────────────────── */
-  --font-sans:  var(--font-outfit), Tahoma, Geneva, Verdana, sans-serif;
-  --font-mono:  var(--font-outfit), Tahoma, Geneva, Verdana, sans-serif;
+     Default: Segoe UI (per request), one typeface for words and numbers
+     (numbers use .num's tabular figures in the same family).
+     Segoe UI is a Microsoft system font — its licence doesn't allow
+     bundling it, so it's referenced, not self-hosted: Windows shows Segoe
+     UI; other platforms fall back to their own system UI font (San
+     Francisco on Apple via system-ui/-apple-system, Roboto on Android).
+     Being a system font, the default downloads nothing. Tenants can still
+     pick a bundled font in Settings (theme.ts repoints --font-sans). ─── */
+  --font-system: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:  var(--font-system);
+  --font-mono:  var(--font-system);
   --font-serif: Georgia, serif;
 
   --text-title-md: 36px;

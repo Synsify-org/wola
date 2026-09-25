@@ -52,7 +52,7 @@ export default async function SettingsPage() {
       productsMissing,
       brandPrimary: brand.primary ?? "#16A34A",
       brandAccent: brand.accent ?? "#FACC15",
-      brandFont: brand.font ?? "outfit",
+      brandFont: brand.font ?? "segoe",
     };
   });
 
