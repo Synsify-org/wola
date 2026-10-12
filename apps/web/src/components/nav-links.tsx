@@ -48,8 +48,8 @@ export type NavItem = {
 const ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, group: "workspace" },
   { href: "/apply", label: "Apply", icon: FilePlus, group: "workspace" },
+  { href: "/applications", label: "Applications", icon: FileText, group: "workspace" },
   { href: "/loans", label: "My loans", icon: Wallet, group: "workspace" },
-  { href: "/applications", label: "Applications", icon: FileText, need: "fullBook", group: "oversight" },
   { href: "/book", label: "Book", icon: Building2, need: "oversee", group: "oversight" },
   { href: "/approvals", label: "Approvals", icon: CheckSquare, need: "approve", group: "oversight" },
   { href: "/settings/employees", label: "Employees", icon: Users, need: "fullBook", group: "oversight" },
@@ -69,7 +69,13 @@ export function visibleNavItems(canSeeAllLoans: boolean, canApprove: boolean): N
     if (i.need === "approve") return canApprove;
     if (i.need === "oversee") return canOversee;
     return true;
-  }).map((i) => (i.href === "/book" && !canSeeAllLoans ? { ...i, label: "Department" } : i));
+  }).map((i) => {
+    if (i.href === "/book" && !canSeeAllLoans) return { ...i, label: "Department" };
+    // /applications is scoped per role by the page itself: an employee sees
+    // only their own, so say so rather than implying a company-wide list.
+    if (i.href === "/applications" && !canOversee) return { ...i, label: "My applications" };
+    return i;
+  });
 }
 
 /** Longest-prefix active match, so /settings/employees lights up Employees,

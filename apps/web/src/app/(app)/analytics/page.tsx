@@ -53,26 +53,26 @@ export default async function AnalyticsPage() {
     }));
 
     // Loan size bands (real).
+    // Every band is returned, empty ones as zero (the chart draws the whole
+    // shape of the book, not just the buckets that happen to be occupied).
     const bandRows = await tx`
       SELECT
         CASE
-          WHEN principal < 1000000 THEN '< 1M'
-          WHEN principal < 5000000 THEN '1M - 5M'
-          WHEN principal < 20000000 THEN '5M - 20M'
-          WHEN principal < 50000000 THEN '20M - 50M'
-          ELSE '50M+'
-        END AS band,
-        CASE
-          WHEN principal < 1000000 THEN 1
-          WHEN principal < 5000000 THEN 2
-          WHEN principal < 20000000 THEN 3
-          WHEN principal < 50000000 THEN 4
-          ELSE 5
+          WHEN principal < 1000000 THEN 0
+          WHEN principal < 5000000 THEN 1
+          WHEN principal < 20000000 THEN 2
+          WHEN principal < 50000000 THEN 3
+          ELSE 4
         END AS ord,
-        count(*)::int AS n
+        count(*)::int AS n,
+        COALESCE(sum(principal), 0) AS principal
       FROM loans WHERE status = 'active'
-      GROUP BY 1, 2 ORDER BY 2`;
-    const sizeBands = bandRows.map((r) => ({ band: r.band as string, n: Number(r.n) }));
+      GROUP BY 1`;
+    const SIZE_BAND_LABELS = ["Under 1M", "1M – 5M", "5M – 20M", "20M – 50M", "50M +"];
+    const sizeBands = SIZE_BAND_LABELS.map((band, i) => {
+      const r = bandRows.find((x) => Number(x.ord) === i);
+      return { band, n: Number(r?.n ?? 0), principal: Number(r?.principal ?? 0) };
+    });
 
     // Average time from submission to final decision, in days (real).
     // Only counts applications that actually reached a terminal state —

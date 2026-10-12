@@ -10,6 +10,50 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phase 1.13 — 9-item bug batch (2026-10-12) `DONE, on branch fix/bug-batch-2`
+
+Investigated each against code and live data first. Verified: `tsc` clean,
+108 DB + 17 web + 38 engine tests, production build, and a live pass as
+CEO / employee / HR on a local dev host.
+
+- [x] **Rejections tab on every dashboard** — `?view=rejections`, count badge
+      on the tab. Scoped like the applications list (own / department /
+      whole book). Shows applicant, amount, the reason the approver gave,
+      who rejected and when. ([rejections.ts](apps/web/src/lib/rejections.ts),
+      [rejections-panel.tsx](apps/web/src/components/rejections-panel.tsx))
+- [x] **Applications page for everyone** — it existed but only full-book
+      roles had it in the nav. Now every role does (scoped by the page).
+      Found and closed a gap while there: the application DETAIL page did
+      not apply the role scope, so an employee could open anyone's by URL.
+- [x] **Printing** — the redesigned app frame is `h-dvh overflow-hidden` with a
+      scrolling `<main>`, so print clipped to one screenful. Print CSS now
+      unwinds it (verified: 746px -> full 3,085px layout, chrome hidden).
+- [x] **HR register health** — the CEO (and other top-of-chain roles) were
+      counted as "missing a department head", a warning that could never
+      clear. They're excluded; the panel now names the people and "Fix"
+      opens the directory filtered to exactly them.
+      *Judgement call:* other executives with no head (CFO, HR, ops head)
+      are still flagged, since their applications silently skip the
+      dept-head stage. Say if they should be exempt too.
+- [x] **"Value under management" -> "Profit made"** — interest actually
+      collected to date (repayment ledger), projection shown beside it.
+- [x] **Principal 83M vs 72M** — not a calculation bug: the CEO card showed
+      principal of active loans, other cards show outstanding (principal
+      less repayments). The principal card is gone with the rename above.
+- [x] **Loan size chart** — real bar chart: every band drawn (incl. empty),
+      labelled bars, axes, tooltip with count / principal / share of book.
+- [x] **CBR editing** — CFO + admin/org_admin edit; CEO and other
+      executives see it read-only. Enforced in the server action too.
+      Also fixed the effective date rendering as a raw JS Date string.
+- [x] **CBR timing** — the rate is now quoted at submission and stored on
+      the application; final approval uses that quote. Running loans were
+      already frozen at approval. Applications submitted before this change
+      have no quote and fall back to the current rate (shown as "Set at
+      final approval"). A product with no rate index now fails at
+      submission, not at the final approver's desk.
+
+---
+
 ## Phase 1.12 — 13-item bug report (2026-09-13) `5 FIXED, 8 need input`
 
 User reported 13 issues in one batch. Investigated each against the actual

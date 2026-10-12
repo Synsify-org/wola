@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import TrendLineChart from "./trend-line-chart";
+import LoanSizeChart, { type SizeBand } from "./loan-size-chart";
 import Metric from "./metric";
 import ProductBars from "./product-bars";
 import DashboardCard from "./dashboard-card";
@@ -15,7 +16,6 @@ type Book = { totalExposure: number; activeLoans: number; principalDisbursed: nu
 type StatusCount = { status: string; n: number };
 type TrendPoint = { label: string; total: number; approved: number };
 export type DeptRow = { name: string; kind?: string; n: number; principal: number };
-type SizeBand = { band: string; n: number };
 type PerfRow = { product: string; apps: number; avgAmount: number; approvalRate: number };
 type RejectionRow = { stageRole: string; n: number };
 
@@ -47,7 +47,6 @@ export default function AnalyticsView({
 }) {
   const ugx = (n: number) => formatMoney(n, currency);
   const avgLoan = book.activeLoans > 0 ? book.principalDisbursed / book.activeLoans : 0;
-  const maxBand = Math.max(...sizeBands.map((b) => b.n), 1);
   const donutData = statusCounts.map((s) => ({ name: label(s.status), value: s.n, key: s.status }));
 
   // Status codes are fixed, code-level identifiers (safe as CSS custom-
@@ -202,27 +201,7 @@ export default function AnalyticsView({
       </section>
 
       {/* Size distribution */}
-      <DashboardCard title="Loan size distribution">
-        {sizeBands.length === 0 ? (
-          <p className="text-sm text-ink-soft">No active loans.</p>
-        ) : (
-          <div className="flex items-end justify-between gap-3" style={{ height: 160 }}>
-            {sizeBands.map((b) => (
-              <div key={b.band} className="flex flex-1 flex-col items-center justify-end gap-2">
-                <span className="num text-sm font-semibold text-ink">{b.n}</span>
-                <div
-                  className="w-full rounded-t-lg transition-all duration-700 ease-out"
-                  style={{
-                    height: Math.max((b.n / maxBand) * 120, 4) + "px",
-                    background: "linear-gradient(180deg, var(--color-brand-400), var(--color-brand-700))",
-                  }}
-                />
-                <span className="text-xs text-ink-soft">{b.band}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </DashboardCard>
+      <LoanSizeChart bands={sizeBands} currency={currency} />
 
       {/* Product performance table */}
       <section className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">

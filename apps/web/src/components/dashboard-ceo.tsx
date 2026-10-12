@@ -2,7 +2,8 @@ import DashboardCard from "./dashboard-card";
 import DecisionQueue from "./decision-queue";
 import TrendLineChart from "./trend-line-chart";
 import type { CollectionsPoint } from "./dashboard-cfo";
-import { Wallet, Layers } from "lucide-react";
+import { Wallet, TrendingUp } from "lucide-react";
+import { formatMoney } from "@wola/engine";
 import FeaturedMetric from "./featured-metric";
 import BookBreakup from "./book-breakup";
 import CountUp from "./count-up";
@@ -22,7 +23,9 @@ export type MixRow = { name: string; kind: string; n: number; principal: number 
 // this ever starts looking as busy as dashboard-cfo.tsx, it's wrong.
 export default function DashboardCEO({
   totalExposure,
-  valueUnderManagement,
+  principalDisbursed,
+  interestCollected,
+  interestProjected,
   exposureTrend,
   inProgress,
   settled,
@@ -33,7 +36,12 @@ export default function DashboardCEO({
   currency,
 }: {
   totalExposure: number;
-  valueUnderManagement: number;
+  /** Principal of active loans — the Book breakup's total. */
+  principalDisbursed: number;
+  /** Interest received through repayments to date: the "profit made". */
+  interestCollected: number;
+  /** Interest the book earns if every active loan runs to term. */
+  interestProjected: number;
   exposureTrend: number[];
   inProgress: number;
   settled: number;
@@ -61,12 +69,15 @@ export default function DashboardCEO({
           icon={Wallet}
           trend={exposureTrend}
         />
+        {/* Profit = interest actually received through repayments so far —
+            real money in, not a projection. The projection sits beside it as
+            context. No sparkline: the only series available is disbursement
+            growth, which says nothing about profit. */}
         <FeaturedMetric
-          label="Value under management"
-          value={<CountUp value={valueUnderManagement} format="money" currency={currency} />}
-          sub="Principal disbursed, active loans"
-          icon={Layers}
-          trend={exposureTrend}
+          label="Profit made"
+          value={<CountUp value={interestCollected} format="money" currency={currency} />}
+          sub={`Interest collected to date · ${formatMoney(interestProjected, currency)} projected if every loan runs to term`}
+          icon={TrendingUp}
         />
         <DashboardCard title="Programme activity" className="md:col-span-2 xl:col-span-1">
           <ul className="space-y-4">
@@ -99,7 +110,7 @@ export default function DashboardCEO({
           reportHref="/reports"
           className={mix.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}
         />
-        {mix.length > 0 ? <BookBreakup data={mix} total={valueUnderManagement} currency={currency} /> : null}
+        {mix.length > 0 ? <BookBreakup data={mix} total={principalDisbursed} currency={currency} /> : null}
       </section>
 
       {/* Row 3: the CEO-stage queue — quiet, not the hero. */}

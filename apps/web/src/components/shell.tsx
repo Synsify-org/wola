@@ -63,7 +63,7 @@ export default function Shell({
   }, [drawer]);
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-paper">
+    <div className="app-frame flex h-dvh flex-col overflow-hidden bg-paper">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-theme-md"
@@ -83,7 +83,7 @@ export default function Shell({
         onOpenMenu={() => setDrawer(true)}
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="app-body flex min-h-0 flex-1">
         <Sidebar canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} collapsed={collapsed} />
 
         {/* Only THIS column scrolls — sidebar and topbar stay put. */}
@@ -94,7 +94,7 @@ export default function Shell({
 
       {/* Phone + tablet menu: a floating magnifying dock (desktop keeps the
           sidebar). Phone shows the daily four + More; tablet shows everything. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 flex justify-center lg:hidden">
+      <div className="no-print pointer-events-none fixed inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 flex justify-center lg:hidden">
         <div className="pointer-events-auto max-w-full md:hidden">
           <AppDock variant="phone" canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} onMore={() => setDrawer(true)} />
         </div>

@@ -6,8 +6,7 @@
 import { requireSession } from "@/lib/guard";
 import { setRateIndex, audit } from "@wola/db";
 import { revalidatePath } from "next/cache";
-
-const ADMIN_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
+import { RATE_INDEX_EDIT_ROLES } from "@/lib/permissions";
 
 export type SetRateIndexResult =
   | { ok: true; productsRepointed: number }
@@ -24,8 +23,8 @@ export async function setRateIndexAction(
   }
 
   return requireSession(async (tx, ctx) => {
-    if (!ADMIN_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to configure rate indices." };
+    if (!RATE_INDEX_EDIT_ROLES.includes(ctx.role)) {
+      return { ok: false, error: "Only the CFO or an administrator can change a rate index." };
     }
     try {
       const res = await setRateIndex(tx, { tenantId: ctx.tenantId, name: trimmed, value });

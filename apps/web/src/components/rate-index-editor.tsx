@@ -18,9 +18,14 @@ export interface RateIndexRow {
 export default function RateIndexEditor({
   indices,
   productsMissing,
+  canEdit,
 }: {
   indices: RateIndexRow[];
   productsMissing: { id: string; name: string }[];
+  /** False renders the current rates only — no form. The server action
+   *  enforces the same rule; this just stops offering a control that would
+   *  be refused. */
+  canEdit: boolean;
 }) {
   const [name, setName] = useState(indices[0]?.name ?? "CBR");
   const [value, setValue] = useState(
@@ -54,7 +59,8 @@ export default function RateIndexEditor({
           <span>
             {productsMissing.length} product{productsMissing.length === 1 ? "" : "s"} apply
             interest but have no rate index set — final approval will fail on{" "}
-            {productsMissing.map((p) => p.name).join(", ")} until one is set below.
+            {productsMissing.map((p) => p.name).join(", ")} until one is set
+            {canEdit ? " below" : " by the CFO or an administrator"}.
           </span>
         </div>
       ) : null}
@@ -76,6 +82,13 @@ export default function RateIndexEditor({
         <p className="mb-4 text-xs text-ink-soft">No rate index set yet.</p>
       )}
 
+      {!canEdit ? (
+        <p className="text-xs text-ink-soft">
+          View only. Rate changes are made by the CFO or an administrator, and apply to
+          applications submitted after the change — never to loans already running.
+        </p>
+      ) : (
+      <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto]">
         <div>
           <label className="caps mb-1.5 block">Index name</label>
@@ -109,9 +122,12 @@ export default function RateIndexEditor({
       </div>
       {error ? <p className="mt-3 text-xs font-medium text-error-600">{error}</p> : null}
       <p className="mt-3 text-xs text-ink-soft">
-        Effective today. Every interest-bearing product currently on this index's previous
-        value (or with none set) is repointed to the new value; past values are kept for audit.
+        Effective today, for applications submitted from now on. Loans already running, and
+        applications already submitted, keep the rate they were quoted. Past values are kept
+        for audit.
       </p>
+      </>
+      )}
     </DashboardCard>
   );
 }

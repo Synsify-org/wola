@@ -24,6 +24,10 @@ export interface ApproverMetrics {
   activeLoans: number;
   principalDisbursed: number;
   interestBook: number;       // total interest across active schedules
+  /** Interest actually received so far, from the repayment ledger's interest
+   *  allocation — the lender's realised profit, as opposed to interestBook's
+   *  projection. Counts settled loans too: that interest was earned. */
+  interestCollected: number;
   /** interestBook using only loans that already existed ~1 month ago
    *  (start_date <= 1 month back). An APPROXIMATION, not a true historical
    *  snapshot: a loan that went active->settled inside that window is
@@ -137,6 +141,10 @@ export async function approverMetrics(
     WHERE status = 'rejected'
       AND created_at >= date_trunc('year', CURRENT_DATE)`;
 
+  const [collected] = await tx`
+    SELECT COALESCE(sum((r.allocation->>'interest')::numeric), 0) AS interest
+    FROM repayments r`;
+
   return {
     kind: "approver",
     awaitingMe,
@@ -144,6 +152,7 @@ export async function approverMetrics(
     activeLoans: Number(book.active_loans),
     principalDisbursed: Number(book.principal),
     interestBook: Number(interest.interest),
+    interestCollected: Number(collected.interest),
     interestBookPriorMonth: Number(interestPrior.interest),
     applicationsInFlight: Number(flight.n),
     rejectedThisYear: Number(rejected.n),

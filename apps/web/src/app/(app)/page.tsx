@@ -20,6 +20,9 @@ import {
   type CollectionsPoint,
 } from "@wola/db";
 import { db } from "@/lib/tenant";
+import { rejectionsFor } from "@/lib/rejections";
+import DashboardTabs from "@/components/dashboard-tabs";
+import RejectionsPanel from "@/components/rejections-panel";
 import DashboardCFO, { type InboxItem, type MixRow } from "@/components/dashboard-cfo";
 import DashboardHR from "@/components/dashboard-hr";
 import DashboardCEO, { type CEOInboxItem } from "@/components/dashboard-ceo"; // dashboard-ceo also exports MixRow, structurally identical to dashboard-cfo's — reuse the one already imported below rather than a colliding second import
@@ -51,7 +54,13 @@ const EXEC_APPROVER_ROLES = ["coo", "group_ceo"];
 // the two spellings.
 const ADMIN_ROLES = ["org_admin", "admin"];
 
-export default async function Dashboard() {
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
+  const showRejections = view === "rejections";
   const slug = (await headers()).get("x-tenant-slug") ?? "";
   const tenant = slug ? await resolveTenant(db, slug) : null;
 
@@ -67,6 +76,11 @@ export default async function Dashboard() {
     // Shell, which now gets its own copy of this in (app)/layout.tsx.
     const displayName = (me?.full_name as string) ?? (me?.email as string) ?? "User";
 
+    // Every role gets a Rejections tab: the count always (it labels the tab),
+    // the rows only when that tab is open. Scoped like the applications list.
+    const rejections = await rejectionsFor(tx, ctx, showRejections);
+    const scope = ctx.scope;
+
     // Employees see only their personal dashboard. Fetched only here — it's
     // the heaviest of these queries (per-application routing + a full
     // eligibility pass) and every other branch below renders a component
@@ -77,6 +91,7 @@ export default async function Dashboard() {
         displayName, role: ctx.role, mine, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
         deptQueue: null, teamActiveLoans: 0, myOutstanding: null, collections: [] as CollectionsPoint[],
+        rejections, scope,
       };
     }
 
@@ -113,6 +128,7 @@ export default async function Dashboard() {
         displayName, role: ctx.role, mine: null, book: null, inbox: [], mix: [], pipeline: [], recent: [], exposureTrend: [],
         canDisburse: false, queue: [], reconciliation: null, health: null, ceoView: null, configStatus: null, auditRows: null,
         deptQueue: inbox, teamActiveLoans: Number(teamRow?.n ?? 0), myOutstanding, collections: [] as CollectionsPoint[],
+        rejections, scope,
       };
     }
 
@@ -215,12 +231,13 @@ export default async function Dashboard() {
       displayName, role: ctx.role, mine: null, book, inbox, mix, pipeline, recent, exposureTrend,
       canDisburse: showsMoneyOps, queue, reconciliation, health, ceoView, configStatus, auditRows, collections,
       deptQueue: null, teamActiveLoans: 0, myOutstanding: null,
+      rejections, scope,
     };
   });
 
   const {
     displayName, role, mine, book, inbox, mix, pipeline, recent, exposureTrend, canDisburse, queue, reconciliation, health, ceoView,
-    configStatus, auditRows, deptQueue, teamActiveLoans, myOutstanding, collections,
+    configStatus, auditRows, deptQueue, teamActiveLoans, myOutstanding, collections, rejections, scope,
   } = data;
 
   // Same "one question" per role as before, now spoken once by the banner
@@ -312,7 +329,10 @@ export default async function Dashboard() {
   return (
     <>
       <DashboardWelcomeBanner name={displayName} tenantName={tenantDisplayName} subtitle={subtitle} actions={actions} highlight={highlight} />
-      {deptQueue ? (
+      <DashboardTabs active={showRejections ? "rejections" : "overview"} rejectionCount={rejections.total} />
+      {showRejections ? (
+        <RejectionsPanel rows={rejections.rows} total={rejections.total} currency={currency} scope={scope} />
+      ) : deptQueue ? (
         <DashboardDeptHead
           queue={deptQueue as unknown as QueueItem[]}
           teamActiveLoans={teamActiveLoans}
@@ -329,7 +349,9 @@ export default async function Dashboard() {
       ) : ceoView && book ? (
         <DashboardCEO
           totalExposure={book.totalExposure}
-          valueUnderManagement={book.principalDisbursed}
+          principalDisbursed={book.principalDisbursed}
+          interestCollected={book.interestCollected}
+          interestProjected={book.interestBook}
           exposureTrend={exposureTrend ?? []}
           inProgress={book.applicationsInFlight}
           settled={ceoView.settled}

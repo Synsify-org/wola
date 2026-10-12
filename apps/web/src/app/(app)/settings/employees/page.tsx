@@ -4,6 +4,8 @@
 // (including auditor, read-only); the import tool itself is HR/admin-only,
 // enforced again server-side in the action, and hidden here rather than
 // shown-then-denied for anyone who can't use it.
+import Link from "next/link";
+import { registerHealth } from "@wola/db";
 import { requireSession } from "@/lib/guard";
 import EmployeeImport from "@/components/employee-import";
 import CreateAccountButton from "@/components/create-account-button";
@@ -29,13 +31,23 @@ type Row = {
   has_account: boolean;
 };
 
-export default async function EmployeesPage() {
+const ISSUE_LABELS: Record<string, string> = {
+  missing_head: "staff missing a department head",
+  missing_salary: "staff missing a salary on file",
+};
+
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ issue?: string }>;
+}) {
+  const { issue } = await searchParams;
   const currency = await getTenantCurrency();
   const ugx = (n: string) => formatMoney(Number(n), currency);
   const data = await requireSession(async (tx, ctx) => {
     if (!ctx.canSeeAllLoans) return { authorized: false as const };
 
-    const rows = (await tx`
+    const allRows = (await tx`
       SELECT e.id, e.employee_no, e.full_name, e.department, e.title,
              e.gross_salary, e.net_salary, e.is_post_probation, e.on_final_warning,
              e.status, (e.user_id IS NOT NULL) AS has_account,
@@ -43,6 +55,17 @@ export default async function EmployeesPage() {
       FROM employees e
       LEFT JOIN employees head ON head.id = e.department_head_id
       ORDER BY e.full_name`) as unknown as Row[];
+
+    // ?issue= is the HR dashboard's "Fix" link: show exactly the people the
+    // register-health panel flagged, using the same definition it does.
+    let rows = allRows;
+    if (issue === "missing_head" || issue === "missing_salary") {
+      const health = await registerHealth(tx, ctx.tenantId);
+      const ids = new Set(
+        (issue === "missing_head" ? health.missingDeptHeadPeople : health.missingSalaryPeople).map((p) => p.id),
+      );
+      rows = allRows.filter((r) => ids.has(r.id));
+    }
 
     return { authorized: true as const, rows, canImport: HR_ROLES.includes(ctx.role) };
   });
@@ -63,6 +86,17 @@ export default async function EmployeesPage() {
           <p className="mt-1 text-sm text-ink-soft">{data.rows.length} employee{data.rows.length === 1 ? "" : "s"}.</p>
         </div>
       </div>
+
+      {issue && ISSUE_LABELS[issue] ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-awaiting-wash px-4 py-2.5 text-sm text-ink">
+          <span>
+            Showing {data.rows.length} {ISSUE_LABELS[issue]}. Use Edit on a row to fix it.
+          </span>
+          <Link href="/settings/employees" className="font-medium text-brand hover:underline">
+            Show everyone
+          </Link>
+        </div>
+      ) : null}
 
       {data.canImport ? (
         <div className="mb-6">
