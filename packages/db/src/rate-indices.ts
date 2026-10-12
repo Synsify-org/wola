@@ -35,7 +35,11 @@ export async function listCurrentRateIndices(
     id: r.id as string,
     name: r.name as string,
     currentValue: Number(r.current_value),
-    effectiveFrom: String(r.effective_from),
+    // A DATE column arrives as a JS Date; String() of that is
+    // "Wed Aug 26 2026 03:00:00 GMT+0300 (East Africa Time)". Show the day.
+    effectiveFrom: r.effective_from instanceof Date
+      ? r.effective_from.toISOString().slice(0, 10)
+      : String(r.effective_from),
     productsLinked: Number(r.products_linked),
   }));
 }

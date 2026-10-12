@@ -11,6 +11,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import ThemeEditor from "@/components/theme-editor";
 import RateIndexEditor from "@/components/rate-index-editor";
+import { RATE_INDEX_EDIT_ROLES } from "@/lib/permissions";
 import DashboardCard from "@/components/dashboard-card";
 import { User, Building2, Settings as Cog, Users, GitBranch, ShieldCheck, ArrowRight } from "lucide-react";
 
@@ -155,7 +156,11 @@ export default async function SettingsPage() {
             <p className="mb-2 text-xs text-ink-soft">
               Rates referenced by interest-bearing loan products (e.g. the BoU CBR).
             </p>
-            <RateIndexEditor indices={rateIndices} productsMissing={productsMissing} />
+            <RateIndexEditor
+              indices={rateIndices}
+              productsMissing={productsMissing}
+              canEdit={RATE_INDEX_EDIT_ROLES.includes(user.role)}
+            />
           </div>
 
           <p className="mb-3 mt-6 text-xs text-ink-soft">

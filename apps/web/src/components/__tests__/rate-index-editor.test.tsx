@@ -21,6 +21,7 @@ describe("RateIndexEditor", () => {
   test("shows the missing-rate-index warning naming the affected products", () => {
     render(
       <RateIndexEditor
+        canEdit
         indices={[]}
         productsMissing={[{ id: "p1", name: "Development Loan" }, { id: "p2", name: "Staff Car Loan" }]}
       />,
@@ -32,6 +33,7 @@ describe("RateIndexEditor", () => {
   test("shows no warning and lists the current value when every product has a rate index", () => {
     render(
       <RateIndexEditor
+        canEdit
         indices={[{ name: "CBR", currentValue: 16.5, effectiveFrom: "2026-01-01", productsLinked: 2 }]}
         productsMissing={[]}
       />,
@@ -42,7 +44,7 @@ describe("RateIndexEditor", () => {
   });
 
   test("blocks submit with a negative rate, and never calls the action", async () => {
-    render(<RateIndexEditor indices={[]} productsMissing={[]} />);
+    render(<RateIndexEditor canEdit indices={[]} productsMissing={[]} />);
     fireEvent.change(screen.getByPlaceholderText("16.5"), { target: { value: "-5" } });
     fireEvent.click(screen.getByRole("button", { name: /set rate/i }));
 
@@ -52,7 +54,7 @@ describe("RateIndexEditor", () => {
 
   test("submits the trimmed name and parsed numeric value, then refreshes on success", async () => {
     setRateIndexAction.mockResolvedValue({ ok: true, productsRepointed: 2 });
-    render(<RateIndexEditor indices={[]} productsMissing={[]} />);
+    render(<RateIndexEditor canEdit indices={[]} productsMissing={[]} />);
 
     fireEvent.change(screen.getByPlaceholderText("CBR"), { target: { value: "  CBR  " } });
     fireEvent.change(screen.getByPlaceholderText("16.5"), { target: { value: "17.25" } });
@@ -64,11 +66,25 @@ describe("RateIndexEditor", () => {
 
   test("surfaces the server's error message instead of a generic one", async () => {
     setRateIndexAction.mockResolvedValue({ ok: false, error: "Rate must be zero or positive." });
-    render(<RateIndexEditor indices={[]} productsMissing={[]} />);
+    render(<RateIndexEditor canEdit indices={[]} productsMissing={[]} />);
 
     fireEvent.change(screen.getByPlaceholderText("16.5"), { target: { value: "5" } });
     fireEvent.click(screen.getByRole("button", { name: /set rate/i }));
 
     expect(await screen.findByText("Rate must be zero or positive.")).toBeInTheDocument();
+  });
+
+  test("a viewer who can't edit sees the current rate but no form and no button", () => {
+    render(
+      <RateIndexEditor
+        canEdit={false}
+        indices={[{ name: "CBR", currentValue: 16.5, effectiveFrom: "2026-01-01", productsLinked: 2 }]}
+        productsMissing={[]}
+      />,
+    );
+    expect(screen.getByText("16.500%")).toBeInTheDocument();
+    expect(screen.getByText(/view only/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /set rate/i })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("16.5")).not.toBeInTheDocument();
   });
 });

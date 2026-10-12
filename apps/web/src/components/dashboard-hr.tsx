@@ -6,12 +6,15 @@ import DecisionQueue from "./decision-queue";
 import PipelinePanel from "./pipeline-panel";
 import CountUp from "./count-up";
 
+type RegisterPerson = { id: string; name: string; employeeNo: string };
 export type RegisterHealth = {
   headcount: number;
   onProbation: number;
   onFinalWarning: number;
   missingDeptHead: number;
   missingSalary: number;
+  missingDeptHeadPeople: RegisterPerson[];
+  missingSalaryPeople: RegisterPerson[];
 };
 export type HRInboxItem = {
   applicationId: string;
@@ -38,14 +41,25 @@ export default function DashboardHR({
   pipeline: PipelineRow[];
   currency: string;
 }) {
-  const blockers = [
+  // Each issue names the people behind it and links to the directory filtered
+  // to exactly them — HR shouldn't have to hunt a 50-row table for "4 staff".
+  type Blocker = { label: string; people: RegisterPerson[]; href: string };
+  const blockers: Blocker[] = [
     health.missingDeptHead > 0
-      ? { label: `${health.missingDeptHead} staff missing a department head`, }
+      ? {
+          label: `${health.missingDeptHead} staff missing a department head`,
+          people: health.missingDeptHeadPeople,
+          href: "/settings/employees?issue=missing_head",
+        }
       : null,
     health.missingSalary > 0
-      ? { label: `${health.missingSalary} staff missing salary on file` }
+      ? {
+          label: `${health.missingSalary} staff missing salary on file`,
+          people: health.missingSalaryPeople,
+          href: "/settings/employees?issue=missing_salary",
+        }
       : null,
-  ].filter((b): b is { label: string } => b !== null);
+  ].filter((b): b is Blocker => b !== null);
 
   const issues = health.missingDeptHead + health.missingSalary;
 
@@ -79,17 +93,23 @@ export default function DashboardHR({
             {blockers.length > 0 ? (
               <ul className="space-y-2">
                 {blockers.map((b) => (
-                  <li key={b.label} className="flex items-center justify-between gap-3 rounded-xl bg-awaiting-wash px-3 py-2.5">
-                    <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-awaiting" aria-hidden />
-                      {b.label}
-                    </span>
-                    <Link
-                      href="/settings/employees"
-                      className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand hover:underline"
-                    >
-                      Fix <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
+                  <li key={b.label} className="rounded-xl bg-awaiting-wash px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-awaiting" aria-hidden />
+                        {b.label}
+                      </span>
+                      <Link
+                        href={b.href}
+                        className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand hover:underline"
+                      >
+                        Fix <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                    <p className="mt-1 pl-6 text-xs text-ink-soft">
+                      {b.people.slice(0, 4).map((p) => p.name).join(", ")}
+                      {b.people.length > 4 ? ` and ${b.people.length - 4} more` : ""}
+                    </p>
                   </li>
                 ))}
               </ul>

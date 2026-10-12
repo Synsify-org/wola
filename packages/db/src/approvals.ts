@@ -107,12 +107,22 @@ export async function routeApplication(
   return { app, pipeline: usable, routing: route(usable, app.applicantRole, approvals) };
 }
 
-// Freeze the annual rate at approval. interest_applies=false -> 0; else the
+export type ResolvedRate =
+  | { ok: true; rate: number; mode: "fixed" | "index_plus_margin" }
+  | { ok: false; error: string };
+
+// The rate a product charges RIGHT NOW. interest_applies=false -> 0; else the
 // product's rate_index current value as a FRACTION (9.500 -> 0.095). Interest
 // applies but no index configured -> refuse, never guess a rate.
-async function resolveRate(
+//
+// Called when an application is SUBMITTED, and the result is stored on it
+// (eligibility_snapshot.annualRate): the applicant is quoted that rate and
+// keeps it, whatever the index does while the application is in review. Also
+// the fallback at final approval for applications submitted before quoting
+// existed.
+export async function resolveRate(
   tx: Tx, loanProductId: string,
-): Promise<{ ok: true; rate: number; mode: "fixed" | "index_plus_margin" } | { ok: false; error: string }> {
+): Promise<ResolvedRate> {
   const [p] = await tx`
     SELECT lp.interest_applies, lp.name, ri.current_value
     FROM loan_products lp
@@ -124,6 +134,19 @@ async function resolveRate(
     return { ok: false, error: `Product "${p.name}" applies interest but has no rate index configured.` };
   }
   return { ok: true, rate: Number(p.current_value) / 100, mode: "index_plus_margin" };
+}
+
+/** The rate quoted to the applicant at submission, if this application has
+ *  one (null for applications submitted before quoting existed). */
+async function quotedRate(tx: Tx, applicationId: string): Promise<ResolvedRate | null> {
+  const [row] = await tx`
+    SELECT eligibility_snapshot->>'annualRate' AS rate,
+           eligibility_snapshot->>'rateMode' AS mode
+    FROM loan_applications WHERE id = ${applicationId}`;
+  if (!row || row.rate === null || row.rate === undefined) return null;
+  const rate = Number(row.rate);
+  if (!Number.isFinite(rate) || rate < 0) return null;
+  return { ok: true, rate, mode: row.mode === "fixed" ? "fixed" : "index_plus_margin" };
 }
 
 export async function decide(
@@ -171,7 +194,9 @@ export async function decide(
   // the application routed "approved" but stuck at in_review forever.
   let rate: { rate: number; mode: "fixed" | "index_plus_margin" } | null = null;
   if (wouldComplete) {
-    const resolved = await resolveRate(tx, app.loanProductId);
+    // The rate the applicant was quoted at submission wins; only applications
+    // that predate quoting fall back to the product's rate today.
+    const resolved = (await quotedRate(tx, args.applicationId)) ?? (await resolveRate(tx, app.loanProductId));
     if (!resolved.ok) return { ok: false, error: resolved.error };
     rate = resolved;
   }

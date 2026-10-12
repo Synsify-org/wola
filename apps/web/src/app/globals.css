@@ -340,9 +340,24 @@
   /* Hide app chrome */
   aside, header, nav, .no-print { display: none !important; }
 
+  /* The app frame is a fixed-height viewport with a scrolling <main>; paper
+     has no viewport, so unwind every height/overflow constraint or only the
+     first screenful prints. */
+  html, body { height: auto !important; overflow: visible !important; }
+  .app-frame, .app-body {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
   /* Full-width content, no shell padding */
-  main { padding: 0 !important; }
+  main { padding: 0 !important; height: auto !important; overflow: visible !important; }
   body { background: #fff !important; }
+
+  /* Entrance animations start transparent; print the settled state. */
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .animate-in { opacity: 1 !important; transform: none !important; }
 
   /* Force color printing (chips, brand figures) */
   * {

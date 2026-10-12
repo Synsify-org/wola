@@ -1,4 +1,4 @@
-﻿import { requireSession } from "@/lib/guard";
+﻿import { requireSession, scopePredicate } from "@/lib/guard";
 import { routeApplication, getEmployeeProfile, loadProductRules } from "@wola/db";
 import { canAct } from "@wola/engine";
 import { decideAction } from "./actions";
@@ -38,10 +38,19 @@ export default async function ApplicationDetail({
       ? canAct(loaded.routing.currentStage, actor, applicant)
       : false;
 
+    // The list is role-scoped, so the detail must be too: an employee opens
+    // only their own application, a dept head their department's. The
+    // approver whose turn it is always may (they have to decide it).
+    const [inScope] = await tx`
+      SELECT 1 AS ok FROM employees e
+      WHERE e.id = ${loaded.app.employeeId} AND ${scopePredicate(tx, ctx)}`;
+    if (!inScope && !isMyTurn) return null;
+
     const [meta] = await tx`
       SELECT e.full_name, e.employee_no, e.department, e.title, e.user_id AS applicant_user_id,
              lp.name AS product_name, lp.kind AS product_kind,
-             la.loan_product_id, la.declared_external_loans, la.purpose, la.created_at
+             la.loan_product_id, la.declared_external_loans, la.purpose, la.created_at,
+             la.eligibility_snapshot
       FROM loan_applications la
       JOIN employees e ON e.id = la.employee_id
       JOIN loan_products lp ON lp.id = la.loan_product_id
@@ -115,6 +124,15 @@ export default async function ApplicationDetail({
     routing.state === "approved" ? "chip chip--approved"
     : rejected ? "chip chip--rejected"
     : "chip chip--awaiting";
+  // The rate locked in when the application was submitted (applications from
+  // before quoting existed have none — their rate is set at final approval).
+  const snap = (meta.eligibility_snapshot ?? {}) as { annualRate?: number; interestApplies?: boolean };
+  const quotedRate =
+    typeof snap.annualRate === "number"
+      ? snap.annualRate === 0 ? "Interest-free" : (snap.annualRate * 100).toFixed(2) + "% p.a."
+      : snap.interestApplies === false
+        ? "Interest-free"
+        : "Set at final approval";
   const cleanPurpose = meta.purpose
     ? (meta.purpose as string).replace(/^\[demo\][^a-z]*/i, "").trim()
     : "";
@@ -195,6 +213,7 @@ export default async function ApplicationDetail({
               <InfoRow k="Purpose" v={cleanPurpose || "-"} />
               <InfoRow k="Requested" v={ugx(app.amount)} />
               <InfoRow k="Term" v={app.tenorMonths + " months"} />
+              <InfoRow k="Interest rate" v={quotedRate} />
             </div>
           </div>
 

@@ -6,7 +6,7 @@
 // A tampered amount in the hidden field dies here.
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/guard";
-import { getEmployeeProfile, loadProductRules } from "@wola/db";
+import { getEmployeeProfile, loadProductRules, resolveRate } from "@wola/db";
 import { assessEligibility } from "@wola/engine";
 
 export async function POST(req: Request) {
@@ -53,6 +53,16 @@ export async function POST(req: Request) {
       return { error: `You already have a ${rules.name} application in review. Wait for a decision before applying again.` };
     }
 
+    // Quote the rate NOW. A rate-index change (e.g. a new CBR) must reach
+    // applications made after it, not ones already in flight, so the rate is
+    // fixed here and final approval uses this, not the index of that day.
+    // An interest-bearing product with no rate index fails here, at the
+    // applicant's desk, rather than at an approver's final sign-off.
+    const quote = await resolveRate(tx, productId);
+    if (!quote.ok) {
+      return { error: "This loan's interest rate hasn't been set up yet. Please contact your administrator." };
+    }
+
     // The snapshot freezes what was assessed at submission, so an approver
     // sees the figures the applicant saw, not a recomputed value that could
     // have drifted if config changed mid-flight.
@@ -70,6 +80,8 @@ export async function POST(req: Request) {
              maxAmount: elig.maxAmount,
              interestApplies: elig.interestApplies,
              capMethod: rules.capMethod,
+             annualRate: quote.rate,
+             rateMode: quote.mode,
            })})
         RETURNING id`;
 
