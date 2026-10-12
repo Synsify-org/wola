@@ -198,7 +198,7 @@ export default function ReportsView({
             <FileDown className="h-3.5 w-3.5" /> CSV
           </button>
         </div>
-        <table className="ledger mt-2">
+        <table className="ledger ledger--sticky mt-2">
           <thead>
             <tr>
               <th>Borrower</th><th>Department</th><th>Product</th>
@@ -231,7 +231,7 @@ export default function ReportsView({
             <FileDown className="h-3.5 w-3.5" /> CSV
           </button>
         </div>
-        <table className="ledger mt-2">
+        <table className="ledger ledger--sticky mt-2">
           <thead><tr><th>Department</th><th className="r">Loans</th><th className="r">Principal</th><th className="r">% of book</th></tr></thead>
           <tbody>
             {departments.map((d, i) => {
@@ -257,7 +257,7 @@ export default function ReportsView({
             <FileDown className="h-3.5 w-3.5" /> CSV
           </button>
         </div>
-        <table className="ledger mt-2">
+        <table className="ledger ledger--sticky mt-2">
           <thead><tr><th>Applicant</th><th>Product</th><th className="r">Amount</th><th>Status</th><th className="r">Applied</th></tr></thead>
           <tbody>
             {applications.map((a, i) => (
@@ -284,7 +284,7 @@ export default function ReportsView({
             <FileDown className="h-3.5 w-3.5" /> CSV
           </button>
         </div>
-        <table className="ledger mt-2">
+        <table className="ledger ledger--sticky mt-2">
           <thead><tr><th>Borrower</th><th>Product</th><th>Stage</th><th>Decision</th><th>Approver</th><th className="r">Decided</th></tr></thead>
           <tbody>
             {approvalTrail.map((t, i) => (

@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import Metric from "./metric";
+import Reveal from "./reveal";
 import CountUp from "./count-up";
 import { Clock, Wallet, Banknote, TrendingUp } from "lucide-react";
 import BookBreakup from "./book-breakup";
@@ -139,7 +140,7 @@ export default function DashboardCFO({
       </section>
 
       {/* Row 1 (2/3 + 1/3): collections trend beside the application pipeline. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
         <TrendLineChart
           title="Collections"
           subtitle={`Money received against instalments due, last 6 months · ${currency}`}
@@ -155,12 +156,12 @@ export default function DashboardCFO({
           className="lg:col-span-2"
         />
         <PipelinePanel data={pipeline} />
-      </section>
+      </Reveal>
 
       {/* Row 2 (2/3 + 1/3): the money-operations console — the CFO's hero,
           only for roles that can actually disburse — beside the book breakup. */}
       {canDisburse || mix.length > 0 ? (
-        <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+        <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
           {canDisburse ? (
             <div className={"min-w-0 " + (mix.length > 0 ? "lg:col-span-2" : "lg:col-span-3")}>
               <CFOMoneyOps queue={queue} reconciliation={reconciliation} currency={currency} />
@@ -171,11 +172,11 @@ export default function DashboardCFO({
               <BookBreakup data={mix} total={book.principalDisbursed} delta={disbursementDelta} currency={currency} />
             </div>
           ) : null}
-        </section>
+        </Reveal>
       ) : null}
 
       {/* Row 3 (2/3 + 1/3): decision worklist beside recent activity. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
         <DecisionQueue
           title="Needs your decision"
           items={inbox}
@@ -185,7 +186,7 @@ export default function DashboardCFO({
           className="lg:col-span-2"
         />
         <RecentActivity data={recent} currency={currency} />
-      </section>
+      </Reveal>
 
       {/* Personal loans: demoted */}
       <Link href="/loans?mine=1" className="inline-block text-sm text-ink-soft transition-colors hover:text-ink">

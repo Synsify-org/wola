@@ -249,6 +249,19 @@
     .ledger th, .ledger td { white-space: nowrap; }
   }
   .ledger tbody tr:hover { background: var(--color-gray-25); }
+  /* Dense tables that stay tables on phones (schedule, audit, reports): pin
+     the first column so you always know which row you're reading while
+     scrolling the rest sideways. */
+  @media (max-width: 639.98px) {
+    .ledger--sticky th:first-child,
+    .ledger--sticky td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--color-surface);
+      box-shadow: 1px 0 0 var(--color-rule);
+    }
+  }
 
   /* Status chips. */
   .chip {
@@ -357,7 +370,7 @@
 
   /* Entrance animations start transparent; print the settled state. */
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .animate-in { opacity: 1 !important; transform: none !important; }
+  .animate-in, [data-reveal] { opacity: 1 !important; transform: none !important; }
 
   /* Force color printing (chips, brand figures) */
   * {
@@ -377,4 +390,14 @@
   .ledger td, .ledger th { padding: 6px 8px !important; }
 
   @page { margin: 1.5cm; }
+}
+/* Respect the OS "reduce motion" setting: entrance animations, transitions
+   and skeleton pulses all stand down. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

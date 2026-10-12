@@ -114,7 +114,7 @@ export default function AnalyticsView({
           ) : (
             <>
               <ChartContainer config={statusChartConfig} className="aspect-auto h-[160px] w-full">
-                <PieChart>
+                <PieChart accessibilityLayer>
                   <Pie data={donutData} dataKey="value" nameKey="key" innerRadius={45} outerRadius={70} paddingAngle={2}>
                     {donutData.map((d) => <Cell key={d.key} fill={`var(--color-${d.key})`} />)}
                   </Pie>
@@ -206,7 +206,7 @@ export default function AnalyticsView({
       {/* Product performance table */}
       <section className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
         <div className="caps px-5 pt-4">Product performance</div>
-        <table className="ledger mt-2">
+        <table className="ledger ledger--sticky mt-2">
           <thead>
             <tr>
               <th>Product</th>

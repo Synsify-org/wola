@@ -1,6 +1,7 @@
 "use client";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { IconTip } from "@/components/ui/tooltip";
 import { Dock, DockIcon, DockItem, DockLabel } from "@/components/ui/dock";
 import {
   LayoutDashboard,
@@ -99,12 +100,11 @@ export function SideLink({
   collapsed?: boolean;
   onNavigate?: () => void;
 }) {
-  return (
+  const link = (
     <Link
       href={item.href}
       prefetch={false}
       onClick={onNavigate}
-      title={collapsed ? item.label : undefined}
       aria-current={active ? "page" : undefined}
       className={
         (active
@@ -118,6 +118,8 @@ export function SideLink({
       {collapsed ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
     </Link>
   );
+  // Collapsed sidebar shows icons only: label them on hover AND keyboard focus.
+  return <IconTip label={collapsed ? item.label : null}>{link}</IconTip>;
 }
 
 /** Sidebar / drawer nav: role-filtered items in divider-separated groups. */

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import DashboardCard from "./dashboard-card";
+import { Avatar } from "@/components/ui/avatar";
 
 export type DecisionItem = {
   applicationId: string;
@@ -73,7 +74,12 @@ export default function DecisionQueue({
               <tbody>
                 {items.map((item) => (
                   <tr key={item.applicationId}>
-                    <td className="pl-6! font-medium text-ink">{item.employeeName}</td>
+                    <td className="pl-6! font-medium text-ink">
+                      <span className="flex items-center gap-3">
+                        <Avatar name={item.employeeName} size="sm" />
+                        {item.employeeName}
+                      </span>
+                    </td>
                     <td className="text-ink-soft">{item.productName}</td>
                     <td className="r num">{money(item.amount)}</td>
                     {showTenor ? <td className="r num">{item.tenorMonths} mo</td> : null}
@@ -96,9 +102,10 @@ export default function DecisionQueue({
               <li key={item.applicationId}>
                 <Link
                   href={review(item.applicationId)}
-                  className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors active:bg-paper"
+                  className="flex min-h-14 items-center justify-between gap-3 px-5 py-3.5 transition-colors active:bg-paper"
                 >
-                  <div className="min-w-0">
+                  <Avatar name={item.employeeName} size="sm" />
+                  <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-ink">{item.employeeName}</div>
                     <div className="truncate text-xs text-ink-soft">
                       {item.productName}

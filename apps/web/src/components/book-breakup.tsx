@@ -76,7 +76,7 @@ export default function BookBreakup({
 
         <div className="h-32 w-32 shrink-0 self-center">
           <ChartContainer config={chartConfig} className="aspect-square h-full w-full">
-            <PieChart>
+            <PieChart accessibilityLayer>
               <Pie
                 data={rows}
                 dataKey="principal"

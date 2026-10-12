@@ -1,5 +1,6 @@
 import DashboardCard from "./dashboard-card";
 import DecisionQueue from "./decision-queue";
+import Reveal from "./reveal";
 import TrendLineChart from "./trend-line-chart";
 import type { CollectionsPoint } from "./dashboard-cfo";
 import { Wallet, TrendingUp } from "lucide-react";
@@ -95,7 +96,7 @@ export default function DashboardCEO({
       </section>
 
       {/* Row 2 (2/3 + 1/3): collections trend beside the product mix. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
         <TrendLineChart
           title="Collections"
           subtitle={`Money received against instalments due, last 6 months · ${currency}`}
@@ -111,7 +112,7 @@ export default function DashboardCEO({
           className={mix.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}
         />
         {mix.length > 0 ? <BookBreakup data={mix} total={principalDisbursed} currency={currency} /> : null}
-      </section>
+      </Reveal>
 
       {/* Row 3: the CEO-stage queue — quiet, not the hero. */}
       <DecisionQueue

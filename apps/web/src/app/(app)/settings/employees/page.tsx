@@ -11,6 +11,8 @@ import EmployeeImport from "@/components/employee-import";
 import CreateAccountButton from "@/components/create-account-button";
 import EditEmployeeDialog from "@/components/edit-employee-dialog";
 import EmployeeStatusButton from "@/components/employee-status-button";
+import { Avatar } from "@/components/ui/avatar";
+import { MobileRow, MobileRowList } from "@/components/mobile-row";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
 
@@ -111,7 +113,54 @@ export default async function EmployeesPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
+        <>
+        <div className="overflow-hidden rounded-2xl border border-rule bg-surface shadow-theme-xs sm:hidden">
+          <MobileRowList className="border-t-0">
+            {data.rows.map((r) => (
+              <MobileRow
+                key={r.id}
+                name={r.full_name}
+                title={r.full_name}
+                subtitle={[r.employee_no, r.department, r.title].filter(Boolean).join(" · ")}
+                value={ugx(r.gross_salary)}
+                valueNote="gross"
+                chip={
+                  <span className={r.status === "active" ? "chip chip--approved" : "chip"}>{r.status}</span>
+                }
+                actions={
+                  <>
+                    {r.has_account ? (
+                      <span className="chip chip--approved">Login active</span>
+                    ) : data.canImport ? (
+                      <CreateAccountButton employeeId={r.id} />
+                    ) : (
+                      <span className="chip chip--awaiting">No login</span>
+                    )}
+                    {data.canImport ? (
+                      <>
+                        <EditEmployeeDialog
+                          employee={{
+                            id: r.id,
+                            full_name: r.full_name,
+                            department: r.department,
+                            department_head_no: r.department_head_no,
+                            title: r.title,
+                            gross_salary: r.gross_salary,
+                            net_salary: r.net_salary,
+                            is_post_probation: r.is_post_probation,
+                            on_final_warning: r.on_final_warning,
+                          }}
+                        />
+                        <EmployeeStatusButton employeeId={r.id} status={r.status} />
+                      </>
+                    ) : null}
+                  </>
+                }
+              />
+            ))}
+          </MobileRowList>
+        </div>
+        <div className="hidden overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs sm:block">
           <table className="ledger">
             <thead>
               <tr>
@@ -129,7 +178,12 @@ export default async function EmployeesPage({
             <tbody>
               {data.rows.map((r) => (
                 <tr key={r.id}>
-                  <td className="font-medium text-ink">{r.full_name}</td>
+                  <td className="font-medium text-ink">
+                    <span className="flex items-center gap-3">
+                      <Avatar name={r.full_name} size="sm" />
+                      {r.full_name}
+                    </span>
+                  </td>
                   <td className="num text-ink-soft">{r.employee_no}</td>
                   <td className="text-ink-soft">{r.department ?? "-"}</td>
                   <td className="text-ink-soft">{r.title ?? "-"}</td>
@@ -174,6 +228,7 @@ export default async function EmployeesPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </>
   );

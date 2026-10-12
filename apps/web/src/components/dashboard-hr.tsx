@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Users, AlertTriangle, ArrowRight, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
+import Reveal from "./reveal";
 import Metric from "./metric";
 import DashboardCard from "./dashboard-card";
 import DecisionQueue from "./decision-queue";
@@ -86,7 +87,7 @@ export default function DashboardHR({
       </section>
 
       {/* Row 2 (2/3 + 1/3): HR-stage queue beside register issues + pipeline. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
         <DecisionQueue title="At your stage" items={inbox} currency={currency} className="lg:col-span-2" />
         <div className="flex min-w-0 flex-col gap-4 xl:gap-5">
           <DashboardCard title="Register issues">
@@ -121,7 +122,7 @@ export default function DashboardHR({
           </DashboardCard>
           <PipelinePanel data={pipeline} />
         </div>
-      </section>
+      </Reveal>
     </div>
   );
 }

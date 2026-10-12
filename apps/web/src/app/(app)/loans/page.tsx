@@ -5,6 +5,7 @@
 import { requireSession, scopePredicate } from "@/lib/guard";
 import Link from "next/link";
 import Metric from "@/components/metric";
+import { MobileRow, MobileRowList } from "@/components/mobile-row";
 import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
@@ -81,7 +82,27 @@ export default async function LoanRegister() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
+        <>
+        <div className="overflow-hidden rounded-2xl border border-rule bg-surface shadow-theme-xs sm:hidden">
+          <MobileRowList className="border-t-0">
+            {loans.map((l) => (
+              <MobileRow
+                key={l.id}
+                href={"/loans/" + l.id}
+                title={l.product_name}
+                subtitle={`${(Number(l.annual_rate) * 100).toFixed(1)}% · ${l.tenor_months} mo · principal ${ugx(l.principal)}`}
+                value={l.outstanding !== null ? ugx(l.outstanding) : "-"}
+                valueNote="outstanding"
+                chip={
+                  <span className={l.status === "active" ? "chip chip--approved" : "chip"}>
+                    {l.status.charAt(0).toUpperCase() + l.status.slice(1).replace(/_/g, " ")}
+                  </span>
+                }
+              />
+            ))}
+          </MobileRowList>
+        </div>
+        <div className="hidden overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs sm:block">
           <table className="ledger">
             <thead>
               <tr>
@@ -119,6 +140,7 @@ export default async function LoanRegister() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </>
   );
