@@ -35,7 +35,7 @@ export default function ScheduleTable({
         ) : null}
       </div>
       <div className="mt-2 max-h-112 overflow-y-auto">
-        <table className="ledger">
+        <table className="ledger ledger--sticky">
           <thead className="sticky top-0">
             <tr>
               <th>#</th>

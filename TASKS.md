@@ -10,6 +10,29 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phase 1.14 — UI refinement, web + mobile (2026-10-12) `DONE, on branch feat/ui-refine`
+
+Ideas and the genuinely missing primitives from the two reference components
+(not pasted wholesale: most of that look already shipped; their `chart.tsx`
+and Tailwind-v3 syntax would have fought ours). No new dependencies.
+
+- [x] **Phone rows instead of sideways tables** — Applications, Rejections
+      (reason shown in full), My loans, Book, Employees. Desktop tables
+      unchanged. ([mobile-row.tsx](apps/web/src/components/mobile-row.tsx))
+- [x] **Avatars** (initials on a stable brand-family tint, never red) in the
+      queue, lists and topbar. ([ui/avatar.tsx](apps/web/src/components/ui/avatar.tsx))
+- [x] **Sticky first column** on schedule / audit / reports / analytics tables.
+- [x] **Content-shaped loading** — dashboard vs list skeletons replace the spinner.
+- [x] **Tooltips** on the collapsed sidebar and sidebar toggle (hover + keyboard focus).
+- [x] **Scroll-reveal** for below-the-fold dashboard sections
+      ([reveal.tsx](apps/web/src/components/reveal.tsx)); SSR-visible, skipped
+      for reduced motion, forced visible in print.
+- [x] **Reduced motion** honoured globally; **chart keyboard navigation**
+      (`accessibilityLayer`) on the four charts.
+
+Verified: `tsc`, 24 web tests, `next build --webpack`, live at 390 / 768 /
+1280px as HR (no horizontal page scroll; stacked rows <640px, tables above).
+
 ## Phase 1.13 — 9-item bug batch (2026-10-12) `DONE, on branch fix/bug-batch-2`
 
 Investigated each against code and live data first. Verified: `tsc` clean,

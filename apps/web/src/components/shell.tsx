@@ -13,6 +13,7 @@ import { X } from "lucide-react";
 import NavLinks, { AppDock, SideLink, SETTINGS_ITEM, useActiveHref } from "./nav-links";
 import Sidebar from "./sidebar";
 import Topbar from "./topbar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export interface ShellUser {
   name: string;
@@ -63,6 +64,7 @@ export default function Shell({
   }, [drawer]);
 
   return (
+    <TooltipProvider>
     <div className="app-frame flex h-dvh flex-col overflow-hidden bg-paper">
       <a
         href="#main"
@@ -137,5 +139,6 @@ export default function Shell({
         </div>
       ) : null}
     </div>
+    </TooltipProvider>
   );
 }

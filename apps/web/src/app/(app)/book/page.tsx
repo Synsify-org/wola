@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { requireSession, scopePredicate } from "@/lib/guard";
 import Link from "next/link";
 import Metric from "@/components/metric";
+import { Avatar } from "@/components/ui/avatar";
+import { MobileRow, MobileRowList } from "@/components/mobile-row";
 import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
@@ -93,7 +95,28 @@ export default async function BookPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
+        <>
+        <div className="overflow-hidden rounded-2xl border border-rule bg-surface shadow-theme-xs sm:hidden">
+          <MobileRowList className="border-t-0">
+            {loans.map((l) => (
+              <MobileRow
+                key={l.id}
+                href={"/loans/" + l.id}
+                name={l.employee_name}
+                title={l.employee_name}
+                subtitle={`${l.product_name} · ${(Number(l.annual_rate) * 100).toFixed(1)}% · ${l.tenor_months} mo`}
+                value={l.outstanding !== null ? ugx(l.outstanding) : "-"}
+                valueNote="outstanding"
+                chip={
+                  <span className={l.status === "active" ? "chip chip--approved" : "chip"}>
+                    {l.status.charAt(0).toUpperCase() + l.status.slice(1).replace(/_/g, " ")}
+                  </span>
+                }
+              />
+            ))}
+          </MobileRowList>
+        </div>
+        <div className="hidden overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs sm:block">
           <table className="ledger">
             <thead>
               <tr>
@@ -111,8 +134,13 @@ export default async function BookPage() {
               {loans.map((l) => (
                 <tr key={l.id}>
                   <td>
-                    <div className="font-medium text-ink">{l.employee_name}</div>
-                    <div className="num text-xs text-ink-faint">{l.employee_no}</div>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={l.employee_name} size="sm" />
+                      <div>
+                        <div className="font-medium text-ink">{l.employee_name}</div>
+                        <div className="num text-xs text-ink-faint">{l.employee_no}</div>
+                      </div>
+                    </div>
                   </td>
                   <td className="text-ink-soft">{l.product_name}</td>
                   <td className="r num font-semibold text-brand-700">{ugx(l.principal)}</td>
@@ -136,6 +164,7 @@ export default async function BookPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </>
   );

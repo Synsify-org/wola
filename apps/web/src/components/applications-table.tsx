@@ -13,6 +13,8 @@ import {
 import { ArrowUpDown, Eye, Search } from "lucide-react";
 import type { ApplicationRow } from "@/app/(app)/applications/page";
 import { formatMoney } from "@wola/engine";
+import { Avatar } from "@/components/ui/avatar";
+import { MobileRow, MobileRowList } from "@/components/mobile-row";
 
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", {
@@ -71,10 +73,13 @@ export default function ApplicationsTable({ rows, currency }: { rows: Applicatio
       col.accessor("applicantName", {
         header: "Applicant",
         cell: (c) => (
-          <div>
-            <div className="font-medium text-ink">{c.getValue()}</div>
-            <div className="num text-xs text-ink-soft">
-              {c.row.original.employeeNo}
+          <div className="flex items-center gap-3">
+            <Avatar name={c.getValue()} size="sm" />
+            <div>
+              <div className="font-medium text-ink">{c.getValue()}</div>
+              <div className="num text-xs text-ink-soft">
+                {c.row.original.employeeNo}
+              </div>
             </div>
           </div>
         ),
@@ -189,8 +194,30 @@ export default function ApplicationsTable({ rows, currency }: { rows: Applicatio
         </select>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-rule bg-surface">
+      {/* Phones: stacked rows (same sorted + filtered set as the table). */}
+      <div className="overflow-hidden rounded-lg border border-rule bg-surface sm:hidden">
+        {table.getRowModel().rows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-ink-soft">No applications match your filters.</p>
+        ) : (
+          <MobileRowList className="border-t-0">
+            {table.getRowModel().rows.map(({ original: r }) => (
+              <MobileRow
+                key={r.id}
+                href={"/applications/" + r.id}
+                name={r.applicantName}
+                title={r.applicantName}
+                subtitle={`${r.productName} · ${shortDate(r.appliedAt)}`}
+                value={formatMoney(r.amount, currency)}
+                valueNote={`${r.tenorMonths} mo`}
+                chip={<span className={STATUS_CHIP[r.status] ?? "chip"}>{statusLabel(r.status)}</span>}
+              />
+            ))}
+          </MobileRowList>
+        )}
+      </div>
+
+      {/* Table (sm and up) */}
+      <div className="hidden overflow-x-auto rounded-lg border border-rule bg-surface sm:block">
         <table className="ledger">
           <thead>
             {table.getHeaderGroups().map((hg) => (

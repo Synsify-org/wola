@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import DashboardCard from "./dashboard-card";
+import { Avatar } from "@/components/ui/avatar";
 import type { RejectionRow } from "@/lib/rejections";
 
 const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -47,7 +48,47 @@ export default function RejectionsPanel({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          {/* Phones: the reason is the point of this view, so each rejection is
+              a small card with the reason in full, not a truncated table cell. */}
+          <ul className="-mx-1 divide-y divide-rule sm:hidden">
+            {rows.map((r) => (
+              <li key={r.applicationId} className="px-1 py-4">
+                <div className="flex items-start gap-3">
+                  <Avatar name={showApplicant ? r.applicant : r.rejectedBy} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="truncate text-sm font-medium text-ink">
+                        {showApplicant ? r.applicant : r.product}
+                      </span>
+                      <span className="num shrink-0 text-sm font-medium text-ink">
+                        {formatMoney(r.amount, currency)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-ink-soft">
+                      {showApplicant ? `${r.product} · ` : ""}
+                      {r.tenorMonths} mo
+                    </div>
+                  </div>
+                </div>
+                <blockquote className="mt-3 rounded-lg bg-rejected-wash px-3 py-2 text-sm text-ink">
+                  {r.reason ?? <span className="italic text-ink-faint">No reason recorded</span>}
+                </blockquote>
+                <div className="mt-2 flex items-center justify-between gap-3 text-xs text-ink-soft">
+                  <span className="min-w-0 truncate">
+                    {r.rejectedBy ?? "—"}
+                    {r.rejectedByTitle || r.stageRole ? ` · ${r.rejectedByTitle || label(r.stageRole ?? "")}` : ""}
+                    {" · "}
+                    {shortDate(r.rejectedAt)}
+                  </span>
+                  <Link href={"/applications/" + r.applicationId} className="shrink-0 font-medium text-brand hover:underline">
+                    View
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto sm:block">
             <table className="ledger">
               <thead>
                 <tr>
@@ -65,8 +106,13 @@ export default function RejectionsPanel({
                   <tr key={r.applicationId}>
                     {showApplicant ? (
                       <td>
-                        <div className="font-medium text-ink">{r.applicant}</div>
-                        <div className="num text-xs text-ink-faint">{r.employeeNo}</div>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={r.applicant} size="sm" />
+                          <div>
+                            <div className="font-medium text-ink">{r.applicant}</div>
+                            <div className="num text-xs text-ink-faint">{r.employeeNo}</div>
+                          </div>
+                        </div>
                       </td>
                     ) : null}
                     <td className="text-ink-soft">{r.product}</td>
@@ -82,9 +128,14 @@ export default function RejectionsPanel({
                       )}
                     </td>
                     <td>
-                      <div className="text-sm text-ink">{r.rejectedBy ?? "—"}</div>
-                      <div className="text-xs text-ink-soft">
-                        {r.rejectedByTitle || (r.stageRole ? label(r.stageRole) : "")}
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={r.rejectedBy} size="xs" />
+                        <div>
+                          <div className="text-sm text-ink">{r.rejectedBy ?? "—"}</div>
+                          <div className="text-xs text-ink-soft">
+                            {r.rejectedByTitle || (r.stageRole ? label(r.stageRole) : "")}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="num whitespace-nowrap text-ink-soft">{shortDate(r.rejectedAt)}</td>

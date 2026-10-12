@@ -60,7 +60,7 @@ export default async function AuditLogPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
-          <table className="ledger">
+          <table className="ledger ledger--sticky">
             <thead>
               <tr>
                 <th>When</th>

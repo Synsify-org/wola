@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ClipboardCheck, CheckCircle2, Circle, ArrowRight, Building2, GitBranch, Package, Users } from "lucide-react";
+import Reveal from "./reveal";
 import Metric from "./metric";
 import DashboardCard from "./dashboard-card";
 import CountUp from "./count-up";
@@ -71,7 +72,7 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
       </section>
 
       {/* Row 2 (2/3 + 1/3): the checklist beside the admin shortcuts. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
         <DashboardCard title="Configuration status" className="lg:col-span-2">
           <div className="-mt-3 divide-y divide-rule">
             <ChecklistItem
@@ -131,7 +132,7 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
             <ArrowRight className="h-4 w-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
-      </section>
+      </Reveal>
     </div>
   );
 }

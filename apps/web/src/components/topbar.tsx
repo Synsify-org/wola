@@ -11,6 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar } from "@/components/ui/avatar";
+import { IconTip } from "@/components/ui/tooltip";
 import { visibleNavItems, SETTINGS_ITEM } from "./nav-links";
 
 const roleLabel = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -149,15 +151,16 @@ export default function Topbar({
             <span className="block truncate text-xs text-ink-soft">{tenantName}</span>
           </span>
         </Link>
+        <IconTip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="bottom">
         <button
           type="button"
           onClick={onToggleCollapse}
           className={"ml-auto hidden h-9 w-9 place-items-center rounded-lg text-ink-soft transition-colors hover:bg-paper hover:text-ink lg:grid " + (collapsed ? "lg:ml-0" : "")}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </button>
+        </IconTip>
       </div>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-3 px-4 md:justify-between md:px-8">
@@ -167,9 +170,7 @@ export default function Topbar({
 
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full p-1 pr-2 text-sm transition-colors hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
-              {userName.charAt(0).toUpperCase()}
-            </span>
+            <Avatar name={userName} size="md" />
             <span className="hidden min-w-0 text-left leading-tight lg:block">
               <span className="block max-w-[10rem] truncate font-medium text-ink">{userName}</span>
               <span className="block text-xs text-ink-soft">{roleLabel(role)}</span>

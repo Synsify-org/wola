@@ -158,7 +158,7 @@ export default function TrendLineChart({
           config={config}
           className="-ml-2 aspect-auto h-[240px] w-[calc(100%+0.5rem)] sm:h-[300px] [&_.recharts-cartesian-axis-tick_text]:fill-ink-faint"
         >
-          <ComposedChart data={data} margin={{ top: 10, right: 12, left: 4, bottom: 0 }}>
+          <ComposedChart accessibilityLayer data={data} margin={{ top: 10, right: 12, left: 4, bottom: 0 }}>
             <defs>
               <linearGradient id={`fill-${uid}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={actual.color} stopOpacity={0.22} />

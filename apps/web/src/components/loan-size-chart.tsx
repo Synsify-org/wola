@@ -23,7 +23,7 @@ export default function LoanSizeChart({ bands, currency }: { bands: SizeBand[]; 
       ) : (
         <>
           <ChartContainer config={config} className="aspect-auto h-[240px] w-full">
-            <BarChart data={bands} margin={{ top: 22, right: 8, left: -12, bottom: 0 }} barCategoryGap="22%">
+            <BarChart accessibilityLayer data={bands} margin={{ top: 22, right: 8, left: -12, bottom: 0 }} barCategoryGap="22%">
               <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--color-rule)" />
               <XAxis
                 dataKey="band"
