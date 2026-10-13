@@ -108,7 +108,7 @@ export async function importEmployeesAction(csvText: string): Promise<ImportResu
 
   return requireSession(async (tx, ctx) => {
     if (!HR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to import employees." };
+      return { ok: false, error: "You don't have permission to import employees." };
     }
 
     let created = 0;
@@ -195,7 +195,7 @@ export async function createAccountAction(
 
   return requireSession(async (tx, ctx) => {
     if (!ACCOUNT_CREATOR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to create employee accounts." };
+      return { ok: false, error: "You don't have permission to create employee accounts." };
     }
 
     const [emp] = await tx`
@@ -266,13 +266,13 @@ export async function updateEmployeeAction(
   employeeId: string,
   fields: EmployeeUpdate,
 ): Promise<ActionResult> {
-  if (!fields.full_name.trim()) return { ok: false, error: "Name is required." };
+  if (!fields.full_name.trim()) return { ok: false, error: "Enter the employee's name." };
   if (!Number.isFinite(fields.gross_salary) || fields.gross_salary < 0) return { ok: false, error: "Gross salary must be a non-negative number." };
   if (!Number.isFinite(fields.net_salary) || fields.net_salary < 0) return { ok: false, error: "Net salary must be a non-negative number." };
 
   return requireSession(async (tx, ctx) => {
     if (!HR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to edit employees." };
+      return { ok: false, error: "You don't have permission to edit employees." };
     }
 
     const [emp] = await tx`SELECT id FROM employees WHERE tenant_id = ${ctx.tenantId} AND id = ${employeeId}`;
@@ -282,7 +282,7 @@ export async function updateEmployeeAction(
     if (fields.department_head_no) {
       const [head] = await tx`
         SELECT id FROM employees WHERE tenant_id = ${ctx.tenantId} AND employee_no = ${fields.department_head_no}`;
-      if (!head) return { ok: false, error: `No employee with employee_no "${fields.department_head_no}" found for department head.` };
+      if (!head) return { ok: false, error: `No employee with employee number "${fields.department_head_no}" was found, so they can't be set as department head.` };
       departmentHeadId = head.id as string;
     }
 
@@ -324,7 +324,7 @@ export async function setEmployeeStatusAction(
 ): Promise<ActionResult> {
   return requireSession(async (tx, ctx) => {
     if (!HR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to change employee status." };
+      return { ok: false, error: "You don't have permission to change an employee's status." };
     }
 
     const [emp] = await tx`SELECT id, full_name FROM employees WHERE tenant_id = ${ctx.tenantId} AND id = ${employeeId}`;

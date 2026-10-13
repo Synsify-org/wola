@@ -17,9 +17,9 @@ export async function setRateIndexAction(
   value: number,
 ): Promise<SetRateIndexResult> {
   const trimmed = name.trim();
-  if (!trimmed) return { ok: false, error: "Name is required." };
+  if (!trimmed) return { ok: false, error: "Enter a name for the rate." };
   if (!Number.isFinite(value) || value < 0) {
-    return { ok: false, error: "Rate must be a non-negative number." };
+    return { ok: false, error: "Enter a rate of zero or more." };
   }
 
   return requireSession(async (tx, ctx) => {

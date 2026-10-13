@@ -20,7 +20,7 @@ describe("DashboardAdmin", () => {
   test("shows every checklist item as done when the tenant is fully configured", () => {
     render(<DashboardAdmin status={readyStatus} />);
     expect(screen.getByText("Loan products defined (3)")).toBeInTheDocument();
-    expect(screen.getByText("Approval pipelines defined (3)")).toBeInTheDocument();
+    expect(screen.getByText("Approval routing set up (3)")).toBeInTheDocument();
     expect(screen.getByText("Rate index set for every interest-bearing product")).toBeInTheDocument();
     // No "Configure"/"Set" action links when everything's ready.
     expect(screen.queryByRole("link", { name: /configure/i })).not.toBeInTheDocument();
@@ -33,8 +33,8 @@ describe("DashboardAdmin", () => {
       productsWithoutPipeline: [{ id: "p1", name: "Staff Car Loan" }],
     };
     render(<DashboardAdmin status={status} />);
-    expect(screen.getByText("1 product missing an approval pipeline")).toBeInTheDocument();
-    expect(screen.queryByText("Approval pipelines defined (3)")).not.toBeInTheDocument();
+    expect(screen.getByText("1 product with no approvers")).toBeInTheDocument();
+    expect(screen.queryByText("Approval routing set up (3)")).not.toBeInTheDocument();
   });
 
   test("flags products missing a rate index by count", () => {

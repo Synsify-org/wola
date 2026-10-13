@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
   const result = await requireSession(async (tx, { tenantId, userId }) => {
     const profile = await getEmployeeProfile(tx, userId);
-    if (!profile) return { error: "No employee record." };
+    if (!profile) return { error: "We couldn't find your employee record. Ask HR to check that your account is linked to it." };
 
     const products = await loadProductRules(tx);
     const rules = products.find((p) => p.productId === productId);

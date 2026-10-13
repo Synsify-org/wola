@@ -23,7 +23,7 @@ export async function saveThemeAction(
 
   return requireSession(async (tx, ctx) => {
     if (!ADMIN_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to change branding." };
+      return { ok: false, error: "You don't have permission to change branding." };
     }
     try {
       await tx`

@@ -252,7 +252,7 @@ export default async function Dashboard({
       : ceoView && book
         ? "Is the loan programme healthy?"
         : configStatus
-          ? "Is this tenant configured correctly and running?"
+          ? "Is your organisation set up correctly and running?"
           : auditRows
             ? "Show me everything; let me change nothing."
             : book && EXEC_APPROVER_ROLES.includes(role)
@@ -305,7 +305,7 @@ export default async function Dashboard({
       ? waiting(inbox.length, "waiting at the HR stage")
       : configStatus
         ? configured
-          ? { label: "Tenant is fully configured and ready to lend", tone: "calm" }
+          ? { label: "Setup is complete and ready to lend", tone: "calm" }
           : { label: "Setup is incomplete. Finish the checklist to start lending", href: "/settings", tone: "attention" }
         : auditRows
           ? { label: "Read-only access. Nothing here can be changed", tone: "calm" }
