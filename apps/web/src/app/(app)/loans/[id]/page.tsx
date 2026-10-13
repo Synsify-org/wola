@@ -25,7 +25,6 @@ import ScheduleTable from "@/components/schedule-table";
 import DisburseButton from "@/components/disburse-button";
 import RepayButton from "@/components/repay-button";
 import {
-  ArrowLeft,
   CheckCircle2,
   Banknote,
   CalendarClock,
@@ -34,6 +33,8 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
+import { pageMeta } from "@/lib/site";
+import Breadcrumbs from "@/components/breadcrumbs";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
 
@@ -78,6 +79,8 @@ const statusChip: Record<string, string> = {
 
 const statusLabel = (s: string) =>
   s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+export const metadata = pageMeta({ title: "Loan", description: "A loan: its repayment schedule, balance and payment history.", path: "/loans" });
 
 export default async function LoanDetail({
   params,
@@ -187,15 +190,12 @@ export default async function LoanDetail({
 
   return (
     <>
-      {/* Back link — to My loans for own scope, to the Book/Department view
-          for oversight scopes (matches where the viewer came from). */}
-      <Link
-        href={scope === "own" ? "/loans" : "/book"}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-brand-700"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {scope === "all" ? "Loan book" : scope === "department" ? "Department loans" : "My loans"}
-      </Link>
+      <Breadcrumbs
+        items={[
+          { label: scope === "all" ? "Loan book" : scope === "department" ? "Department loans" : "My loans", href: scope === "own" ? "/loans" : "/book" },
+          { label: loan.product_name as string },
+        ]}
+      />
 
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -251,6 +251,7 @@ export default async function LoanDetail({
           accent={nextDeduction.accent}
         />
         <Metric
+          tone="brand"
           label="Outstanding"
           value={ugx(outstanding)}
           sub={settled ? "Fully repaid" : "Ledger balance"}
@@ -258,6 +259,7 @@ export default async function LoanDetail({
           accent={settled ? "approved" : "brand"}
         />
         <Metric
+          tone="info"
           label="Monthly payment"
           value={ugx(monthly)}
           sub={`${ratePct.toFixed(1)}% p.a.`}
@@ -265,6 +267,7 @@ export default async function LoanDetail({
           accent="brand"
         />
         <Metric
+          tone="deep"
           label="Principal"
           value={ugx(loan.principal)}
           sub={`${loan.tenor_months} months`}

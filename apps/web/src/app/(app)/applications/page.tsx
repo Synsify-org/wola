@@ -5,6 +5,7 @@
 import { requireSession, scopePredicate } from "@/lib/guard";
 import ApplicationsTable from "@/components/applications-table";
 import { getTenantCurrency } from "@/lib/tenant";
+import { pageMeta } from "@/lib/site";
 
 export type ApplicationRow = {
   id: string;
@@ -18,6 +19,8 @@ export type ApplicationRow = {
   status: string;
   appliedAt: string;
 };
+
+export const metadata = pageMeta({ title: "Applications", description: "Every loan application you can see, with its status and who it is waiting on.", path: "/applications" });
 
 export default async function ApplicationsPage() {
   const applications = await requireSession(async (tx, ctx) => {

@@ -68,7 +68,7 @@ export default function DashboardHR({
     <div className="space-y-4 xl:space-y-5">
       {/* HERO (row 1): employee register health as KPI cards. */}
       <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-        <Metric label="Headcount" value={<CountUp value={health.headcount} />} sub="Active employees" icon={Users} />
+        <Metric tone="brand" label="Headcount" value={<CountUp value={health.headcount} />} sub="Active employees" icon={Users} />
         <Metric label="On probation" value={<CountUp value={health.onProbation} />} sub="Not yet loan-eligible" icon={Clock} accent="awaiting" />
         <Metric
           label="Final warning"

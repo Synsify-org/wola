@@ -7,6 +7,9 @@ import { getEmployeeProfile, loadProductRules } from "@wola/db";
 import ApplyForm from "./apply-form";
 import { AlertTriangle } from "lucide-react";
 import { getTenantCurrency } from "@/lib/tenant";
+import { pageMeta } from "@/lib/site";
+
+export const metadata = pageMeta({ title: "Apply for a loan", description: "Choose a loan product, see what you can borrow and apply in a few minutes.", path: "/apply" });
 
 export default async function ApplyPage() {
   const data = await requireSession(async (tx, ctx) => {

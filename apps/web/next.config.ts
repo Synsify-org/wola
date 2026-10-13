@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@wola/db", "@wola/engine"],
+  // Never ship source maps to browsers: they expose the original source of every
+  // client component. (Off by default; stated here so nobody turns it on to
+  // debug and forgets.)
+  productionBrowserSourceMaps: false,
+  // Don't advertise the framework in an X-Powered-By header.
+  poweredByHeader: false,
   allowedDevOrigins: ["testco.local", "other.local"],
   // Baseline security headers on every response.
   //  - frame-ancestors 'none' + X-Frame-Options: nothing may embed Wola in an
@@ -16,6 +22,13 @@ const nextConfig: NextConfig = {
   // that's a separate change, deliberately not attempted here.
   async headers() {
     return [
+      // Everything except the public sign-in page and the crawler/metadata files
+      // is private: tell search engines (and caches) not to index or keep it,
+      // even if a page's own meta tag were ever lost. See lib/site.ts.
+      {
+        source: "/((?!login$|robots\.txt$|sitemap\.xml$|llms\.txt$|icon\.svg$|apple-icon\.png$|favicon\.ico$|manifest\.webmanifest$|opengraph-image|twitter-image).*)",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }],
+      },
       {
         source: "/:path*",
         headers: [
@@ -30,6 +43,9 @@ const nextConfig: NextConfig = {
     ];
   },
   experimental: {
+    // Import only the icons / chart parts / primitives actually used, not whole
+    // barrel packages, to keep client bundles small.
+    optimizePackageImports: ["lucide-react", "recharts", "radix-ui"],
     serverActions: {
       allowedOrigins: [
         "testco.local:3000",

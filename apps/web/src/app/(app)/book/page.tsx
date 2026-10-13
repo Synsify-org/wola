@@ -12,6 +12,7 @@ import { MobileRow, MobileRowList } from "@/components/mobile-row";
 import { Layers, CheckCircle, Banknote, Wallet } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
+import { pageMeta } from "@/lib/site";
 
 type Row = {
   id: string;
@@ -25,6 +26,8 @@ type Row = {
   start_date: string;
   outstanding: string | null;
 };
+
+export const metadata = pageMeta({ title: "Loan book", description: "The loans you oversee, with principal, rate, term and outstanding balance.", path: "/book" });
 
 export default async function BookPage() {
   const currency = await getTenantCurrency();
@@ -82,10 +85,10 @@ export default async function BookPage() {
 
       {/* Summary stats */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Total loans" value={String(loans.length)} icon={Layers} accent="brand" />
+        <Metric tone="brand" label="Total loans" value={String(loans.length)} icon={Layers} accent="brand" />
         <Metric label="Active" value={String(activeCount)} icon={CheckCircle} accent="approved" />
-        <Metric label="Principal" value={ugx(totalPrincipal)} icon={Banknote} accent="brand" />
-        <Metric label="Outstanding" value={ugx(totalOutstanding)} sub="Ledger" icon={Wallet} accent="brand" />
+        <Metric tone="info" label="Principal" value={ugx(totalPrincipal)} icon={Banknote} accent="brand" />
+        <Metric tone="deep" label="Outstanding" value={ugx(totalOutstanding)} sub="Ledger" icon={Wallet} accent="brand" />
       </div>
 
       {loans.length === 0 ? (

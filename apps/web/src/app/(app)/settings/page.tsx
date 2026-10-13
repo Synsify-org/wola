@@ -14,11 +14,14 @@ import RateIndexEditor from "@/components/rate-index-editor";
 import { RATE_INDEX_EDIT_ROLES } from "@/lib/permissions";
 import DashboardCard from "@/components/dashboard-card";
 import { User, Building2, Settings as Cog, Users, GitBranch, ShieldCheck, ArrowRight } from "lucide-react";
+import { pageMeta } from "@/lib/site";
 
 const ADMIN_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 const roleLabel = (r: string) =>
   r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+export const metadata = pageMeta({ title: "Settings", description: "Your account, your organisation and its configuration.", path: "/settings" });
 
 export default async function SettingsPage() {
   const slug = (await headers()).get("x-tenant-slug") ?? "";

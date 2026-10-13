@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { resolveTenant, tenantTx, createPasswordReset, sendEmail, type Tx } from "@wola/db";
 import { db, TenantError } from "@/lib/tenant";
 import ForgotPasswordForm from "./forgot-password-form";
+import { pageMeta } from "@/lib/site";
 
 export type ForgotPasswordState = { submitted?: boolean };
 
@@ -50,6 +51,8 @@ async function requestReset(_prev: ForgotPasswordState, formData: FormData): Pro
 
   return { submitted: true };
 }
+
+export const metadata = pageMeta({ title: "Reset your password", description: "Enter your work email and we will send you a link to choose a new password.", path: "/forgot-password" });
 
 export default function ForgotPasswordPage() {
   return <ForgotPasswordForm action={requestReset} />;

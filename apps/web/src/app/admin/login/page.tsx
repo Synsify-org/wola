@@ -4,6 +4,7 @@ import { clientIp } from "@/lib/client-ip";
 import { cookies, headers } from "next/headers";
 import { superLogin, SUPER_SESSION_COOKIE } from "@/lib/super-admin-auth";
 import SuperLoginForm from "./login-form";
+import { pageMeta } from "@/lib/site";
 
 export type SuperLoginState = { error?: string; ok?: boolean };
 
@@ -34,6 +35,8 @@ async function doSuperLogin(_prev: SuperLoginState, formData: FormData): Promise
   });
   return { ok: true };
 }
+
+export const metadata = pageMeta({ title: "Platform sign in", description: "Sign in to the Wola platform console.", path: "/admin/login" });
 
 export default function SuperAdminLoginPage() {
   return <SuperLoginForm action={doSuperLogin} />;

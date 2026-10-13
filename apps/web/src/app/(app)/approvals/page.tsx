@@ -7,9 +7,12 @@ import Link from "next/link";
 import { ArrowRight, Inbox } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
+import { pageMeta } from "@/lib/site";
 
 const label = (r: string) =>
   r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+export const metadata = pageMeta({ title: "Approvals", description: "Applications waiting for your decision.", path: "/approvals" });
 
 export default async function ApprovalInbox() {
   const currency = await getTenantCurrency();

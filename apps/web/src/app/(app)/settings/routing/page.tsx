@@ -6,6 +6,10 @@ import { listRouting } from "@wola/db";
 import { requireSession } from "@/lib/guard";
 import { CONFIG_VIEW_ROLES, ROUTING_EDIT_ROLES } from "@/lib/permissions";
 import RoutingEditor from "@/components/routing-editor";
+import { pageMeta } from "@/lib/site";
+import Breadcrumbs from "@/components/breadcrumbs";
+
+export const metadata = pageMeta({ title: "Approval routing", description: "Who approves each loan product, and in which order.", path: "/settings/routing" });
 
 export default async function RoutingPage() {
   const data = await requireSession(async (tx, ctx) => {
@@ -30,7 +34,7 @@ export default async function RoutingPage() {
   return (
     <>
       <div className="mb-6">
-        <Link href="/settings" className="text-xs font-medium text-ink-soft hover:text-ink">← Settings</Link>
+        <Breadcrumbs items={[{ label: "Settings", href: "/settings" }, { label: "Approval routing" }]} />
         <h1 className="mt-1 text-xl font-semibold text-ink">Approval routing</h1>
         <p className="mt-1 text-sm text-ink-soft">
           Who approves each loan product, in order. An application moves to the next approver after each approval,

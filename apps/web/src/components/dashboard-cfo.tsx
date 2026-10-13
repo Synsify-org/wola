@@ -103,6 +103,7 @@ export default function DashboardCFO({
           dashboard now (user request), ahead of the role-specific hero. */}
       <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <Metric
+          tone="deep"
           label="Total exposure"
           value={<CountUp value={book.totalExposure} format="money" currency={currency} />}
           sub={book.activeLoans + " active loan" + (book.activeLoans === 1 ? "" : "s")}
@@ -122,6 +123,7 @@ export default function DashboardCFO({
           icon={Clock}
         />
         <Metric
+          tone="info"
           label="Principal disbursed"
           value={<CountUp value={book.principalDisbursed} format="money" currency={currency} />}
           sub="Total lent out"
@@ -130,6 +132,7 @@ export default function DashboardCFO({
           trend={disbursementDelta}
         />
         <Metric
+          tone="teal"
           label="Interest book"
           value={<CountUp value={book.interestBook} format="money" currency={currency} />}
           sub="If every loan runs to term"

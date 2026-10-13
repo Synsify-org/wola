@@ -3,6 +3,7 @@
 import { resetPassword } from "@wola/db";
 import { db } from "@/lib/tenant";
 import ResetPasswordForm from "./reset-password-form";
+import { pageMeta } from "@/lib/site";
 
 export type ResetPasswordState = { error?: string; ok?: boolean };
 
@@ -22,6 +23,8 @@ async function doReset(_prev: ResetPasswordState, formData: FormData): Promise<R
   if (!result.ok) return { error: result.error };
   return { ok: true };
 }
+
+export const metadata = pageMeta({ title: "Choose a new password", description: "Choose a new password for your Wola account.", path: "/reset-password" });
 
 export default async function ResetPasswordPage({
   searchParams,

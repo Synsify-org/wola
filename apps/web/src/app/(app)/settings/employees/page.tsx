@@ -16,6 +16,8 @@ import { MobileRow, MobileRowList } from "@/components/mobile-row";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
 import { EMPLOYEE_DATA_ROLES as HR_ROLES } from "@/lib/permissions";
+import { pageMeta } from "@/lib/site";
+import Breadcrumbs from "@/components/breadcrumbs";
 
 
 type Row = {
@@ -37,6 +39,8 @@ const ISSUE_LABELS: Record<string, string> = {
   missing_head: "staff missing a department head",
   missing_salary: "staff missing a salary on file",
 };
+
+export const metadata = pageMeta({ title: "Employee directory", description: "Employees, departments, salaries and who has a login.", path: "/settings/employees" });
 
 export default async function EmployeesPage({
   searchParams,
@@ -82,6 +86,7 @@ export default async function EmployeesPage({
 
   return (
     <>
+      <Breadcrumbs items={[{ label: "Settings", href: "/settings" }, { label: "Employee directory" }]} />
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-ink">Employee directory</h1>

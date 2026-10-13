@@ -5,6 +5,7 @@
 // page can never be the thing that mutates the trail it's displaying.
 import { requireSession } from "@/lib/guard";
 import { ScrollText } from "lucide-react";
+import { pageMeta } from "@/lib/site";
 
 type Row = {
   id: string;
@@ -16,6 +17,8 @@ type Row = {
 };
 
 const label = (s: string) => s.replace(/_/g, " ").replace(/\./g, " · ");
+
+export const metadata = pageMeta({ title: "Audit log", description: "A permanent record of who changed what, and when.", path: "/audit-log" });
 
 export default async function AuditLogPage() {
   const data = await requireSession(async (tx, ctx) => {

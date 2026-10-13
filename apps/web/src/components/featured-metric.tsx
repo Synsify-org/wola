@@ -1,6 +1,6 @@
 ﻿import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { DeltaPill } from "./metric";
+import StatCard, { type StatMenuLink, type StatTone } from "./stat-card";
 
 function Sparkline({ data }: { data: number[] }) {
   if (data.length < 2) return null;
@@ -18,18 +18,13 @@ function Sparkline({ data }: { data: number[] }) {
   const line = pts.join(" ");
   const area = "0," + h + " " + line + " " + w + "," + h;
   return (
-    <svg viewBox={"0 0 " + w + " " + h} className="h-12 w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--color-brand-400)" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="var(--color-brand-400)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill="url(#spark)" />
+    <svg viewBox={"0 0 " + w + " " + h} className="h-12 w-full text-current" preserveAspectRatio="none" aria-hidden focusable="false">
+      <polygon points={area} fill="currentColor" fillOpacity="0.14" />
       <polyline
         points={line}
         fill="none"
-        stroke="var(--color-brand)"
+        stroke="currentColor"
+        strokeOpacity="0.9"
         strokeWidth="2"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -43,9 +38,11 @@ export default function FeaturedMetric({
   label,
   value,
   sub,
-  icon: Icon,
+  icon,
   trend,
   delta,
+  tone = "deep",
+  menu,
 }: {
   label: string;
   /** Usually a formatted string; a ReactNode is accepted so callers can pass
@@ -58,30 +55,20 @@ export default function FeaturedMetric({
    *  series. Omit rather than fabricate a number when there's nothing to
    *  compare against (e.g. the first month on the book). */
   delta?: { dir: "up" | "down"; pct: number; note: string };
+  tone?: StatTone;
+  menu?: StatMenuLink[];
 }) {
-  const context = [delta?.note, sub].filter(Boolean).join(" · ");
-
   return (
-    <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-rule bg-surface p-5 shadow-theme-xs sm:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-base font-medium text-ink">{label}</span>
-        {Icon ? <Icon className="h-5 w-5 shrink-0 text-brand" strokeWidth={2} aria-hidden /> : null}
-      </div>
-      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span
-          className="num text-[1.75rem] font-semibold leading-none tracking-tight text-ink sm:text-[2.125rem]"
-          title={typeof value === "string" ? value : undefined}
-        >
-          {value}
-        </span>
-        {delta ? <DeltaPill delta={delta} /> : null}
-      </div>
-      {context ? <p className="mt-2 text-[0.8125rem] text-ink-soft">{context}</p> : null}
-      {trend && trend.length >= 2 ? (
-        <div className="mt-auto pt-5">
-          <Sparkline data={trend} />
-        </div>
-      ) : null}
-    </div>
+    <StatCard
+      featured
+      label={label}
+      value={value}
+      sub={sub}
+      icon={icon}
+      tone={tone}
+      delta={delta}
+      menu={menu}
+      chart={trend && trend.length >= 2 ? <Sparkline data={trend} /> : undefined}
+    />
   );
 }

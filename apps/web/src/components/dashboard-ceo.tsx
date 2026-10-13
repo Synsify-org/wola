@@ -75,6 +75,7 @@ export default function DashboardCEO({
             context. No sparkline: the only series available is disbursement
             growth, which says nothing about profit. */}
         <FeaturedMetric
+          tone="brand"
           label="Profit made"
           value={<CountUp value={interestCollected} format="money" currency={currency} />}
           sub={`Interest collected to date · ${formatMoney(interestProjected, currency)} projected if every loan runs to term`}

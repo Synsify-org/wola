@@ -5,6 +5,9 @@ import { requireSession } from "@/lib/guard";
 import { loansByProduct, approverMetrics, inboxFor, collectionsTrend } from "@wola/db";
 import AnalyticsView, { type DeptRow } from "@/components/analytics-view";
 import { getTenantCurrency } from "@/lib/tenant";
+import { pageMeta } from "@/lib/site";
+
+export const metadata = pageMeta({ title: "Analytics", description: "Portfolio and application insights: approval rates, collections and loan sizes.", path: "/analytics" });
 
 export default async function AnalyticsPage() {
   const data = await requireSession(async (tx, ctx) => {

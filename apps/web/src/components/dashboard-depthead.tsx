@@ -146,8 +146,9 @@ export default function DashboardDeptHead({
           icon={Clock}
           accent={queue.length > 0 ? "awaiting" : "approved"}
         />
-        <Metric label="Team active loans" value={<CountUp value={teamActiveLoans} />} sub="People reporting to you" icon={Users} />
+        <Metric tone="info" label="Team active loans" value={<CountUp value={teamActiveLoans} />} sub="People reporting to you" icon={Users} />
         <Metric
+          tone="deep"
           label="My outstanding"
           value={myOutstanding !== null ? <CountUp value={myOutstanding} format="money" currency={currency} /> : "No active loan"}
           sub="Your own loans"

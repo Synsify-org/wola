@@ -8,6 +8,7 @@ import { loadInvitation, acceptInvitation } from "@wola/db";
 import { db } from "@/lib/tenant";
 import { createSession, SESSION_COOKIE } from "@/lib/auth";
 import AcceptInviteForm from "./accept-invite-form";
+import { pageMeta } from "@/lib/site";
 
 export type AcceptInviteState = { error?: string; ok?: boolean };
 
@@ -40,6 +41,8 @@ async function doAccept(_prev: AcceptInviteState, formData: FormData): Promise<A
 
   return { ok: true };
 }
+
+export const metadata = pageMeta({ title: "Accept your invitation", description: "Set a password and join your organisation on Wola.", path: "/accept-invite" });
 
 export default async function AcceptInvitePage({
   searchParams,
