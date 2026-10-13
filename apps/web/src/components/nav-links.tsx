@@ -17,6 +17,7 @@ import {
   Settings,
   Loader2,
   LayoutGrid,
+  Scale,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ const ITEMS: NavItem[] = [
   { href: "/loans", label: "My loans", icon: Wallet, group: "workspace" },
   { href: "/book", label: "Book", icon: Building2, need: "oversee", group: "oversight" },
   { href: "/approvals", label: "Approvals", icon: CheckSquare, need: "approve", group: "oversight" },
+  { href: "/reconciliation", label: "Payroll", icon: Scale, need: "fullBook", group: "oversight" },
   { href: "/settings/employees", label: "Employees", icon: Users, need: "fullBook", group: "oversight" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, need: "fullBook", group: "insights" },
   { href: "/reports", label: "Reports", icon: FileBarChart, need: "fullBook", group: "insights" },

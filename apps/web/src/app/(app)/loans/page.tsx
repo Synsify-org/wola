@@ -34,11 +34,7 @@ export default async function LoanRegister() {
       SELECT l.id, l.principal, l.annual_rate, l.tenor_months, l.status, l.start_date,
              e.full_name AS employee_name, e.employee_no,
              lp.name AS product_name,
-             GREATEST(l.principal - COALESCE(
-               (SELECT sum((r.allocation->>'principal')::numeric)
-                  FROM repayments r WHERE r.loan_id = l.id),
-               0
-             ), 0) AS outstanding
+             COALESCE((SELECT lb.outstanding FROM loan_balances lb WHERE lb.loan_id = l.id), l.principal) AS outstanding
       FROM loans l
       JOIN loan_applications la ON la.id = l.application_id
       JOIN employees e ON e.id = la.employee_id

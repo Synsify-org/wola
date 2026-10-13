@@ -59,10 +59,7 @@ export async function platformOverview(sql: Sql): Promise<PlatformOverview> {
   for (const t of tenants) {
     const [row] = await tenantTx(sql, t.id as string, (tx) => tx`
       SELECT count(*)::int AS n, COALESCE(sum(l.principal), 0) AS principal,
-             COALESCE(sum(GREATEST(l.principal - COALESCE(
-               (SELECT sum((r.allocation->>'principal')::numeric) FROM repayments r WHERE r.loan_id = l.id),
-               0
-             ), 0)), 0) AS outstanding
+             COALESCE(sum(COALESCE((SELECT lb.outstanding FROM loan_balances lb WHERE lb.loan_id = l.id), l.principal)), 0) AS outstanding
       FROM loans l WHERE l.status = 'active'`);
     totalActiveLoans += Number(row.n);
     totalPrincipalDisbursed += Number(row.principal);
