@@ -42,8 +42,8 @@ export default function RateIndexEditor({
   function save() {
     setError(null);
     setSaved(false);
-    if (!name.trim()) { setError("Name is required."); return; }
-    if (!validValue) { setError("Enter a non-negative rate (e.g. 16.5 for 16.5%)."); return; }
+    if (!name.trim()) { setError("Enter a name for the rate."); return; }
+    if (!validValue) { setError("Enter a rate of zero or more, for example 16.5 for 16.5%."); return; }
     startTransition(async () => {
       const res = await setRateIndexAction(name.trim(), parsed);
       if (res.ok) { setSaved(true); router.refresh(); }

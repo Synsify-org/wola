@@ -2,7 +2,7 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { resolveTenant, tenantTx, type Tx } from "@wola/db";
+import { resolveTenant, tenantTx, getMfaStatus, mfaKey, type Tx } from "@wola/db";
 import { db } from "./tenant";
 import { verifySession, SESSION_COOKIE } from "./auth";
 import { FULL_BOOK_ROLES, APPROVER_ROLES } from "./permissions";
@@ -90,6 +90,11 @@ export function scopePredicate(
  *  on any failure. Returns tenant + userId + role, runs fn in RLS scope. */
 export async function requireSession<T>(
   fn: (tx: Tx, ctx: SessionCtx) => Promise<T>,
+  /** skipMfaGate: only the pages and actions where someone SETS UP two-step
+   *  sign-in. Everything else is refused until a person whose role the
+   *  organisation requires it for has done so (so a required role can't just
+   *  keep using an old session and skip it). */
+  opts: { skipMfaGate?: boolean } = {},
 ): Promise<T> {
   const slug = (await headers()).get("x-tenant-slug");
   if (!slug) redirect("/login");
@@ -110,6 +115,18 @@ export async function requireSession<T>(
     // issued before the removal. Fail closed instead.
     if (!m) redirect("/login");
     const role = m.role as string;
+
+    // Organisation policy: some roles must use two-step sign-in. Enforced
+    // here, on every page and action, not just at login. Only enforceable when
+    // the server can actually verify codes (a key is configured) — otherwise
+    // requiring it would lock those people out with no way to comply.
+    if (!opts.skipMfaGate && mfaKey()) {
+      const required = ((tenant.settings ?? {}) as { security?: { mfaRequiredRoles?: string[] } }).security?.mfaRequiredRoles ?? [];
+      if (required.includes(role) && !(await getMfaStatus(db, session.userId)).enrolled) {
+        redirect("/settings/security?setup=required");
+      }
+    }
+
     const canSeeAllLoans = FULL_BOOK_ROLES.includes(role);
 
     // The caller's own employee row in this tenant (may be null for pure

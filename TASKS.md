@@ -10,6 +10,131 @@ Status tags match the architecture document's convention:
 
 ---
 
+## UI pass: phones, settings, pipeline (2026-10-13) `DONE`
+
+- [x] **Phone audit tool** (`npm run audit:mobile`): every role x every page at phone width.
+      Result: no page scrolls sideways at 390 or 360px and nothing is clipped; the real
+      phone problems were density (four full-width tiles = two screens) and truncation.
+- [x] Dashboard KPI tiles are two-up on phones (CFO, COO, HR); decision-queue rows wrap
+      instead of cutting the product name off.
+- [x] **Pipeline card** redesigned from the sales-pipeline reference: segmented bar +
+      rows with "count · amount", mini bar and share, in our state colours (needs the
+      amount per stage, now in the dashboard query).
+- [x] **Settings -> Your details** (the profile-form pattern from the account block): who
+      you are on record (read-only, HR-kept) and how to reach you (phone, location;
+      migration 0025). **Settings -> When a borrower leaves**: the exit-policy switch.
+- [x] The two Creative Tim blocks were tried and NOT kept as components: their installer
+      overwrote our tuned button/card/input/select, and one needs a date-picker library
+      we do not use. We took their layout ideas (sectioned form, icon labels, clear
+      action row) and kept our primitives. Added `ui/textarea` only.
+- Not done: **KYC**. There is no identity data in the product (no national ID, no
+  documents), and collecting it is a policy + data-protection decision first (who
+  verifies, what is stored, for how long); see `docs/business/POLICY_DECISIONS.md`.
+
+## Roadmap to the first pilot (2026-10-13) — the gate board
+
+Rule: do not start a phase until the one before it meets its "done when". Never keep
+two half-built features open. `[x]` = built and verified (evidence given); `[ ]` with
+**you** = only the owner can do it; `[ ]` = engineering still open.
+
+### Phase 0 — Stop the breaking `ENGINEERING DONE; owner items open`
+- [x] One database per purpose: tests run in `wola_test`, never the demo database
+      (`scripts/use-test-db.mjs`; the suite used to leave ~30 junk tenants in dev).
+- [x] Migration 0010 / theme-save grant verified by a test (`tenant_settings_grant.test.mjs`).
+- [x] Error boundaries on every segment + a structured error reporter (`instrumentation.ts`).
+- [x] Seed/reset script: `npm run demo:reset` (now includes a payroll history).
+- [x] Cold-start rehearsal passed twice with the database stopped first
+      (`npm run rehearse -- --cold`): 8 roles x 17 pages, zero errors. A real laptop
+      reboot is the same thing; do it once before the first demo.
+- [x] Found and fixed by the rehearsal: denied-state pages had no heading; seed scripts
+      broke on the stage-versioning index (my regression from migration 0020).
+- [ ] **You:** keep the prospect-feedback log ([PROSPECT_FEEDBACK.md](docs/business/PROSPECT_FEEDBACK.md)).
+- [ ] **You:** rotate the database password; remove `DATABASE_ADMIN_URL` from Vercel;
+      add the `PRODUCTION_DATABASE_ADMIN_URL` GitHub secret (see OPERATIONS.md).
+
+### Phase 1 — Close the money loop `ENGINEERING DONE; needs 2 policy decisions`
+- [x] One definition of outstanding: view `loan_balances` (migration 0023); every
+      read-site uses it, and a test fails if any file recomputes it.
+- [x] Expected-deductions CSV per payroll month (`/reconciliation/expected.csv`).
+- [x] Actuals import: preview first (matched / short / over / unmatched / duplicate /
+      already paid), then confirm; re-checked on the server when confirmed.
+- [x] Reconciliation screen `/reconciliation`: expected vs received per loan, arrears
+      carried forward, resolve with **record payment (catch-up)** or **pause**.
+- [x] Bulk payroll run reuses `recordRepayment`; one auditable run that ties out to its
+      repayments; running it twice records nothing the second time.
+- [x] Suspension is an event: no schedule rows added/changed/replaced (tested); due dates
+      move; reports' arrears honour it (`arrearsByLoan`).
+- [x] Early repayment: request -> record; a lump sum shortens the schedule; paying off in
+      full takes the balance to zero and settles the loan (tested).
+- [x] Loan-exit policy: default opens a payoff request per running loan; nothing is
+      written off. 164 DB tests pass.
+- [ ] **Restructure / top-up** (the third "resolve" action): not built, needs lending
+      policy first (see the proposal in 1.17). Extend is covered by Pause.
+- [ ] **You:** decide the exit policy ([POLICY_DECISIONS.md](docs/business/POLICY_DECISIONS.md) #3).
+
+### Phase 2 — Dashboards `BUILT earlier (1.1-1.9); squint test is yours`
+- [x] CFO money-ops hero (now reads the same report as the Payroll screen), HR register
+      health, employee hero, dept-head hero, CEO lighter than CFO.
+- [ ] **You:** the squint test with a real finance person, then log what they ask for.
+
+### Phase 3 — Trust baseline `MOSTLY DONE; see the audit`
+- [x] Password reset, session expiry/logout, rate limiting (tested).
+- [x] MFA for finance/admin roles (policy per organisation) — not for the platform admin.
+- [x] Hardcoded role arrays replaced by one privilege table + `can()` (tested).
+- [x] Tenant-isolation tests on every new table (0023 included).
+- [x] Security self-audit: [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+- [x] MFA for the platform (super) admin (migration 0024, `/admin/security`): mandatory
+      once `MFA_ENCRYPTION_KEY` is set, no way to turn it off, wrong codes rate-limited.
+- [ ] **You:** set `ERROR_WEBHOOK_URL` (the reporter exists) and an uptime monitor on `/api/health`.
+- [ ] Email provider + domain authentication in production.
+- [ ] Automated backups confirmed and the restore drill run against a real backup (**you**).
+
+### Phases 4-5 — Sales readiness, one pilot `NO CODE; drafts ready, owner decides`
+- Drafts: [ANSWER_SHEET](docs/business/ANSWER_SHEET.md), [DPA_TEMPLATE](docs/business/DPA_TEMPLATE.md),
+  [SPREADSHEET_MIGRATION](docs/business/SPREADSHEET_MIGRATION.md), [POLICY_DECISIONS](docs/business/POLICY_DECISIONS.md),
+  [PILOT](docs/business/PILOT.md). Lawyer review of the DPA/terms, the loan-capital
+  decision and the pilot organisation are **yours**.
+- [ ] **You:** pick the pilot organisation and a date for Phase 0 (the advisor's question).
+
+---
+
+## Phase 1.17 — Two-step sign-in (MFA) and checklist sweep (2026-10-13) `DONE, on branch chore/checklist-sweep`
+
+**Migration 0022 must reach production before this deploys** (the sign-in path
+reads `user_mfa`). With `ci/migrate-production` set up it applies itself; else
+`npm run migrate`. It is additive and changes nothing until someone enrols.
+
+- [x] **TOTP authenticator + recovery codes** ([mfa.ts](packages/db/src/mfa.ts)) — RFC 6238
+      verified against the RFC's own test vectors; secrets encrypted at rest
+      (AES-256-GCM, key in `MFA_ENCRYPTION_KEY`, never in the database); a code
+      works once (replay-proof, compare-and-set); +/-1 step clock skew; 10
+      single-use recovery codes stored hashed.
+- [x] **Sign-in is two real steps** — password OK creates a short-lived challenge
+      (5 min, 5 wrong tries, tenant-pinned), NOT a session; the session is issued
+      only after the code. Wrong codes also count against the (email, ip) login
+      rate limit. If MFA is on but the key is missing, sign-in fails closed.
+- [x] **Settings -> Security** — set up (key + `otpauth://` link), recovery codes
+      (copy / download, must confirm saved), new codes, turn off (needs a code).
+- [x] **Organisation policy** — administrators pick roles that MUST use it. Enforced
+      in `requireSession` (every page and server action), not only at login, so
+      an old session can't skip it; the setup page is exempt so there is no
+      redirect loop. Not enforceable (and not selectable) until the key is set, so
+      it can never lock people out with no way to comply.
+- Tests: 16 DB (RFC vectors, replay, attempt cap, expiry, tenant pin, recovery
+  single-use, fail-closed, RLS lockout), 15 web (login step, security panel).
+- **To switch on in production:** generate a key
+  (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`),
+  add it as `MFA_ENCRYPTION_KEY` in Vercel (Production), redeploy, THEN set the
+  policy. Keep the key safe: if it is lost, enrolled people need recovery codes.
+- Not built: QR code (key + `otpauth://` link only, no new dependency),
+  trusted-device "remember this browser", SMS/WhatsApp codes.
+- Still open (tracked under Phase 3): **restructuring / top-up flow** — deliberately not started: it
+      needs lending-policy decisions first (who may request, who approves, fees,
+      whether it re-prices at today's rate, effect on the schedule version and on
+      reports). Proposal: a "Restructure" request on an active loan, routed through
+      the product's approval chain, creating `loan_schedules` version N+1 over the
+      remaining balance at the ORIGINAL rate unless the approver re-prices.
+
 ## Phase 1.16 — Stat cards, production polish, SEO hygiene (2026-10-13) `DONE, on branch feat/stat-cards-seo`
 
 - [x] **Stat cards** — tinted tiles with a soft pattern, dominant number, delta
@@ -310,11 +435,12 @@ share a hero shape**, secondary panels stay visually quiet, each role names
 things its own way. Acceptance check = the squint test (blur two role
 screens; their shapes must still differ).
 
-- [ ] **1.0a — Copy pass** `NEW`
+- [x] **1.0a — Copy pass** `NEW`
   User feedback: current wording across the app "is not so professional."
   Sweep labels/microcopy for tone once the visual pass (1.0) has settled the
   layout it sits inside — copy on a component that's about to be rebuilt is
   wasted work.
+      **DONE 2026-10-13** — swept user-facing errors and admin labels: "You don't have permission to…" everywhere, plain-language validation messages, no "tenant" / "pipeline" jargon on the admin dashboard, clearer employee-record and missing-loan messages. Tests updated.
 
 - [x] **1.0 — Global design-system pass** `VERIFIED — mostly already done`
   DECISIONS.md's own "NEXT SESSION" note flagged this as blocking *before*
@@ -504,16 +630,16 @@ User feedback (2026-09-10): current dashboard UI "is so lacking," and is
 **not responsive above 1024px** — Phase 1's work (1.0–1.10) fixed structure
 (one hero per role, squint-test distinctness) but not this. Scope, as given:
 
-- [ ] Audit and fix responsiveness for large/desktop viewports (>1024px) —
+- [x] Audit and fix responsiveness for large/desktop viewports (>1024px) —
       every dashboard, not just one. Check what actually breaks (stretched
       cards, wasted whitespace, fixed-width assumptions) before redesigning.
-- [ ] Use the installed design skills (`ui-ux-pro-max` — styles, palettes,
+- [x] Use the installed design skills (`ui-ux-pro-max` — styles, palettes,
       font pairings, chart specs, stack guidance) to inform the visual
       refresh, not just eyeball it.
-- [ ] Animated welcome banner on the Overview/Dashboard page — user asked
+- [x] Animated welcome banner on the Overview/Dashboard page — user asked
       for this explicitly ("well animated"); scope the animation itself
       (entrance only vs. something ongoing) before building.
-- [ ] Reference: user shared a dark-theme analytics dashboard screenshot
+- [x] Reference: user shared a dark-theme analytics dashboard screenshot
       ("Efferd" — KPI card row, line chart, donut chart, sparkline) as a
       style/layout reference — take inspiration from the *shape* (KPI strip,
       chart card grid, clean card treatment), not a literal copy; Wola's
@@ -529,6 +655,10 @@ User feedback (2026-09-10): current dashboard UI "is so lacking," and is
   source, not a legitimate component library. Rebuild the look with our own
   components + the official shadcn/ui registry instead, if shadcn pieces
   are wanted.
+      **DONE 2026-10-13** — audited all eight role dashboards at 1100px (just above the sidebar breakpoint) and CFO/auditor at 1920px: no horizontal overflow, content capped at 1440px and centred, KPI rows reflow 2 -> 4 columns at xl. No defects found; the real desktop bug (page scrolling the app frame) was fixed separately in 1.16.
+      **DONE 2026-10-13** — applied through 1.14 (mobile rows, tooltips, skeletons, scroll reveal) and 1.16 (stat cards, brand-scale tones with contrast checks). No further work as a standalone item.
+      **DONE 2026-10-13** — built earlier (dashboard-welcome-banner.tsx: animated entrance + concentric-ring backdrop), honours prefers-reduced-motion since 1.14. Entrance-only, by decision.
+      **DONE 2026-10-13** — decision: keep Wola's light brand-themed look; adopted the reference's SHAPE (KPI strip, chart-card grid, clean cards) in 1.1 / 1.14 / 1.16.
 
 ---
 
@@ -855,7 +985,7 @@ chosen over Playwright e2e to match the codebase's lean-tooling preference
     separate credential/session system, no tenant data touched insecurely),
     just an availability inconsistency with the doc's "one dedicated
     surface" framing. Would need a `proxy.ts`-level check to close.
-- [ ] `DECISION NEEDED` (from the doc): is MFA in scope for v1, at least for finance/admin roles?
+- [x] `DECIDED + BUILT` — MFA is in scope: see Phase 1.17.
 
 ---
 

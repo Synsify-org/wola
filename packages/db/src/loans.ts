@@ -9,6 +9,8 @@
 import { persistSchedule, persistScheduleObject } from "./schedules";
 import { applyEarlyPayment, getCurrencyDecimals, ENGINE_VERSION, type Schedule } from "@wola/engine";
 import type { Tx } from "./client";
+import { loadSuspensionWindows } from "./suspensions";
+import { withEffectiveDates, EPS, round2 } from "./ledger";
 
 export interface CreateLoanArgs {
   tenantId: string;
@@ -132,6 +134,8 @@ export interface RepaymentArgs {
   source?: "payroll" | "manual" | "early";
   valueDate?: Date;          // when the money was deducted; defaults to today
   postedBy?: string | null;
+  /** The bulk run / payroll import this repayment was recorded by, if any. */
+  payrollRunId?: string | null;
 }
 
 /** Principal repaid to date + true outstanding for one loan. Derived by summing
@@ -139,17 +143,13 @@ export interface RepaymentArgs {
 export async function loanOutstanding(
   tx: Tx, tenantId: string, loanId: string,
 ): Promise<{ principal: number; principalRepaid: number; outstanding: number }> {
-  const [loan] = await tx`
-    SELECT principal FROM loans
-    WHERE tenant_id = ${tenantId} AND id = ${loanId}`;
-  if (!loan) throw new Error("Loan not found.");
-  const principal = Number(loan.principal);
-
-  const [agg] = await tx`
-    SELECT COALESCE(sum((allocation->>'principal')::numeric), 0) AS repaid
-    FROM repayments
+  // The ONE definition of outstanding: the loan_balances view (migration 0023).
+  const [b] = await tx`
+    SELECT principal, principal_repaid, outstanding FROM loan_balances
     WHERE tenant_id = ${tenantId} AND loan_id = ${loanId}`;
-  const principalRepaid = Number(agg?.repaid ?? 0);
+  if (!b) throw new Error("Loan not found.");
+  const principal = Number(b.principal);
+  const principalRepaid = Number(b.principal_repaid);
 
   return {
     principal,
@@ -163,9 +163,6 @@ export async function loanOutstanding(
 // a payment is allocated to) and repaymentPosition (what the app tells people
 // is due next), so the two can never disagree.
 
-const EPS = 0.001;
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 type SchedLine = {
   period_no: number; due_date: string | Date; opening_balance: string; principal_due: string;
   interest_due: string; instalment: string; closing_balance: string;
@@ -178,15 +175,23 @@ async function loadLedgerState(tx: Tx, tenantId: string, loanId: string) {
     SELECT COALESCE(sum((allocation->>'interest')::numeric), 0) AS interest
     FROM repayments
     WHERE tenant_id = ${tenantId} AND loan_id = ${loanId}`;
-  const lines = (await tx`
+  const raw = await tx`
     SELECT sl.period_no, sl.due_date, sl.opening_balance, sl.principal_due,
            sl.interest_due, sl.instalment, sl.closing_balance,
            to_char(sl.due_date, 'YYYY-MM-DD') AS due_iso,
-           sl.due_date < CURRENT_DATE AS overdue
+           to_char(CURRENT_DATE, 'YYYY-MM-DD') AS today_iso
     FROM schedule_lines sl
     JOIN loan_schedules s ON s.id = sl.schedule_id
     WHERE s.loan_id = ${loanId} AND s.is_active = true
-    ORDER BY sl.period_no ASC`) as unknown as SchedLine[];
+    ORDER BY sl.period_no ASC`;
+  // Payment holidays move a line's EFFECTIVE due date (the schedule rows stay as
+  // generated); "due next" and "overdue" follow the effective date.
+  const windows = await loadSuspensionWindows(tx, tenantId, loanId);
+  const eff = new Map(withEffectiveDates(raw as never, windows).map((l) => [l.period_no, l.eff_due_iso]));
+  const lines: SchedLine[] = raw.map((r) => {
+    const dueIso = eff.get(Number(r.period_no)) ?? (r.due_iso as string);
+    return { ...(r as unknown as SchedLine), due_iso: dueIso, overdue: dueIso < (r.today_iso as string) };
+  });
   return { lines, interestPaid: Number(paid?.interest ?? 0) };
 }
 
@@ -308,11 +313,11 @@ export async function recordRepayment(
 
   const [rep] = await tx`
     INSERT INTO repayments
-      (tenant_id, loan_id, source, amount, value_date, allocation, posted_by)
+      (tenant_id, loan_id, source, amount, value_date, allocation, posted_by, payroll_run_id)
     VALUES
       (${args.tenantId}, ${args.loanId}, ${args.source ?? "payroll"},
        ${args.amount}, ${args.valueDate ?? new Date()},
-       ${tx.json(allocation)}, ${args.postedBy ?? null})
+       ${tx.json(allocation)}, ${args.postedBy ?? null}, ${args.payrollRunId ?? null})
     RETURNING id`;
 
   const after = await loanOutstanding(tx, args.tenantId, args.loanId);

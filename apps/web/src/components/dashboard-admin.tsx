@@ -67,8 +67,8 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
           icon={ClipboardCheck}
           accent={done === checks.length ? "approved" : "awaiting"}
         />
-        <Metric tone="brand" label="Loan products" value={<CountUp value={status.productsCount} />} sub="Configured for this tenant" icon={Package} />
-        <Metric tone="info" label="Approval pipelines" value={<CountUp value={status.pipelinesCount} />} sub="Routing rules in force" icon={GitBranch} />
+        <Metric tone="brand" label="Loan products" value={<CountUp value={status.productsCount} />} sub="Set up for your organisation" icon={Package} />
+        <Metric tone="info" label="Approval chains" value={<CountUp value={status.pipelinesCount} />} sub="Who approves, in what order" icon={GitBranch} />
       </section>
 
       {/* Row 2 (2/3 + 1/3): the checklist beside the admin shortcuts. */}
@@ -85,8 +85,8 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
               done={pipelinesReady}
               label={
                 pipelinesReady
-                  ? `Approval pipelines defined (${status.pipelinesCount})`
-                  : `${status.productsWithoutPipeline.length} product${status.productsWithoutPipeline.length === 1 ? "" : "s"} missing an approval pipeline`
+                  ? `Approval routing set up (${status.pipelinesCount})`
+                  : `${status.productsWithoutPipeline.length} product${status.productsWithoutPipeline.length === 1 ? "" : "s"} with no approvers`
               }
               action="Configure"
               href="/settings"

@@ -18,12 +18,12 @@ export async function recordRepaymentAction(
   amount: number,
   source: "payroll" | "manual",
 ): Promise<RepaymentResult> {
-  if (!loanId) return { ok: false, error: "Missing loan." };
-  if (!(amount > 0)) return { ok: false, error: "Amount must be positive." };
+  if (!loanId) return { ok: false, error: "We couldn't tell which loan this is. Reload the page and try again." };
+  if (!(amount > 0)) return { ok: false, error: "Enter an amount greater than zero." };
 
   return requireSession(async (tx, ctx) => {
     if (!FINANCE_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to record repayments." };
+      return { ok: false, error: "You don't have permission to record repayments." };
     }
     try {
       const res = await recordRepayment(tx, {

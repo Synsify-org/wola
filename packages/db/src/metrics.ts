@@ -59,11 +59,7 @@ export async function employeeMetrics(
              JOIN loan_schedules s ON s.id = sl.schedule_id
             WHERE s.loan_id = l.id AND s.is_active
             ORDER BY sl.period_no LIMIT 1) AS instalment,
-           GREATEST(l.principal - COALESCE(
-             (SELECT sum((r.allocation->>'principal')::numeric)
-                FROM repayments r WHERE r.loan_id = l.id),
-             0
-           ), 0) AS outstanding,
+           COALESCE((SELECT lb.outstanding FROM loan_balances lb WHERE lb.loan_id = l.id), l.principal) AS outstanding,
            (SELECT MIN(sl.due_date) FROM schedule_lines sl
              JOIN loan_schedules s ON s.id = sl.schedule_id
             WHERE s.loan_id = l.id AND s.is_active
@@ -106,11 +102,7 @@ export async function approverMetrics(
   // TRUE ledger outstanding across every active loan.
   const [exposure] = await tx`
     SELECT COALESCE(sum(
-      GREATEST(l.principal - COALESCE(
-        (SELECT sum((r.allocation->>'principal')::numeric)
-           FROM repayments r WHERE r.loan_id = l.id),
-        0
-      ), 0)
+      COALESCE((SELECT lb.outstanding FROM loan_balances lb WHERE lb.loan_id = l.id), l.principal)
     ), 0) AS outstanding
     FROM loans l WHERE l.status = 'active'`;
 

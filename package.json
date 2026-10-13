@@ -9,7 +9,14 @@
   "scripts": {
     "postinstall": "npm run build --workspace=@wola/engine",
     "migrate": "node scripts/migrate.mjs",
-    "test:isolation": "node --import tsx --import dotenv/config --test --test-concurrency=1 packages/db/test/*.test.mjs",
+    "db:test:setup": "node scripts/db-test-setup.mjs",
+    "pretest:isolation": "node scripts/db-test-setup.mjs",
+    "test:isolation": "node --import tsx --import dotenv/config --import ./scripts/use-test-db.mjs --test --test-concurrency=1 packages/db/test/*.test.mjs",
+    "restore:check": "node --import dotenv/config scripts/restore-check.mjs",
+    "verify:production": "node scripts/verify-production.mjs",
+    "audit:mobile": "node --import dotenv/config scripts/audit-mobile.mjs",
+    "rehearse": "node --import dotenv/config scripts/rehearse.mjs",
+    "demo:reset": "node --import tsx --import dotenv/config scripts/demo-reset.mjs",
     "process-email-outbox": "node --import tsx --import dotenv/config scripts/process-email-outbox.mjs"
   },
   "dependencies": {
@@ -17,6 +24,7 @@
   },
   "devDependencies": {
     "dotenv": "^17.4.2",
+    "puppeteer-core": "^25.13.0",
     "tsx": "^4.23.0"
   },
   "allowScripts": {

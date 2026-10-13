@@ -2,10 +2,11 @@
 // Admin-only. Inline aggregate + detail queries are stopgaps. TODO: @wola/db.
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { resolveTenant, approverMetrics, inboxFor } from "@wola/db";
+import { resolveTenant, approverMetrics, inboxFor, arrearsByLoan } from "@wola/db";
 import { db } from "@/lib/tenant";
 import ReportsView from "@/components/reports-view";
 import { pageMeta } from "@/lib/site";
+import AccessDenied from "@/components/access-denied";
 
 export const metadata = pageMeta({ title: "Reports", description: "Portfolio, interest and exposure reports, ready to print or export.", path: "/reports" });
 
@@ -28,23 +29,11 @@ export default async function ReportsPage() {
     // gap, not a projection. This is what a board/audit reader needs beyond
     // "outstanding" — outstanding drops even for a loan that's behind, as
     // long as SOME repayment landed; arrears is what's actually late.
+    const arrears = await arrearsByLoan(tx, ctx.tenantId);
     const loanRows = await tx`
-      SELECT e.full_name AS borrower, e.employee_no, COALESCE(e.department, 'Unassigned') AS department,
+      SELECT l.id, e.full_name AS borrower, e.employee_no, COALESCE(e.department, 'Unassigned') AS department,
              lp.name AS product, l.principal, l.annual_rate, l.tenor_months, l.status, l.start_date,
-             GREATEST(l.principal - COALESCE(
-               (SELECT sum((r.allocation->>'principal')::numeric)
-                  FROM repayments r WHERE r.loan_id = l.id),
-               0
-             ), 0) AS outstanding,
-             GREATEST(
-               COALESCE(
-                 (SELECT sum(sl.instalment) FROM schedule_lines sl
-                    JOIN loan_schedules s ON s.id = sl.schedule_id
-                   WHERE s.loan_id = l.id AND s.is_active AND sl.due_date <= CURRENT_DATE),
-                 0
-               ) - COALESCE((SELECT sum(r.amount) FROM repayments r WHERE r.loan_id = l.id), 0),
-               0
-             ) AS arrears
+             COALESCE((SELECT lb.outstanding FROM loan_balances lb WHERE lb.loan_id = l.id), l.principal) AS outstanding
       FROM loans l
       JOIN loan_applications la ON la.id = l.application_id
       JOIN employees e ON e.id = la.employee_id
@@ -62,7 +51,7 @@ export default async function ReportsPage() {
       rate: Number(r.annual_rate) * 100,
       tenor: Number(r.tenor_months),
       outstanding: Number(r.outstanding),
-      arrears: Number(r.arrears),
+      arrears: arrears.get(r.id as string) ?? 0,
     }));
 
     const totalArrears = loans.reduce((s, l) => s + l.arrears, 0);
@@ -84,9 +73,7 @@ export default async function ReportsPage() {
     // was also a real React key collision on the client).
     const topBorrowerRows = await tx`
       SELECT e.full_name AS borrower, e.employee_no,
-             sum(GREATEST(l.principal - COALESCE(
-               (SELECT sum((r.allocation->>'principal')::numeric) FROM repayments r WHERE r.loan_id = l.id), 0
-             ), 0)) AS outstanding
+             sum(COALESCE((SELECT lb.outstanding FROM loan_balances lb WHERE lb.loan_id = l.id), l.principal)) AS outstanding
       FROM loans l
       JOIN loan_applications la ON la.id = l.application_id
       JOIN employees e ON e.id = la.employee_id
@@ -171,9 +158,7 @@ export default async function ReportsPage() {
 
   if (!data.authorized) {
     return (
-      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-        <p className="text-sm text-ink-soft">Reports are available to management roles only.</p>
-      </div>
+      <AccessDenied title="Reports" message="Reports are available to management roles only." />
     );
   }
 

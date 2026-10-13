@@ -5,6 +5,7 @@
 // hero the doc calls the "biggest real gap" — everything here was previously
 // only reachable one loan at a time from its own detail page.
 import type { Tx } from "./client";
+import { cycleReport } from "./payroll";
 
 export interface DisbursementQueueItem {
   loanId: string;
@@ -53,60 +54,19 @@ export interface ReconciliationCycle {
   exceptions: ReconciliationException[];
 }
 
-/** This calendar month's payroll cycle: every active loan's instalment(s)
- *  due this month (expected) against what actually posted as a payroll
- *  repayment this month (actual), per loan. A loan with actual < expected
- *  is an exception — short or fully missed. Loans with nothing due this
- *  month are excluded entirely, not counted as a 0-expected non-issue. */
+/** This calendar month's payroll cycle, from the SAME report the Payroll screen
+ *  shows (payroll.ts cycleReport), so the dashboard and that screen can never
+ *  disagree. Exceptions are loans short or missed once the month has closed; while
+ *  it is still open an unpaid loan is simply "awaiting", not an exception. */
 export async function reconciliationThisCycle(
   tx: Tx, tenantId: string,
 ): Promise<ReconciliationCycle> {
-  const rows = await tx`
-    SELECT l.id, e.full_name AS borrower, lp.name AS product,
-           COALESCE(due.expected, 0) AS expected,
-           COALESCE(paid.actual, 0) AS actual
-    FROM loans l
-    JOIN loan_applications la ON la.id = l.application_id
-    JOIN employees e ON e.id = la.employee_id
-    JOIN loan_products lp ON lp.id = la.loan_product_id
-    JOIN LATERAL (
-      SELECT sum(sl.instalment) AS expected
-      FROM schedule_lines sl
-      JOIN loan_schedules s ON s.id = sl.schedule_id
-      WHERE s.loan_id = l.id AND s.is_active
-        AND date_trunc('month', sl.due_date) = date_trunc('month', CURRENT_DATE)
-    ) due ON true
-    LEFT JOIN LATERAL (
-      SELECT sum(r.amount) AS actual
-      FROM repayments r
-      WHERE r.loan_id = l.id AND r.source = 'payroll'
-        AND date_trunc('month', r.value_date) = date_trunc('month', CURRENT_DATE)
-    ) paid ON true
-    WHERE l.tenant_id = ${tenantId} AND l.status = 'active'
-      AND due.expected IS NOT NULL AND due.expected > 0`;
-
-  let expected = 0;
-  let actual = 0;
-  const exceptions: ReconciliationException[] = [];
-
-  for (const r of rows) {
-    const exp = Number(r.expected);
-    const act = Number(r.actual);
-    expected += exp;
-    actual += act;
-    // Tolerance against float/rounding noise, not a real shortfall.
-    if (exp - act > 0.5) {
-      exceptions.push({
-        loanId: r.id as string,
-        borrower: r.borrower as string,
-        product: r.product as string,
-        expected: exp,
-        actual: act,
-        shortfall: exp - act,
-      });
-    }
-  }
-
-  const cycleLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  return { cycleLabel, expected, actual, exceptions };
+  const report = await cycleReport(tx, tenantId, new Date().toISOString().slice(0, 7));
+  const exceptions: ReconciliationException[] = report.lines
+    .filter((l) => l.status === "short" || l.status === "missed")
+    .map((l) => ({
+      loanId: l.loanId, borrower: l.name, product: l.product,
+      expected: l.expected, actual: l.received, shortfall: l.remaining,
+    }));
+  return { cycleLabel: report.label, expected: report.totals.expected, actual: report.totals.received, exceptions };
 }

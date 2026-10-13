@@ -4,7 +4,7 @@
 //
 // NOTE: the pipeline + recent queries below are inline stopgaps. TODO: move to
 // @wola/db (Willy) as applicationPipeline() and recentApprovedLoans().
-import { DISBURSER_ROLES } from "@/lib/permissions";
+import { DISBURSER_ROLES, SETUP_VIEW_ROLES } from "@/lib/permissions";
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
 import {
@@ -53,7 +53,7 @@ const EXEC_APPROVER_ROLES = ["coo", "group_ceo"];
 // Administration capability (doc §6.2): configuration/readiness, not a
 // lending role. 'admin' kept alongside 'org_admin' — see guard.ts's note on
 // the two spellings.
-const ADMIN_ROLES = ["org_admin", "admin"];
+const ADMIN_ROLES = SETUP_VIEW_ROLES;
 
 export const metadata = pageMeta({ title: "Dashboard", description: "Your loans, approvals and the numbers that matter, at a glance.", path: "/" });
 
@@ -160,7 +160,7 @@ export default async function Dashboard({
     ] = await Promise.all([
       approverMetrics(tx, inbox.length),
       loansByProduct(tx),
-      tx`SELECT status, count(*)::int AS n FROM loan_applications GROUP BY status`,
+      tx`SELECT status, count(*)::int AS n, COALESCE(sum(amount), 0) AS amount FROM loan_applications GROUP BY status`,
       tx`
         SELECT l.id, e.full_name, lp.name AS product, l.principal, l.start_date
         FROM loans l
@@ -207,6 +207,7 @@ export default async function Dashboard({
     const pipeline = pipelineRows.map((r) => ({
       status: r.status as string,
       n: Number(r.n),
+      amount: Number(r.amount),
     }));
 
     const recent = recentRows.map((r) => ({
@@ -252,7 +253,7 @@ export default async function Dashboard({
       : ceoView && book
         ? "Is the loan programme healthy?"
         : configStatus
-          ? "Is this tenant configured correctly and running?"
+          ? "Is your organisation set up correctly and running?"
           : auditRows
             ? "Show me everything; let me change nothing."
             : book && EXEC_APPROVER_ROLES.includes(role)
@@ -305,7 +306,7 @@ export default async function Dashboard({
       ? waiting(inbox.length, "waiting at the HR stage")
       : configStatus
         ? configured
-          ? { label: "Tenant is fully configured and ready to lend", tone: "calm" }
+          ? { label: "Setup is complete and ready to lend", tone: "calm" }
           : { label: "Setup is incomplete. Finish the checklist to start lending", href: "/settings", tone: "attention" }
         : auditRows
           ? { label: "Read-only access. Nothing here can be changed", tone: "calm" }

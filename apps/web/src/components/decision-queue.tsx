@@ -122,7 +122,7 @@ export default function DecisionQueue({
                   <Avatar name={item.employeeName} size="sm" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-ink">{item.employeeName}</div>
-                    <div className="truncate text-xs text-ink-soft">
+                    <div className="text-xs text-ink-soft">
                       {item.productName}
                       {showTenor && item.tenorMonths ? ` · ${item.tenorMonths} mo` : ""}
                     </div>

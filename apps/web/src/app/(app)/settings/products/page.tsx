@@ -12,6 +12,7 @@ import { CONFIG_VIEW_ROLES, PRODUCT_EDIT_ROLES } from "@/lib/permissions";
 import { KIND_LABEL, limitSummary, roleLabel } from "@/lib/product-summary";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
+import AccessDenied from "@/components/access-denied";
 
 export const metadata = pageMeta({ title: "Loan products", description: "What staff can apply for, how much they can borrow and on what terms.", path: "/settings/products" });
 
@@ -27,9 +28,7 @@ export default async function ProductsPage() {
 
   if (!data.authorized) {
     return (
-      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-        <p className="text-sm text-ink-soft">Loan products are available to administrators and executives only.</p>
-      </div>
+      <AccessDenied title="Loan products" message="Loan products are available to administrators and executives only." />
     );
   }
   const { products, canEdit } = data;

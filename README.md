@@ -43,6 +43,10 @@ wait for the build, so the schema is normally ahead of the new code).
   columns/tables; never drop or rename in the same release as the code that
   stops using them. That keeps the old code working during the gap and makes a
   Vercel rollback safe.
+- **Two-step sign-in** is off until `MFA_ENCRYPTION_KEY` (32 random bytes,
+  base64) is set in the app's environment (Vercel -> Production). Set it, redeploy,
+  and only then let an administrator require it for roles (Settings -> Security).
+  Back the key up: without it, enrolled people can only sign in with recovery codes.
 - Manual run / re-run: Actions -> migrate-production -> Run workflow, or
   `DATABASE_ADMIN_URL=... npm run migrate -- --dry-run` then `npm run migrate`.
 

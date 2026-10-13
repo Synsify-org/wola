@@ -8,6 +8,7 @@ import { CONFIG_VIEW_ROLES, ROUTING_EDIT_ROLES } from "@/lib/permissions";
 import RoutingEditor from "@/components/routing-editor";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
+import AccessDenied from "@/components/access-denied";
 
 export const metadata = pageMeta({ title: "Approval routing", description: "Who approves each loan product, and in which order.", path: "/settings/routing" });
 
@@ -23,9 +24,7 @@ export default async function RoutingPage() {
 
   if (!data.authorized) {
     return (
-      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-        <p className="text-sm text-ink-soft">Approval routing is available to administrators and executives only.</p>
-      </div>
+      <AccessDenied title="Approval routing" message="Approval routing is available to administrators and executives only." />
     );
   }
   const { routing, canEdit } = data;

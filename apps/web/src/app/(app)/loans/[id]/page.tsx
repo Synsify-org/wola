@@ -19,11 +19,13 @@ import { DISBURSER_ROLES } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireSession, scopePredicate } from "@/lib/guard";
-import { repaymentPosition, type RepaymentPosition } from "@wola/db";
+import { repaymentPosition, listEarlyRepaymentRequests, listSuspensions, type RepaymentPosition, type Suspension } from "@wola/db";
 import Metric from "@/components/metric";
 import ScheduleTable from "@/components/schedule-table";
 import DisburseButton from "@/components/disburse-button";
 import RepayButton from "@/components/repay-button";
+import EarlyRepaymentPanel from "@/components/early-repayment-panel";
+import { EMPLOYEE_DATA_ROLES } from "@/lib/permissions";
 import {
   CheckCircle2,
   Banknote,
@@ -56,6 +58,7 @@ type LoanHead = {
   start_date: string;
   employee_name: string;
   employee_no: string;
+  borrower_user: string | null;
   product_name: string;
   purpose: string | null;
 };
@@ -99,7 +102,7 @@ export default async function LoanDetail({
     const [loan] = (await tx`
       SELECT l.id, l.principal, l.annual_rate, l.tenor_months, l.status,
              l.start_date, la.purpose,
-             e.full_name AS employee_name, e.employee_no,
+             e.full_name AS employee_name, e.employee_no, e.user_id AS borrower_user,
              lp.name AS product_name
       FROM loans l
       JOIN loan_applications la ON la.id = l.application_id
@@ -113,6 +116,8 @@ export default async function LoanDetail({
       loan: null, lines: [] as LineRow[],
       scope: ctx.scope, canDisburse: false, canRepay: false,
       position: null as RepaymentPosition | null,
+      openRequest: null as { id: string; kind: "full" | "partial"; amount: number | null; mine: boolean } | null,
+      canRequestEarly: false, holidays: [] as Suspension[],
     };
 
     // Active schedule lines, ordered. schedule_lines.closing_balance is the
@@ -129,15 +134,24 @@ export default async function LoanDetail({
     // Outstanding, progress and the next deduction, all from the ledger.
     const position = await repaymentPosition(tx, ctx.tenantId, loan.id as string);
 
+    // Early repayment: the borrower asks for their own loan; HR may ask for someone
+    // who is leaving. Payment holidays are shown to everyone who can see the loan.
+    const [open] = await listEarlyRepaymentRequests(tx, ctx.tenantId, { loanId: loan.id as string, status: "requested" });
+    const holidays = (await listSuspensions(tx, ctx.tenantId, loan.id as string)).filter((h) => !h.cancelled);
+    const isBorrower = loan.borrower_user === ctx.userId;
+
     return {
       loan, lines, scope: ctx.scope,
       canDisburse: DISBURSER_ROLES.includes(ctx.role),
       canRepay: DISBURSER_ROLES.includes(ctx.role),
       position,
+      openRequest: open ? { id: open.id, kind: open.kind, amount: open.amount, mine: open.requestedBy === ctx.userId } : null,
+      canRequestEarly: isBorrower || EMPLOYEE_DATA_ROLES.includes(ctx.role),
+      holidays,
     };
   });
 
-  const { loan, lines, scope, canDisburse, canRepay, position } = data;
+  const { loan, lines, scope, canDisburse, canRepay, position, openRequest, canRequestEarly, holidays } = data;
   if (!loan || !position) notFound();
 
   // ScheduleTable wants { period, dueDate, instalment, principal, interest,
@@ -239,6 +253,27 @@ export default async function LoanDetail({
           This loan is approved but not yet disbursed. Finance will release the
           funds; your repayment schedule below becomes active on disbursement.
         </div>
+      ) : null}
+
+      {/* Payment holidays recorded on this loan (instalments move later; nothing is forgiven) */}
+      {holidays.length > 0 ? (
+        <div className="mb-6 rounded-xl border border-rule bg-surface p-4 text-sm text-ink-soft shadow-theme-sm">
+          {holidays.map((h) => (
+            <p key={h.id}>
+              <span className="chip chip--awaiting">Payments paused</span>{" "}
+              {shortDate(h.from)} to {shortDate(h.to)}: {h.reason}. Later instalments move back by the same time.
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      {loan.status === "active" && !settled && canRequestEarly ? (
+        <EarlyRepaymentPanel
+          loanId={loan.id}
+          payoff={position.payoff}
+          currency={currency}
+          open={openRequest}
+        />
       ) : null}
 
       {/* Key figures — the numbers an employee opens this page to see */}

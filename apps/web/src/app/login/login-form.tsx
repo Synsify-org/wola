@@ -2,7 +2,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, Building2, Eye, EyeOff, Landmark, Loader2, Lock } from "lucide-react";
+import { AlertCircle, Building2, Eye, EyeOff, Landmark, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,8 @@ function Brand({ tenantName, light = false }: { tenantName: string | null; light
 
 export default function LoginForm(props: {
   action: (prev: LoginState, formData: FormData) => Promise<LoginState>;
+  /** Second step for people with two-step sign-in on. */
+  verifyAction: (prev: LoginState, formData: FormData) => Promise<LoginState>;
   tenantName: string | null;
   host: string | null;
 }) {
@@ -54,13 +56,29 @@ export default function LoginForm(props: {
   // NOT kept: it clears after every failed attempt.
   const [email, setEmail] = useState("");
   const [state, formAction, pending] = useActionState<LoginState, FormData>(props.action, {});
+  const [vState, verifyFormAction, verifying] = useActionState<LoginState, FormData>(props.verifyAction, {});
+  // The challenge from the password step. Set when the password was right and
+  // two-step sign-in is on; cleared when it can no longer be used (too many
+  // wrong codes, expired, "use a different account").
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (state.ok) {
+    setNotice(state.error ?? null);
+    if (state.mfa) setChallenge(state.mfa.challenge);
+  }, [state]);
+
+  useEffect(() => {
+    if (vState.mfa) { setChallenge(vState.mfa.challenge); setNotice(vState.error ?? null); }
+    else if (vState.error) { setChallenge(null); setNotice(vState.error); }
+  }, [vState]);
+
+  useEffect(() => {
+    if (state.ok || vState.ok) {
       router.replace("/");
       router.refresh();
     }
-  }, [state.ok, router]);
+  }, [state.ok, vState.ok, router]);
 
   const onPasswordKey = (e: React.KeyboardEvent<HTMLInputElement>) =>
     setCapsLock(e.getModifierState?.("CapsLock") ?? false);
@@ -128,16 +146,54 @@ export default function LoginForm(props: {
               </div>
             ) : null}
 
-            {state.error ? (
+            {notice ? (
               <div
                 role="alert"
                 className="mt-5 flex items-start gap-2.5 rounded-xl border border-error-200 bg-rejected-wash px-3.5 py-3 text-sm text-rejected"
               >
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                <span>{state.error}</span>
+                <span>{notice}</span>
               </div>
             ) : null}
 
+            {challenge ? (
+              <form action={verifyFormAction} className="mt-6 flex flex-col gap-5">
+                <input type="hidden" name="challenge" value={challenge} />
+                <div className="flex items-start gap-3 rounded-xl border border-rule bg-paper px-3.5 py-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden />
+                  <p className="text-sm text-ink-soft">
+                    Your password is right. Now enter the 6-digit code from your authenticator app.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="code">Code</Label>
+                  <Input
+                    id="code"
+                    name="code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    maxLength={24}
+                    placeholder="123 456"
+                    autoFocus
+                    required
+                    className="h-11 text-center text-lg tracking-widest"
+                  />
+                  <p className="text-xs text-ink-faint">Lost your phone? Enter one of your recovery codes instead.</p>
+                </div>
+                <Button type="submit" disabled={verifying} className="h-11 w-full text-sm font-semibold">
+                  {verifying ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Checking…</>) : "Verify and sign in"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { setChallenge(null); setNotice(null); }}
+                  className="text-sm font-medium text-ink-soft hover:text-ink"
+                >
+                  Use a different account
+                </button>
+              </form>
+            ) : (
             <form action={formAction} className="mt-6 flex flex-col gap-5">
               <div className="space-y-1.5">
                 <Label htmlFor="email">Work email</Label>
@@ -218,6 +274,7 @@ export default function LoginForm(props: {
                 )}
               </Button>
             </form>
+            )}
           </div>
 
           <p className="mt-6 text-center text-xs text-ink-faint">

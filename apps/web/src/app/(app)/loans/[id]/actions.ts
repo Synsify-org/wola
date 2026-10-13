@@ -21,11 +21,11 @@ export async function disburseAction(
   loanId: string,
   reference: string,
 ): Promise<DisburseResult> {
-  if (!loanId) return { ok: false, error: "Missing loan." };
+  if (!loanId) return { ok: false, error: "We couldn't tell which loan this is. Reload the page and try again." };
 
   return requireSession(async (tx, ctx) => {
     if (!DISBURSER_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to disburse loans." };
+      return { ok: false, error: "You don't have permission to disburse loans." };
     }
 
     try {

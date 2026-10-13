@@ -8,7 +8,7 @@
 // lives on the employee row, so one import mechanism covers both.
 import { requireSession } from "@/lib/guard";
 import { EMPLOYEE_DATA_ROLES as HR_ROLES, ACCOUNT_CREATOR_ROLES } from "@/lib/permissions";
-import { audit, createInvitation, sendEmail } from "@wola/db";
+import { audit, createInvitation, sendEmail, openExitRepaymentRequests } from "@wola/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
@@ -108,7 +108,7 @@ export async function importEmployeesAction(csvText: string): Promise<ImportResu
 
   return requireSession(async (tx, ctx) => {
     if (!HR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to import employees." };
+      return { ok: false, error: "You don't have permission to import employees." };
     }
 
     let created = 0;
@@ -195,7 +195,7 @@ export async function createAccountAction(
 
   return requireSession(async (tx, ctx) => {
     if (!ACCOUNT_CREATOR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to create employee accounts." };
+      return { ok: false, error: "You don't have permission to create employee accounts." };
     }
 
     const [emp] = await tx`
@@ -266,13 +266,13 @@ export async function updateEmployeeAction(
   employeeId: string,
   fields: EmployeeUpdate,
 ): Promise<ActionResult> {
-  if (!fields.full_name.trim()) return { ok: false, error: "Name is required." };
+  if (!fields.full_name.trim()) return { ok: false, error: "Enter the employee's name." };
   if (!Number.isFinite(fields.gross_salary) || fields.gross_salary < 0) return { ok: false, error: "Gross salary must be a non-negative number." };
   if (!Number.isFinite(fields.net_salary) || fields.net_salary < 0) return { ok: false, error: "Net salary must be a non-negative number." };
 
   return requireSession(async (tx, ctx) => {
     if (!HR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to edit employees." };
+      return { ok: false, error: "You don't have permission to edit employees." };
     }
 
     const [emp] = await tx`SELECT id FROM employees WHERE tenant_id = ${ctx.tenantId} AND id = ${employeeId}`;
@@ -282,7 +282,7 @@ export async function updateEmployeeAction(
     if (fields.department_head_no) {
       const [head] = await tx`
         SELECT id FROM employees WHERE tenant_id = ${ctx.tenantId} AND employee_no = ${fields.department_head_no}`;
-      if (!head) return { ok: false, error: `No employee with employee_no "${fields.department_head_no}" found for department head.` };
+      if (!head) return { ok: false, error: `No employee with employee number "${fields.department_head_no}" was found, so they can't be set as department head.` };
       departmentHeadId = head.id as string;
     }
 
@@ -313,18 +313,17 @@ export async function updateEmployeeAction(
   });
 }
 
-/** Pure status flip — deliberately does NOT touch any loan. There is no
- *  write-off/settlement policy or loan status for "borrower exited" yet;
- *  building one is a bigger, separate decision than this action. If the
- *  employee has an active loan, the caller gets a warning `note` so it's
- *  not silently ignored, but nothing about the loan changes here. */
+/** Status flip. A loan is never changed or written off here. When someone is marked
+ *  "exited" the organisation's loan-exit policy applies (openExitRepaymentRequests):
+ *  by default a request to pay off the whole balance is opened for each running loan
+ *  so finance sees it on the Payroll screen; the caller is told what happened. */
 export async function setEmployeeStatusAction(
   employeeId: string,
   status: "active" | "exited" | "suspended",
 ): Promise<ActionResult> {
   return requireSession(async (tx, ctx) => {
     if (!HR_ROLES.includes(ctx.role)) {
-      return { ok: false, error: "You are not authorised to change employee status." };
+      return { ok: false, error: "You don't have permission to change an employee's status." };
     }
 
     const [emp] = await tx`SELECT id, full_name FROM employees WHERE tenant_id = ${ctx.tenantId} AND id = ${employeeId}`;
@@ -351,6 +350,17 @@ export async function setEmployeeStatusAction(
 
     revalidatePath("/settings/employees");
 
+    if (status === "exited" && activeLoan) {
+      const exit = await openExitRepaymentRequests(tx, { tenantId: ctx.tenantId, employeeId, actorId: ctx.userId });
+      if (exit.opened > 0) {
+        await audit(tx, { tenantId: ctx.tenantId, actorId: ctx.userId, action: "loan.exit_recovery_opened", entity: "employee", entityId: employeeId, after: { requests: exit.opened } });
+        revalidatePath("/reconciliation");
+        return {
+          ok: true,
+          note: `${emp.full_name} has ${exit.loans === 1 ? "a running loan" : `${exit.loans} running loans`}. A request to recover the balance was sent to finance (Payroll screen); nothing is written off.`,
+        };
+      }
+    }
     if (status !== "active" && activeLoan) {
       return {
         ok: true,

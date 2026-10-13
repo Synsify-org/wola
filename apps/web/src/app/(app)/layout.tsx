@@ -29,7 +29,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       canSeeAllLoans: ctx.canSeeAllLoans,
       canApprove: ctx.canApprove,
     };
-  });
+    // The layout only draws the shell. The two-step-sign-in gate is enforced by
+    // each page and action (see requireSession); gating here too would bounce
+    // the setup page into a redirect loop.
+  }, { skipMfaGate: true });
 
   return (
     <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>

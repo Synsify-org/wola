@@ -27,7 +27,7 @@ export type InboxItem = {
   stageRole: string;
 };
 export type MixRow = { name: string; kind: string; n: number; principal: number };
-type PipelineRow = { status: string; n: number };
+type PipelineRow = { status: string; n: number; amount?: number };
 export type CollectionsPoint = { label: string; month: string; expected: number; collected: number; current: boolean };
 type RecentRow = {
   id: string;
@@ -101,7 +101,7 @@ export default function DashboardCFO({
     <div className="space-y-4 xl:space-y-5">
       {/* Book at a glance — sits right under the welcome banner on every
           dashboard now (user request), ahead of the role-specific hero. */}
-      <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <Metric
           tone="deep"
           label="Total exposure"
@@ -158,7 +158,7 @@ export default function DashboardCFO({
           reportHref="/reports"
           className="lg:col-span-2"
         />
-        <PipelinePanel data={pipeline} />
+        <PipelinePanel data={pipeline} currency={currency} />
       </Reveal>
 
       {/* Row 2 (2/3 + 1/3): the money-operations console — the CFO's hero,

@@ -138,7 +138,7 @@ export default function CFOMoneyOps({
                       </div>
                     </div>
                     <Link
-                      href={`/loans/${e.loanId}`}
+                      href="/reconciliation"
                       className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-brand hover:underline"
                     >
                       Resolve <ArrowRight className="h-3 w-3" />

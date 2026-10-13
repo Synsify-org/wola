@@ -48,7 +48,7 @@ describe("RateIndexEditor", () => {
     fireEvent.change(screen.getByPlaceholderText("16.5"), { target: { value: "-5" } });
     fireEvent.click(screen.getByRole("button", { name: /set rate/i }));
 
-    expect(await screen.findByText(/enter a non-negative rate/i)).toBeInTheDocument();
+    expect(await screen.findByText(/enter a rate of zero or more/i)).toBeInTheDocument();
     expect(setRateIndexAction).not.toHaveBeenCalled();
   });
 

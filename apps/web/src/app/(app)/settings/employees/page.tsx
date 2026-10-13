@@ -18,6 +18,7 @@ import { getTenantCurrency } from "@/lib/tenant";
 import { EMPLOYEE_DATA_ROLES as HR_ROLES } from "@/lib/permissions";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
+import AccessDenied from "@/components/access-denied";
 
 
 type Row = {
@@ -78,9 +79,7 @@ export default async function EmployeesPage({
 
   if (!data.authorized) {
     return (
-      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-        <p className="text-sm text-ink-soft">The employee directory is available to HR and management roles only.</p>
-      </div>
+      <AccessDenied title="Employee directory" message="The employee directory is available to HR and management roles only." />
     );
   }
 
