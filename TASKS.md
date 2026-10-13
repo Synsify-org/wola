@@ -10,6 +10,63 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phase 1.15 — Loan products + approval routing admin (2026-10-12) `DONE, on branch feat/products-routing`
+
+**Migration 0020 must be applied to production BEFORE this deploys** — the
+approvals code now reads `approval_stages.retired_at`. (`npm run migrate` with
+the production `DATABASE_ADMIN_URL`; CI only migrates its own test DB.)
+
+- [x] **Loan products** (`/settings/products`) — list with limit / term /
+      interest / approvers / usage; create, edit, switch off (never delete:
+      applications and loans point at products). CFO + administrators edit;
+      other executives view. Changes shape NEW applications only (rate and
+      eligibility are frozen at submission, loans at approval).
+      ([product-admin.ts](packages/db/src/product-admin.ts),
+      [product-form.tsx](apps/web/src/components/product-form.tsx))
+- [x] **Approval routing** (`/settings/routing`) — per product, an ordered
+      chain of approvers with optional time limits and delegation, plus
+      per-applicant-group exception chains (e.g. when the CEO applies).
+      Administrators only: the CFO/CEO sit on the chains and must not rewire
+      their own stage. ([routing-admin.ts](packages/db/src/routing-admin.ts),
+      [routing-editor.tsx](apps/web/src/components/routing-editor.tsx))
+- [x] **Stages are versioned, not edited** (0020) — a changed chain retires
+      old stages and inserts new ones; an application is routed by the chain
+      live when it was submitted, so history keeps saying who really decided.
+      Re-ordering/changing approvers is refused while applications for that
+      product are in review; time limits and delegation can always change.
+- [x] Pure validation shared by form and server
+      ([config-validation.ts](packages/engine/src/config-validation.ts)).
+- [x] **UI fixes** — styled dropdown (`OptionSelect`) replaces the three native
+      selects; dropdown menu restyled; app frame uses `overflow-clip` so focus /
+      drag-select can't scroll the fixed frame (blank band under the sidebar).
+
+Verified: `tsc`, 53 engine + 126 DB + 34 web tests, `next build --webpack`,
+live as CEO (view-only) and org_admin (edit, create, switch off, re-route).
+
+- [x] **Fixed-rate and index + margin pricing** (0021) — a product is
+      interest-free, follows a rate (plus/minus a margin, floored at 0%), or
+      charges a fixed rate. One pure function (`effectiveAnnualRate`) is used
+      for the quote at submission, the apply form (staff now SEE the rate
+      before applying) and the admin preview. A CBR change moves index
+      products only.
+- [x] **Roles & access** (`/settings/access`) — list, change role, remove
+      access, invite any role, cancel invitations, and a "what each role can
+      do" table computed from the same role sets the guard enforces (now in
+      `lib/permissions.ts`). No self-change; never zero administrators; one
+      membership per person; removal ends sessions and unlinks the employee.
+- [x] **Approver time limits are now visible** — the queue and Approvals page
+      show how long each application has waited at your stage and flag it
+      "over limit" past the stage's limit. Nothing is auto-approved/reassigned.
+
+**Known / decision needed**
+- `org_admin` is in APPROVER_ROLES, DISBURSER_ROLES and FINANCE_ROLES (it
+  can open the approvals worklist, mark loans disbursed and record
+  repayments), which contradicts "administration and approval stay separate
+  duties". Not changed here — needs a decision (see Roles & access table).
+- Stage `allow_delegation` is stored but there is no delegation feature; it is
+  deliberately not offered in the routing editor.
+- No MFA yet; email is the only notification channel.
+
 ## Phase 1.14 — UI refinement, web + mobile (2026-10-12) `DONE, on branch feat/ui-refine`
 
 Ideas and the genuinely missing primitives from the two reference components

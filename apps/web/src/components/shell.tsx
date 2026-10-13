@@ -65,7 +65,11 @@ export default function Shell({
 
   return (
     <TooltipProvider>
-    <div className="app-frame flex h-dvh flex-col overflow-hidden bg-paper">
+    {/* overflow-clip, not -hidden: "hidden" still lets focus, find-in-page and
+        drag-selection autoscroll shove this fixed-height frame upward, which
+        left the topbar off-screen and a blank band under the sidebar. Only
+        <main> may scroll. */}
+    <div className="app-frame flex h-dvh flex-col overflow-clip bg-paper">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-theme-md"
@@ -85,7 +89,7 @@ export default function Shell({
         onOpenMenu={() => setDrawer(true)}
       />
 
-      <div className="app-body flex min-h-0 flex-1">
+      <div className="app-body flex min-h-0 flex-1 overflow-clip">
         <Sidebar canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} collapsed={collapsed} />
 
         {/* Only THIS column scrolls — sidebar and topbar stay put. */}

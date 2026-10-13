@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { resolveTenant, tenantTx, type Tx } from "@wola/db";
 import { db } from "./tenant";
 import { verifySession, SESSION_COOKIE } from "./auth";
+import { FULL_BOOK_ROLES, APPROVER_ROLES } from "./permissions";
 
 // THREE data tiers, not two. The old single boolean couldn't express a dept
 // head who sees their DEPARTMENT (not the whole book, not just themselves).
@@ -31,8 +32,8 @@ import { verifySession, SESSION_COOKIE } from "./auth";
 // — oversight, not action. It was in the role enum with no handling here at
 // all until this fix, which meant an auditor fell through to plain-employee
 // (scope="own") and saw almost nothing.
-const FULL_BOOK_ROLES = ["cfo", "hr", "ceo", "md", "coo", "group_ceo", "admin", "org_admin", "auditor"];
-const APPROVER_ROLES = ["cfo", "hr", "ceo", "md", "coo", "group_ceo", "dept_head", "admin", "org_admin"];
+// FULL_BOOK_ROLES / APPROVER_ROLES live in lib/permissions.ts (shared with the
+// Roles & access screen so what it shows is what the guard enforces).
 
 export type LoanScope = "all" | "department" | "own";
 

@@ -1,4 +1,5 @@
 "use client";
+import { OptionSelect } from "@/components/ui/select";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Palette, Loader2, Check } from "lucide-react";
@@ -60,15 +61,13 @@ export default function ThemeEditor({
 
         <div>
           <label className="caps mb-1.5 block">Font</label>
-          <select
+          <OptionSelect
+            ariaLabel="Font"
             value={font}
-            onChange={(e) => { setFont(e.target.value); dirty(); }}
-            className="h-9.5 w-full min-w-[10rem] rounded-lg border border-rule bg-surface px-3 text-sm text-ink outline-none focus:border-brand"
-          >
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.id} value={f.id}>{f.label}</option>
-            ))}
-          </select>
+            onValueChange={(v) => { setFont(v); dirty(); }}
+            className="min-w-[10rem]"
+            options={FONT_OPTIONS.map((f) => ({ value: f.id, label: f.label }))}
+          />
         </div>
 
         {/* Preview — a tiny mock card in the actual chosen colours. */}

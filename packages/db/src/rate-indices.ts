@@ -59,7 +59,7 @@ export async function productsMissingRateIndex(
   const rows = await tx`
     SELECT id, name FROM loan_products
     WHERE tenant_id = ${tenantId} AND active = true
-      AND interest_applies = true AND rate_index_id IS NULL
+      AND interest_applies = true AND rate_mode = 'index' AND rate_index_id IS NULL
     ORDER BY name`;
   return rows.map((r) => ({ id: r.id as string, name: r.name as string }));
 }
@@ -99,7 +99,7 @@ export async function setRateIndex(
   const repointed = await tx`
     UPDATE loan_products
     SET rate_index_id = ${newId}, updated_at = now()
-    WHERE tenant_id = ${args.tenantId} AND interest_applies = true
+    WHERE tenant_id = ${args.tenantId} AND interest_applies = true AND rate_mode = 'index'
       AND rate_index_id IS NOT DISTINCT FROM ${prev?.id ?? null}
       AND rate_index_id IS DISTINCT FROM ${newId}
     RETURNING id`;

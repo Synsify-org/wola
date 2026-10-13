@@ -164,13 +164,13 @@ export default async function SettingsPage() {
           </div>
 
           <p className="mb-3 mt-6 text-xs text-ink-soft">
-            More configuration tools are being built.
+            Configuration tools.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <AdminRow icon={Cog} title="Loan products" desc="Rates, tenors, caps, and eligibility rules per product." />
-            <AdminRow icon={GitBranch} title="Approval routing" desc="Who approves what, and in which order." />
+            <AdminRow icon={Cog} title="Loan products" desc="Rates, tenors, caps, and eligibility rules per product." href="/settings/products" />
+            <AdminRow icon={GitBranch} title="Approval routing" desc="Who approves what, and in which order." href="/settings/routing" />
             <AdminRow icon={Users} title="Employee directory" desc="Staff records, departments, and reporting lines." href="/settings/employees" />
-            <AdminRow icon={ShieldCheck} title="Roles & access" desc="Assign roles and permissions to staff." />
+            <AdminRow icon={ShieldCheck} title="Roles & access" desc="Assign roles and permissions to staff." href="/settings/access" />
           </div>
         </section>
       ) : null}

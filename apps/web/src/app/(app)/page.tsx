@@ -4,6 +4,7 @@
 //
 // NOTE: the pipeline + recent queries below are inline stopgaps. TODO: move to
 // @wola/db (Willy) as applicationPipeline() and recentApprovedLoans().
+import { DISBURSER_ROLES } from "@/lib/permissions";
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
 import {
@@ -40,7 +41,6 @@ import { CheckSquare, FileBarChart, FilePlus, ScrollText, Settings, Users, Walle
 // Every other full-book role now has its own dashboard below (HR, CEO, COO/
 // group_ceo, admin/org_admin, auditor) — DashboardCFO is CFO-only in practice
 // now, this list stays as the action-permission source of truth it mirrors.
-const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 // "COO / other executive approvers" (doc §6.2): oversight-level roles that
 // sit in a pipeline stage but aren't CFO/CEO/HR. coo and group_ceo are the

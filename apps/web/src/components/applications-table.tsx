@@ -1,4 +1,5 @@
 ﻿"use client";
+import { OptionSelect } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -159,39 +160,39 @@ export default function ApplicationsTable({ rows, currency }: { rows: Applicatio
       </div>
 
       {/* Search + filters */}
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-rule bg-surface p-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-rule bg-surface p-3 shadow-theme-xs">
         <div className="relative min-w-[16rem] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, staff no, product..."
-            className="w-full rounded-md border border-rule bg-paper py-2 pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-10 w-full rounded-xl border border-rule bg-surface pl-9 pr-3 text-sm text-ink shadow-theme-xs outline-none transition-[border-color,box-shadow] placeholder:text-ink-faint hover:border-ink-faint/50 focus-visible:border-brand-300 focus-visible:ring-4 focus-visible:ring-brand-100"
           />
         </div>
-        <select
+        <OptionSelect
+          ariaLabel="Filter by status"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded-md border border-rule bg-paper px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          <option value="all">All statuses</option>
-          <option value="submitted">Submitted</option>
-          <option value="in_review">In review</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-        <select
+          onValueChange={setStatus}
+          className="w-44"
+          options={[
+            { value: "all", label: "All statuses" },
+            { value: "submitted", label: "Submitted" },
+            { value: "in_review", label: "In review" },
+            { value: "approved", label: "Approved" },
+            { value: "rejected", label: "Rejected" },
+          ]}
+        />
+        <OptionSelect
+          ariaLabel="Filter by type"
           value={kind}
-          onChange={(e) => setKind(e.target.value)}
-          className="rounded-md border border-rule bg-paper px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          <option value="all">All types</option>
-          {kinds.map((k) => (
-            <option key={k} value={k}>
-              {k.charAt(0).toUpperCase() + k.slice(1)}
-            </option>
-          ))}
-        </select>
+          onValueChange={setKind}
+          className="w-40"
+          options={[
+            { value: "all", label: "All types" },
+            ...kinds.map((k) => ({ value: k, label: k.charAt(0).toUpperCase() + k.slice(1) })),
+          ]}
+        />
       </div>
 
       {/* Phones: stacked rows (same sorted + filtered set as the table). */}

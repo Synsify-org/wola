@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import DashboardCard from "./dashboard-card";
 import { Avatar } from "@/components/ui/avatar";
+import { waitingFor } from "@/lib/waiting";
 
 export type DecisionItem = {
   applicationId: string;
@@ -15,7 +16,19 @@ export type DecisionItem = {
   amount: number;
   tenorMonths?: number;
   stageRole?: string;
+  /** When it reached this approver, and the stage time limit (hours). */
+  waitingSince?: string;
+  slaHours?: number | null;
 };
+
+/** "3 days" or, past the stage's time limit, an "Over limit" chip. */
+function Waiting({ item }: { item: DecisionItem }) {
+  if (!item.waitingSince) return null;
+  const w = waitingFor(item.waitingSince, item.slaHours);
+  return w.overdue
+    ? <span className="chip chip--rejected" title={`Time limit for this stage: ${item.slaHours} hours`}>{w.text} · over limit</span>
+    : <span className="text-xs text-ink-soft">{w.text}</span>;
+}
 
 const roleLabel = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -66,6 +79,7 @@ export default function DecisionQueue({
                   <th className="pl-6!">Applicant</th>
                   <th>Product</th>
                   <th className="r">Amount</th>
+                  <th>Waiting</th>
                   {showTenor ? <th className="r">Tenor</th> : null}
                   {showStage ? <th>Stage</th> : null}
                   <th className="pr-6!"><span className="sr-only">Action</span></th>
@@ -82,6 +96,7 @@ export default function DecisionQueue({
                     </td>
                     <td className="text-ink-soft">{item.productName}</td>
                     <td className="r num">{money(item.amount)}</td>
+                    <td className="whitespace-nowrap"><Waiting item={item} /></td>
                     {showTenor ? <td className="r num">{item.tenorMonths} mo</td> : null}
                     {showStage ? (
                       <td>{item.stageRole ? <span className="chip chip--awaiting">{roleLabel(item.stageRole)}</span> : null}</td>
@@ -111,6 +126,7 @@ export default function DecisionQueue({
                       {item.productName}
                       {showTenor && item.tenorMonths ? ` · ${item.tenorMonths} mo` : ""}
                     </div>
+                    {item.waitingSince ? <div className="mt-0.5"><Waiting item={item} /></div> : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="num text-sm font-medium text-ink">{money(item.amount)}</span>
