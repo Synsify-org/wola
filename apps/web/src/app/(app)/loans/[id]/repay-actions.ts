@@ -3,11 +3,11 @@
 // boundary as disbursement). recordRepayment re-validates the loan is active and
 // caps the allocation, so a stale button or double-submit can't corrupt the
 // ledger. On full repayment the loan auto-settles.
+import { FINANCE_ROLES } from "@/lib/permissions";
 import { requireSession } from "@/lib/guard";
 import { recordRepayment, audit } from "@wola/db";
 import { revalidatePath } from "next/cache";
 
-const FINANCE_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 export type RepaymentResult =
   | { ok: true; outstanding: number; settled: boolean; reamortized: boolean }

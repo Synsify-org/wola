@@ -26,13 +26,16 @@ export async function configurationStatus(
   const [productRow] = await tx`
     SELECT count(*)::int AS n FROM loan_products WHERE tenant_id = ${tenantId} AND active = true`;
   const [pipelineRow] = await tx`
-    SELECT count(*)::int AS n FROM approval_pipelines WHERE tenant_id = ${tenantId}`;
+    SELECT count(*)::int AS n FROM approval_pipelines p
+    WHERE p.tenant_id = ${tenantId}
+      AND EXISTS (SELECT 1 FROM approval_stages s WHERE s.pipeline_id = p.id AND s.retired_at IS NULL)`;
 
   const withoutPipeline = await tx`
     SELECT lp.id, lp.name FROM loan_products lp
     WHERE lp.tenant_id = ${tenantId} AND lp.active = true
       AND NOT EXISTS (
         SELECT 1 FROM approval_pipelines p
+        JOIN approval_stages s ON s.pipeline_id = p.id AND s.retired_at IS NULL
         WHERE p.tenant_id = lp.tenant_id AND p.loan_product_id = lp.id
       )
     ORDER BY lp.name`;
@@ -40,7 +43,7 @@ export async function configurationStatus(
   const missingRate = await tx`
     SELECT id, name FROM loan_products
     WHERE tenant_id = ${tenantId} AND active = true
-      AND interest_applies = true AND rate_index_id IS NULL
+      AND interest_applies = true AND rate_mode = 'index' AND rate_index_id IS NULL
     ORDER BY name`;
 
   const [userRow] = await tx`

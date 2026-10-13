@@ -7,17 +7,16 @@
 // refresh works. There is no separate "payroll" table or import path; salary
 // lives on the employee row, so one import mechanism covers both.
 import { requireSession } from "@/lib/guard";
+import { EMPLOYEE_DATA_ROLES as HR_ROLES, ACCOUNT_CREATOR_ROLES } from "@/lib/permissions";
 import { audit, createInvitation, sendEmail } from "@wola/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-const HR_ROLES = ["hr", "cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 // Account/login creation is an ADMINISTRATION action (architecture doc §6.2's
 // capability model — "manage users" belongs to whoever holds the admin
 // capability, HR by default, not every full-book role). Deliberately
 // narrower than HR_ROLES above, which governs employee-DATA maintenance
 // (import/edit/status) that legitimately stays open to the wider set.
-const ACCOUNT_CREATOR_ROLES = ["hr", "admin", "org_admin"];
 
 const REQUIRED_COLUMNS = ["employee_no", "full_name", "gross_salary", "net_salary"] as const;
 

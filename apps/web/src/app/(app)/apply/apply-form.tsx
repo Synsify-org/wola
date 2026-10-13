@@ -54,7 +54,7 @@ export default function ApplyForm({
   identity,
   currency,
 }: {
-  products: ProductRules[];
+  products: (ProductRules & { currentRate?: number | null })[];
   employee: EmployeeFinancials;
   identity: Identity;
   currency: string;
@@ -245,7 +245,9 @@ export default function ApplyForm({
                                   : "bg-brand-50 text-brand")
                               }
                             >
-                              {p.interestApplies ? "Interest" : "Interest-free"}
+                              {p.interestApplies
+                                ? p.currentRate != null ? `${+(p.currentRate * 100).toFixed(2)}% a year` : "Interest"
+                                : "Interest-free"}
                             </span>
                           </div>
                         </div>

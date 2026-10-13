@@ -15,8 +15,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { MobileRow, MobileRowList } from "@/components/mobile-row";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
+import { EMPLOYEE_DATA_ROLES as HR_ROLES } from "@/lib/permissions";
 
-const HR_ROLES = ["hr", "cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 type Row = {
   id: string;

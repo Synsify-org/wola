@@ -2,6 +2,7 @@
 // Applications awaiting THIS actor, resolved through the approval engine.
 import { requireSession } from "@/lib/guard";
 import { inboxFor } from "@wola/db";
+import { waitingFor } from "@/lib/waiting";
 import Link from "next/link";
 import { ArrowRight, Inbox } from "lucide-react";
 import { formatMoney } from "@wola/engine";
@@ -54,6 +55,7 @@ export default async function ApprovalInbox() {
                   <th>Product</th>
                   <th className="r">Amount</th>
                   <th className="r">Tenor</th>
+                  <th>Waiting</th>
                   <th>Your stage</th>
                   <th className="pr-6!"><span className="sr-only">Action</span></th>
                 </tr>
@@ -65,6 +67,12 @@ export default async function ApprovalInbox() {
                     <td className="text-ink-soft">{a.productName}</td>
                     <td className="r num font-semibold text-brand-700">{ugx(a.amount)}</td>
                     <td className="r num text-ink-soft">{a.tenorMonths} mo</td>
+                    <td className="whitespace-nowrap">
+                      {(() => { const w = waitingFor(a.waitingSince, a.slaHours);
+                        return w.overdue
+                          ? <span className="chip chip--rejected" title={`Time limit for this stage: ${a.slaHours} hours`}>{w.text} · over limit</span>
+                          : <span className="text-xs text-ink-soft">{w.text}</span>; })()}
+                    </td>
                     <td>
                       <span className="chip chip--awaiting">{label(a.stageRole)}</span>
                     </td>
@@ -94,6 +102,9 @@ export default async function ApprovalInbox() {
                     <div className="mt-0.5 text-[0.8125rem] text-ink-soft">
                       {a.productName} · <span className="num">{a.tenorMonths} mo</span>
                     </div>
+                    {(() => { const w = waitingFor(a.waitingSince, a.slaHours);
+                      return <div className={"mt-0.5 text-xs " + (w.overdue ? "font-medium text-rejected" : "text-ink-soft")}>
+                        Waiting {w.text}{w.overdue ? " · over limit" : ""}</div>; })()}
                   </div>
                   <span className="chip chip--awaiting shrink-0">{label(a.stageRole)}</span>
                 </div>

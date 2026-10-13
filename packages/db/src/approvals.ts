@@ -7,7 +7,7 @@
 // is frozen from tenant config (rate_indices), never a literal. loan creation
 // lives in createLoanFromApplication so there is ONE path, not two.
 import {
-  resolvePipeline, route, canAct, validateDecision,
+  resolvePipeline, route, canAct, validateDecision, effectiveAnnualRate,
   type Pipeline, type Stage, type ApprovalRecord, type Applicant,
   type Actor, type Decision, type RoutingResult,
 } from "@wola/engine";
@@ -54,7 +54,16 @@ export async function loadApplication(
   };
 }
 
-export async function loadPipelines(tx: Tx, loanProductId: string): Promise<Pipeline[]> {
+/** The approval chains for a product. With `forApplicationId`, the chains as
+ *  they stood when that application was submitted (stages created by then and
+ *  not yet retired) — so a decided application keeps the chain that decided it
+ *  after routing is edited. Compared in SQL against the application's own
+ *  timestamp (a JS Date would truncate microseconds). Without it, the live
+ *  chains. Retiring a stage (see routing-admin.ts) never deletes
+ *  it: approvals still point at it. */
+export async function loadPipelines(
+  tx: Tx, loanProductId: string, forApplicationId?: string,
+): Promise<Pipeline[]> {
   const rows = await tx`
     SELECT p.id AS pipeline_id, p.applies_to,
            s.id AS stage_id, s.position, s.approver_role,
@@ -62,6 +71,11 @@ export async function loadPipelines(tx: Tx, loanProductId: string): Promise<Pipe
     FROM approval_pipelines p
     JOIN approval_stages s ON s.pipeline_id = p.id
     WHERE p.loan_product_id = ${loanProductId}
+      AND ${forApplicationId
+        ? tx`s.created_at <= (SELECT created_at FROM loan_applications WHERE id = ${forApplicationId})
+             AND (s.retired_at IS NULL
+                  OR s.retired_at > (SELECT created_at FROM loan_applications WHERE id = ${forApplicationId}))`
+        : tx`s.retired_at IS NULL`}
     ORDER BY p.applies_to, s.position`;
   const byPipeline = new Map<string, Pipeline>();
   for (const r of rows) {
@@ -97,7 +111,7 @@ export async function routeApplication(
 ): Promise<{ app: ApplicationForApproval; pipeline: Pipeline; routing: RoutingResult } | null> {
   const app = await loadApplication(tx, applicationId);
   if (!app) return null;
-  const pipelines = await loadPipelines(tx, app.loanProductId);
+  const pipelines = await loadPipelines(tx, app.loanProductId, applicationId);
   const pipeline = resolvePipeline(pipelines, app.applicantRole);
   if (!pipeline) return null;
   const usable: Pipeline = app.departmentHeadId
@@ -124,16 +138,29 @@ export async function resolveRate(
   tx: Tx, loanProductId: string,
 ): Promise<ResolvedRate> {
   const [p] = await tx`
-    SELECT lp.interest_applies, lp.name, ri.current_value
+    SELECT lp.interest_applies, lp.name, lp.rate_mode, lp.rate_margin, lp.fixed_rate,
+           ri.current_value
     FROM loan_products lp
     LEFT JOIN rate_indices ri ON ri.id = lp.rate_index_id
     WHERE lp.id = ${loanProductId}`;
   if (!p) return { ok: false, error: "Loan product not found." };
-  if (!p.interest_applies) return { ok: true, rate: 0, mode: "fixed" };
-  if (p.current_value === null) {
-    return { ok: false, error: `Product "${p.name}" applies interest but has no rate index configured.` };
+  const rate = effectiveAnnualRate({
+    interestApplies: p.interest_applies as boolean,
+    rateMode: p.rate_mode as "index" | "fixed",
+    fixedRate: p.fixed_rate === null ? null : Number(p.fixed_rate),
+    rateMargin: Number(p.rate_margin),
+    indexValue: p.current_value === null ? null : Number(p.current_value),
+  });
+  if (rate === null) {
+    return {
+      ok: false,
+      error: p.rate_mode === "fixed"
+        ? `Product "${p.name}" is fixed-rate but has no rate set.`
+        : `Product "${p.name}" applies interest but has no rate index configured.`,
+    };
   }
-  return { ok: true, rate: Number(p.current_value) / 100, mode: "index_plus_margin" };
+  // "fixed" = the rate does not move with an index (interest-free included).
+  return { ok: true, rate, mode: !p.interest_applies || p.rate_mode === "fixed" ? "fixed" : "index_plus_margin" };
 }
 
 /** The rate quoted to the applicant at submission, if this application has
@@ -271,7 +298,9 @@ export async function inboxFor(tx: Tx, tenantId: string, actor: Actor) {
     };
     if (!canAct(loaded.routing.currentStage, actor, applicant)) continue;
     const [meta] = await tx`
-      SELECT e.full_name, lp.name AS product_name
+      SELECT e.full_name, lp.name AS product_name,
+             COALESCE((SELECT max(a.decided_at) FROM approvals a
+                       WHERE a.application_id = la.id AND a.decision = 'approved'), la.created_at) AS waiting_since
       FROM loan_applications la
       JOIN employees e ON e.id = la.employee_id
       JOIN loan_products lp ON lp.id = la.loan_product_id
@@ -281,6 +310,10 @@ export async function inboxFor(tx: Tx, tenantId: string, actor: Actor) {
       stageRole: loaded.routing.currentStage.approverRole,
       employeeName: meta.full_name as string,
       productName: meta.product_name as string,
+      /** When it reached this approver (the previous approval, or submission),
+       *  and the time limit the admin set for this stage (null = none). */
+      waitingSince: new Date(meta.waiting_since as string).toISOString(),
+      slaHours: loaded.routing.currentStage.slaHours,
     });
   }
   return out;

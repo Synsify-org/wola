@@ -15,6 +15,7 @@
 // via repaymentPosition() (@wola/db), the same source the repayment allocator
 // uses, never from schedule dates alone, which kept showing a "next
 // deduction" on loans already repaid early or in full.
+import { DISBURSER_ROLES } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireSession, scopePredicate } from "@/lib/guard";
@@ -35,7 +36,6 @@ import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
-const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 const shortDate = (d: string | null) =>
   d

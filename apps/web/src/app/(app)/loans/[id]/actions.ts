@@ -4,6 +4,7 @@
 // requireSession so the tenant + RLS context is enforced; disburseLoan itself
 // re-checks the loan is 'pending_disbursement', so a double-submit or a stale
 // button can't disburse twice.
+import { DISBURSER_ROLES } from "@/lib/permissions";
 import { requireSession } from "@/lib/guard";
 import { disburseLoan, audit } from "@wola/db";
 import { revalidatePath } from "next/cache";
@@ -11,7 +12,6 @@ import { revalidatePath } from "next/cache";
 // Roles allowed to move money. Kept narrow on purpose: an HR or dept head may
 // see a loan but must not disburse it. Mirrors the treasury boundary in the
 // role spec (finance/exec only).
-const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
 
 export type DisburseResult =
   | { ok: true; amount: number }
