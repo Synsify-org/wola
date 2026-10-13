@@ -1,18 +1,30 @@
-// GET /api/health — proves the full chain works:
-// subdomain -> middleware -> tenant resolution -> RLS-scoped query.
+// GET /api/health — is Wola up, and can it reach its database?
+//
+// Built for an uptime monitor: it works on ANY host (the bare domain or a tenant's
+// subdomain, no tenant lookup involved) and says nothing about any organisation: no
+// names, no counts. 200 {"ok":true} when the database answers; 503 {"ok":false} when
+// it does not. Never cached.
 import { NextResponse } from "next/server";
-import { withTenant, TenantError } from "@/lib/tenant";
+import { db } from "@/lib/tenant";
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+
+const headers = { "cache-control": "no-store" };
+
+async function check() {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const body = await withTenant(async (tx, tenant) => {
-      const [row] = await tx`SELECT count(*)::int AS employees FROM employees`;
-      return { ok: true, tenant: tenant.slug, plan: tenant.plan, employees: row.employees };
-    });
-    return NextResponse.json(body);
-  } catch (e) {
-    if (e instanceof TenantError)
-      return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
-    throw e;
+    await Promise.race([
+      db`SELECT 1`,
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("timeout")), 5000); }),
+    ]);
+    return NextResponse.json({ ok: true }, { headers });
+  } catch {
+    return NextResponse.json({ ok: false, error: "database unreachable" }, { status: 503, headers });
+  } finally {
+    clearTimeout(timer);
   }
 }
+
+export const GET = check;
+export const HEAD = check;

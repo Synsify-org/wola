@@ -10,6 +10,94 @@ Status tags match the architecture document's convention:
 
 ---
 
+## UI pass: phones, settings, pipeline (2026-10-13) `DONE`
+
+- [x] **Phone audit tool** (`npm run audit:mobile`): every role x every page at phone width.
+      Result: no page scrolls sideways at 390 or 360px and nothing is clipped; the real
+      phone problems were density (four full-width tiles = two screens) and truncation.
+- [x] Dashboard KPI tiles are two-up on phones (CFO, COO, HR); decision-queue rows wrap
+      instead of cutting the product name off.
+- [x] **Pipeline card** redesigned from the sales-pipeline reference: segmented bar +
+      rows with "count · amount", mini bar and share, in our state colours (needs the
+      amount per stage, now in the dashboard query).
+- [x] **Settings -> Your details** (the profile-form pattern from the account block): who
+      you are on record (read-only, HR-kept) and how to reach you (phone, location;
+      migration 0025). **Settings -> When a borrower leaves**: the exit-policy switch.
+- [x] The two Creative Tim blocks were tried and NOT kept as components: their installer
+      overwrote our tuned button/card/input/select, and one needs a date-picker library
+      we do not use. We took their layout ideas (sectioned form, icon labels, clear
+      action row) and kept our primitives. Added `ui/textarea` only.
+- Not done: **KYC**. There is no identity data in the product (no national ID, no
+  documents), and collecting it is a policy + data-protection decision first (who
+  verifies, what is stored, for how long); see `docs/business/POLICY_DECISIONS.md`.
+
+## Roadmap to the first pilot (2026-10-13) — the gate board
+
+Rule: do not start a phase until the one before it meets its "done when". Never keep
+two half-built features open. `[x]` = built and verified (evidence given); `[ ]` with
+**you** = only the owner can do it; `[ ]` = engineering still open.
+
+### Phase 0 — Stop the breaking `ENGINEERING DONE; owner items open`
+- [x] One database per purpose: tests run in `wola_test`, never the demo database
+      (`scripts/use-test-db.mjs`; the suite used to leave ~30 junk tenants in dev).
+- [x] Migration 0010 / theme-save grant verified by a test (`tenant_settings_grant.test.mjs`).
+- [x] Error boundaries on every segment + a structured error reporter (`instrumentation.ts`).
+- [x] Seed/reset script: `npm run demo:reset` (now includes a payroll history).
+- [x] Cold-start rehearsal passed twice with the database stopped first
+      (`npm run rehearse -- --cold`): 8 roles x 17 pages, zero errors. A real laptop
+      reboot is the same thing; do it once before the first demo.
+- [x] Found and fixed by the rehearsal: denied-state pages had no heading; seed scripts
+      broke on the stage-versioning index (my regression from migration 0020).
+- [ ] **You:** keep the prospect-feedback log ([PROSPECT_FEEDBACK.md](docs/business/PROSPECT_FEEDBACK.md)).
+- [ ] **You:** rotate the database password; remove `DATABASE_ADMIN_URL` from Vercel;
+      add the `PRODUCTION_DATABASE_ADMIN_URL` GitHub secret (see OPERATIONS.md).
+
+### Phase 1 — Close the money loop `ENGINEERING DONE; needs 2 policy decisions`
+- [x] One definition of outstanding: view `loan_balances` (migration 0023); every
+      read-site uses it, and a test fails if any file recomputes it.
+- [x] Expected-deductions CSV per payroll month (`/reconciliation/expected.csv`).
+- [x] Actuals import: preview first (matched / short / over / unmatched / duplicate /
+      already paid), then confirm; re-checked on the server when confirmed.
+- [x] Reconciliation screen `/reconciliation`: expected vs received per loan, arrears
+      carried forward, resolve with **record payment (catch-up)** or **pause**.
+- [x] Bulk payroll run reuses `recordRepayment`; one auditable run that ties out to its
+      repayments; running it twice records nothing the second time.
+- [x] Suspension is an event: no schedule rows added/changed/replaced (tested); due dates
+      move; reports' arrears honour it (`arrearsByLoan`).
+- [x] Early repayment: request -> record; a lump sum shortens the schedule; paying off in
+      full takes the balance to zero and settles the loan (tested).
+- [x] Loan-exit policy: default opens a payoff request per running loan; nothing is
+      written off. 164 DB tests pass.
+- [ ] **Restructure / top-up** (the third "resolve" action): not built, needs lending
+      policy first (see the proposal in 1.17). Extend is covered by Pause.
+- [ ] **You:** decide the exit policy ([POLICY_DECISIONS.md](docs/business/POLICY_DECISIONS.md) #3).
+
+### Phase 2 — Dashboards `BUILT earlier (1.1-1.9); squint test is yours`
+- [x] CFO money-ops hero (now reads the same report as the Payroll screen), HR register
+      health, employee hero, dept-head hero, CEO lighter than CFO.
+- [ ] **You:** the squint test with a real finance person, then log what they ask for.
+
+### Phase 3 — Trust baseline `MOSTLY DONE; see the audit`
+- [x] Password reset, session expiry/logout, rate limiting (tested).
+- [x] MFA for finance/admin roles (policy per organisation) — not for the platform admin.
+- [x] Hardcoded role arrays replaced by one privilege table + `can()` (tested).
+- [x] Tenant-isolation tests on every new table (0023 included).
+- [x] Security self-audit: [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+- [x] MFA for the platform (super) admin (migration 0024, `/admin/security`): mandatory
+      once `MFA_ENCRYPTION_KEY` is set, no way to turn it off, wrong codes rate-limited.
+- [ ] **You:** set `ERROR_WEBHOOK_URL` (the reporter exists) and an uptime monitor on `/api/health`.
+- [ ] Email provider + domain authentication in production.
+- [ ] Automated backups confirmed and the restore drill run against a real backup (**you**).
+
+### Phases 4-5 — Sales readiness, one pilot `NO CODE; drafts ready, owner decides`
+- Drafts: [ANSWER_SHEET](docs/business/ANSWER_SHEET.md), [DPA_TEMPLATE](docs/business/DPA_TEMPLATE.md),
+  [SPREADSHEET_MIGRATION](docs/business/SPREADSHEET_MIGRATION.md), [POLICY_DECISIONS](docs/business/POLICY_DECISIONS.md),
+  [PILOT](docs/business/PILOT.md). Lawyer review of the DPA/terms, the loan-capital
+  decision and the pilot organisation are **yours**.
+- [ ] **You:** pick the pilot organisation and a date for Phase 0 (the advisor's question).
+
+---
+
 ## Phase 1.17 — Two-step sign-in (MFA) and checklist sweep (2026-10-13) `DONE, on branch chore/checklist-sweep`
 
 **Migration 0022 must reach production before this deploys** (the sign-in path
