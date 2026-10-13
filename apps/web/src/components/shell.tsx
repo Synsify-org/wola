@@ -65,11 +65,18 @@ export default function Shell({
 
   return (
     <TooltipProvider>
-    {/* overflow-clip, not -hidden: "hidden" still lets focus, find-in-page and
-        drag-selection autoscroll shove this fixed-height frame upward, which
-        left the topbar off-screen and a blank band under the sidebar. Only
-        <main> may scroll. */}
-    <div className="app-frame flex h-dvh flex-col overflow-clip bg-paper">
+    {/* The frame is the ONLY thing that may scroll its content (<main>), so it
+        must also CONTAIN everything inside it:
+        - overflow-clip, not -hidden: hidden still lets focus, find-in-page and
+          drag-selection shove the frame upward.
+        - relative: absolutely-positioned descendants (sr-only labels, chart
+          tooltip wrappers, which dashboards are full of) resolve against the
+          nearest POSITIONED ancestor. With none, they resolved against the page,
+          escaped main's and the frame's clipping, and stretched the DOCUMENT to
+          ~2x the viewport (measured 1731px in an 800px window on the CFO
+          dashboard). The document then scrolled, carrying the whole app up and
+          leaving a blank band under the sidebar. */}
+    <div className="app-frame relative flex h-dvh flex-col overflow-clip bg-paper">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-theme-md"
