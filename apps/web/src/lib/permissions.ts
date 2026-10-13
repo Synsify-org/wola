@@ -2,52 +2,71 @@
 // action it calls (what to allow). Kept out of the "use server" action files,
 // which may only export async functions.
 
-/** Who may CHANGE a rate index (e.g. the BoU CBR). Everyone with the
- *  administration view can SEE it; the CEO and other executives are
- *  deliberately view-only — a rate change reprices every new loan. */
-export const RATE_INDEX_EDIT_ROLES = ["cfo", "admin", "org_admin"];
-
-/** Who may OPEN the administration screens (products, approval routing, rates).
- *  Everyone here can see the configuration; only the roles below can change it. */
-export const CONFIG_VIEW_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
-
-/** Who may create/edit/switch off loan products. Pricing and eligibility
- *  policy: the CFO owns it alongside administrators. Executives who approve
- *  loans (CEO, COO, ...) can see products but not reshape them. */
-export const PRODUCT_EDIT_ROLES = ["cfo", "admin", "org_admin"];
-
-/** Who may change approval routing. Administrators only — the CFO and CEO sit
- *  ON the chains, so they must not be able to rewire who approves their own
- *  decisions (administration and approval stay separate duties). */
-export const ROUTING_EDIT_ROLES = ["admin", "org_admin"];
-
-/** Who may manage roles and access (change roles, remove access, invite any
- *  role). Administrators only. (HR can still invite an employee to log in, from
- *  the employee directory — see ACCOUNT_CREATOR_ROLES.) */
-export const ACCESS_EDIT_ROLES = ["admin", "org_admin"];
-
-// ---- Shared role sets ------------------------------------------------------
-// ONE definition each, used by the guard, the pages and the Roles & access
-// screen, so what that screen shows is what the system enforces.
+// ---- Privileges: ONE table of who may do what ----------------------------------
+// Pages and server actions ask `can(role, "privilege")` (or use the named role lists
+// below, which are read from this table). No screen keeps its own list of roles, so
+// changing who may do something is one edit here, and a test (permissions.test.ts)
+// holds the rules that must never break: the auditor can only look, and nobody who
+// approves loans can rewire who approves them.
 //
-// NOTE: the membership role enum (migration 0001) uses 'org_admin' and
-// 'group_ceo'. Older code also referenced 'admin'/'md'; both spellings are kept
-// so a tenant provisioned with either gets the right access.
+// NOTE: the membership role enum (migration 0001) uses 'org_admin' and 'group_ceo'.
+// Older code also referenced 'admin'/'md'; both spellings are kept so a tenant
+// provisioned with either gets the right access.
 
-/** Whole-organisation data. 'auditor' is here (read access to the whole book)
- *  but deliberately NOT in APPROVER_ROLES, and must never be added to
- *  DISBURSER_ROLES / FINANCE_ROLES — oversight, not action. */
-export const FULL_BOOK_ROLES = ["cfo", "hr", "ceo", "md", "coo", "group_ceo", "admin", "org_admin", "auditor"];
-/** Sees the approvals worklist (adds dept_head, who sees only their reports). */
-export const APPROVER_ROLES = ["cfo", "hr", "ceo", "md", "coo", "group_ceo", "dept_head", "admin", "org_admin"];
-/** Marks an approved loan as paid out. */
-export const DISBURSER_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
-/** Records repayments against a loan. */
-export const FINANCE_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
-/** Maintains employee data: import, edit, deactivate. */
-export const EMPLOYEE_DATA_ROLES = ["hr", "cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
-/** Invites an employee to create their login. Narrower than EMPLOYEE_DATA_ROLES. */
-export const ACCOUNT_CREATOR_ROLES = ["hr", "admin", "org_admin"];
+const EXECUTIVES = ["ceo", "md", "coo", "group_ceo"];
+const ADMINS = ["admin", "org_admin"];
+
+export const PRIVILEGES = {
+  /** Sees the whole organisation's loans and applications. 'auditor' is here (read
+   *  access to the whole book) but deliberately NOT in any privilege that acts. */
+  "book.view_all": ["cfo", "hr", ...EXECUTIVES, ...ADMINS, "auditor"],
+  /** Sees the approvals worklist (adds dept_head, who sees only their reports). */
+  "approvals.view": ["cfo", "hr", ...EXECUTIVES, "dept_head", ...ADMINS],
+  /** Marks an approved loan as paid out. */
+  "loan.disburse": ["cfo", ...EXECUTIVES, ...ADMINS],
+  /** Records repayments, runs payroll deductions, pauses and early-repays. */
+  "repayment.record": ["cfo", ...EXECUTIVES, ...ADMINS],
+  /** Maintains employee data: import, edit, deactivate. */
+  "employees.manage": ["hr", "cfo", ...EXECUTIVES, ...ADMINS],
+  /** Invites an employee to create their login. Narrower than employees.manage. */
+  "accounts.invite": ["hr", ...ADMINS],
+  /** Changes a rate index (e.g. the BoU CBR). Executives are deliberately view-only:
+   *  a rate change reprices every new loan. */
+  "rates.edit": ["cfo", ...ADMINS],
+  /** Opens the administration screens and the organisation theme. */
+  "config.view": ["cfo", ...EXECUTIVES, ...ADMINS],
+  /** Creates/edits/switches off loan products (pricing and eligibility policy). */
+  "products.edit": ["cfo", ...ADMINS],
+  /** Changes approval routing. Administrators only: the CFO and CEO sit ON the
+   *  chains, so they must not rewire who approves their own decisions. */
+  "routing.edit": [...ADMINS],
+  /** Manages roles and access. Administrators only. */
+  "access.edit": [...ADMINS],
+  /** Sees the organisation set-up checklist on the dashboard. */
+  "setup.view": [...ADMINS],
+} as const satisfies Record<string, readonly string[]>;
+
+export type Privilege = keyof typeof PRIVILEGES;
+
+/** May this role do this? Unknown roles and unknown privileges are refused. */
+export function can(role: string | null | undefined, privilege: Privilege): boolean {
+  return Boolean(role) && (PRIVILEGES[privilege] as readonly string[] | undefined)?.includes(role as string) === true;
+}
+
+// Named lists, read from the table above (kept because many call sites use
+// `ROLES.includes(ctx.role)`).
+export const RATE_INDEX_EDIT_ROLES: string[] = [...PRIVILEGES["rates.edit"]];
+export const CONFIG_VIEW_ROLES: string[] = [...PRIVILEGES["config.view"]];
+export const PRODUCT_EDIT_ROLES: string[] = [...PRIVILEGES["products.edit"]];
+export const ROUTING_EDIT_ROLES: string[] = [...PRIVILEGES["routing.edit"]];
+export const ACCESS_EDIT_ROLES: string[] = [...PRIVILEGES["access.edit"]];
+export const FULL_BOOK_ROLES: string[] = [...PRIVILEGES["book.view_all"]];
+export const APPROVER_ROLES: string[] = [...PRIVILEGES["approvals.view"]];
+export const DISBURSER_ROLES: string[] = [...PRIVILEGES["loan.disburse"]];
+export const FINANCE_ROLES: string[] = [...PRIVILEGES["repayment.record"]];
+export const EMPLOYEE_DATA_ROLES: string[] = [...PRIVILEGES["employees.manage"]];
+export const ACCOUNT_CREATOR_ROLES: string[] = [...PRIVILEGES["accounts.invite"]];
+export const SETUP_VIEW_ROLES: string[] = [...PRIVILEGES["setup.view"]];
 
 /** What each role is for, in plain words (shown on the Roles & access screen). */
 export const ROLE_DESCRIPTION: Record<string, string> = {

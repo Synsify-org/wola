@@ -16,6 +16,7 @@ import { roleLabel } from "@/lib/product-summary";
 import AccessManager from "@/components/access-manager";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
+import AccessDenied from "@/components/access-denied";
 
 const fmtDate = (d: Date) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -35,9 +36,7 @@ export default async function AccessPage() {
 
   if (!data.authorized) {
     return (
-      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-        <p className="text-sm text-ink-soft">Roles &amp; access is available to administrators and executives only.</p>
-      </div>
+      <AccessDenied title="Roles & access" message="Roles & access is available to administrators and executives only." />
     );
   }
   const { overview, me, canEdit } = data;

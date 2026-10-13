@@ -6,6 +6,7 @@ import { loansByProduct, approverMetrics, inboxFor, collectionsTrend } from "@wo
 import AnalyticsView, { type DeptRow } from "@/components/analytics-view";
 import { getTenantCurrency } from "@/lib/tenant";
 import { pageMeta } from "@/lib/site";
+import AccessDenied from "@/components/access-denied";
 
 export const metadata = pageMeta({ title: "Analytics", description: "Portfolio and application insights: approval rates, collections and loan sizes.", path: "/analytics" });
 
@@ -142,9 +143,7 @@ export default async function AnalyticsPage() {
 
   if (!data.authorized) {
     return (
-      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-        <p className="text-sm text-ink-soft">Analytics are available to management roles only.</p>
-      </div>
+      <AccessDenied title="Analytics" message="Analytics are available to management roles only." />
     );
   }
 

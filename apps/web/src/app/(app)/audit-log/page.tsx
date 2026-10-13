@@ -6,6 +6,7 @@
 import { requireSession } from "@/lib/guard";
 import { ScrollText } from "lucide-react";
 import { pageMeta } from "@/lib/site";
+import AccessDenied from "@/components/access-denied";
 
 type Row = {
   id: string;
@@ -39,9 +40,7 @@ export default async function AuditLogPage() {
 
   if (!data.authorized) {
     return (
-      <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-        <p className="text-sm text-ink-soft">The audit log is available to management and audit roles only.</p>
-      </div>
+      <AccessDenied title="Audit log" message="The audit log is available to management and audit roles only." />
     );
   }
 

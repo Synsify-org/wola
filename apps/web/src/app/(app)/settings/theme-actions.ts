@@ -7,8 +7,9 @@
 // touch slug/status/plan. Admin-role check is enforced here in the app.
 import { requireSession } from "@/lib/guard";
 import { revalidatePath } from "next/cache";
+import { CONFIG_VIEW_ROLES } from "@/lib/permissions";
 
-const ADMIN_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
+const ADMIN_ROLES = CONFIG_VIEW_ROLES;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export type ThemeResult = { ok: true } | { ok: false; error: string };
