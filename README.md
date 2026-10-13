@@ -30,6 +30,22 @@ scripts/         # migrate runner, initdb roles
 5. Migrations are forward-only plain SQL. No destructive change without a
    rehearsed restore.
 
+## Deploying (production migrations are automatic)
+Merging to `main` deploys the app on Vercel. If the merge changes
+`packages/db/migrations/`, the `migrate-production` GitHub Action applies the
+pending migrations to the production database at the same moment (it does not
+wait for the build, so the schema is normally ahead of the new code).
+
+- One-time setup: repo Settings -> Environments -> `production` -> secret
+  `PRODUCTION_DATABASE_ADMIN_URL` (Supabase admin connection string).
+  The admin credential lives ONLY in GitHub, never in Vercel (non-negotiable #1).
+- **Migrations must be backward compatible with the previous release**: add
+  columns/tables; never drop or rename in the same release as the code that
+  stops using them. That keeps the old code working during the gap and makes a
+  Vercel rollback safe.
+- Manual run / re-run: Actions -> migrate-production -> Run workflow, or
+  `DATABASE_ADMIN_URL=... npm run migrate -- --dry-run` then `npm run migrate`.
+
 ## Decisions
 Record every non-obvious choice in `DECISIONS.md` — future us will thank
 present us.

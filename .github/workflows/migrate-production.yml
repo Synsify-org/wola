@@ -1,0 +1,69 @@
+name: migrate-production
+
+# Applies pending database migrations to PRODUCTION whenever a merge to main
+# changes packages/db/migrations. Vercel deploys main on its own, in parallel;
+# this job starts the moment the push lands (it does NOT wait for the CI suite,
+# which already ran on the pull request) so the schema is normally updated well
+# before the new build goes live (~1 min for a Vercel build vs ~30s here).
+#
+# WHY THIS RUNS HERE AND NOT IN THE VERCEL BUILD: the app must never hold the
+# admin database credential (README non-negotiable #1). Vercel's environment is
+# readable by the running functions; a GitHub Actions secret is not.
+#
+# ONE-TIME SETUP (repo Settings -> Environments -> New environment "production"):
+#   add the secret  PRODUCTION_DATABASE_ADMIN_URL  = the Supabase admin
+#   connection string (URI form, password URL-encoded), e.g.
+#   postgresql://postgres.<ref>:<encoded-password>@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
+#   Optionally add "required reviewers" to the environment to make every
+#   production migration wait for a human click.
+#
+# RULE THAT MAKES THIS SAFE: migrations must be BACKWARD COMPATIBLE with the
+# previous release (add columns/tables, never drop or rename in the same
+# release as the code that stops using them). Then the old code keeps working
+# if it is still serving when the schema changes, and a Vercel rollback is safe.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/db/migrations/**"
+      - "scripts/migrate.mjs"
+  workflow_dispatch: {}
+
+# Never two migrations at once, and never cancel one halfway through.
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      DATABASE_ADMIN_URL: ${{ secrets.PRODUCTION_DATABASE_ADMIN_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the secret is set and points at a real database
+        run: |
+          if [ -z "$DATABASE_ADMIN_URL" ]; then
+            echo "::error::PRODUCTION_DATABASE_ADMIN_URL is not set (repo Settings -> Environments -> production). Migrations were NOT applied; production may be behind the code."
+            exit 1
+          fi
+          HOST=$(node -e 'console.log(new URL(process.env.DATABASE_ADMIN_URL).hostname)')
+          case "$HOST" in
+            localhost|127.0.0.1|::1|"")
+              echo "::error::DATABASE_ADMIN_URL points at '$HOST', not a hosted database. Refusing to continue."
+              exit 1 ;;
+          esac
+          echo "Target host: $HOST"
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+
+      - name: Dry run (shows the target and what is pending)
+        run: node scripts/migrate.mjs --dry-run
+
+      - name: Apply pending migrations
+        run: node scripts/migrate.mjs

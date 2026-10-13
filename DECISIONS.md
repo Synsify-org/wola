@@ -199,3 +199,20 @@ Carried from the earlier globals.css work: `--color-info-*` steps don't resolve,
 so anything using `info-500/700` falls back invisibly. Currently worked around
 with brand green. Fix if blue accent variety is wanted: verify the
 --color-info-50..700 vars actually exist in the @theme block.
+
+
+## 2026-10-13 — Production migrations run from GitHub Actions, not Vercel
+Releases 0020/0021 went live before their migrations, and every page that read
+the new columns returned a server error (`column s.created_at does not exist`)
+until the migrations were applied by hand. CI only ever migrated its own
+throwaway database; nothing migrated production.
+
+Decision: `.github/workflows/migrate-production.yml` runs `scripts/migrate.mjs`
+against production on any merge to main that touches `packages/db/migrations/`.
+It runs in GitHub, not in the Vercel build, because the admin credential must
+never be in an environment the running app can read (README non-negotiable #1).
+Trade-off accepted: the job and the Vercel build start together, so ordering
+relies on the migration (~30s) finishing before the build (~1 min+) goes live,
+not on a hard gate. That makes "migrations are backward compatible with the
+previous release" a rule, not a preference. Also: the Vercel `DATABASE_ADMIN_URL`
+variable should be removed; the app doesn't use it.
