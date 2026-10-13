@@ -51,7 +51,7 @@ FROM approval_pipelines p
 JOIN tenants t ON t.id = p.tenant_id
 CROSS JOIN (VALUES (1,'dept_head'), (2,'hr'), (3,'cfo'), (4,'ceo')) AS v(position, role)
 WHERE t.slug = 'testco' AND p.applies_to = 'default'
-ON CONFLICT (tenant_id, pipeline_id, position) DO NOTHING;
+ON CONFLICT (tenant_id, pipeline_id, position) WHERE retired_at IS NULL DO NOTHING;
 
 -- CEO applying for an ADVANCE: hr -> cfo -> coo
 INSERT INTO approval_pipelines (tenant_id, loan_product_id, applies_to)
@@ -67,7 +67,7 @@ JOIN tenants t ON t.id = p.tenant_id
 JOIN loan_products lp ON lp.id = p.loan_product_id
 CROSS JOIN (VALUES (1,'hr'), (2,'cfo'), (3,'coo')) AS v(position, role)
 WHERE t.slug = 'testco' AND p.applies_to = 'ceo' AND lp.kind = 'advance'
-ON CONFLICT (tenant_id, pipeline_id, position) DO NOTHING;
+ON CONFLICT (tenant_id, pipeline_id, position) WHERE retired_at IS NULL DO NOTHING;
 
 -- CEO applying for DEVELOPMENT or CAR: hr -> cfo -> coo -> group_ceo
 INSERT INTO approval_pipelines (tenant_id, loan_product_id, applies_to)
@@ -83,7 +83,7 @@ JOIN tenants t ON t.id = p.tenant_id
 JOIN loan_products lp ON lp.id = p.loan_product_id
 CROSS JOIN (VALUES (1,'hr'), (2,'cfo'), (3,'coo'), (4,'group_ceo')) AS v(position, role)
 WHERE t.slug = 'testco' AND p.applies_to = 'ceo' AND lp.kind IN ('term','asset')
-ON CONFLICT (tenant_id, pipeline_id, position) DO NOTHING;
+ON CONFLICT (tenant_id, pipeline_id, position) WHERE retired_at IS NULL DO NOTHING;
 
 -- ── Approvers so the pipeline actually has people in it ──────────────────
 -- HR, CEO, and a department head. Password for all: test1234
