@@ -5,9 +5,12 @@ import { tenantRegistry } from "@wola/db";
 import { db } from "@/lib/tenant";
 import SuperAdminShell from "@/components/super-admin-shell";
 import { formatMoney } from "@wola/engine";
+import { pageMeta } from "@/lib/site";
 
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+export const metadata = pageMeta({ title: "Organisations", description: "Every organisation on the platform.", path: "/admin/tenants" });
 
 export default async function TenantRegistryPage() {
   const data = await requireSuperSession(async (ctx) => {

@@ -5,7 +5,7 @@
 // awaiting) are system-owned and defined in globals.css — a tenant cannot
 // brand them, because an approver must never misread a rejected document as
 // a header colour.
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { resolveTenant } from "@wola/db";
 import { db } from "@/lib/tenant";
 import { themeStyle } from "@/lib/theme";
+import { SHARE_IMAGES, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, siteOrigin } from "@/lib/site";
 
 // Fonts are self-hosted from ./fonts (Latin, variable weight axis), not
 // fetched from Google at build time. next/font/google made every build depend
@@ -33,9 +34,27 @@ const libre = localFont({ src: "./fonts/libre-franklin.woff2", weight: "100 900"
 const source = localFont({ src: "./fonts/source-sans-3.woff2", weight: "200 900", variable: "--font-source", display: "swap", preload: false });
 const hanken = localFont({ src: "./fonts/hanken-grotesk.woff2", weight: "100 900", variable: "--font-hanken", display: "swap", preload: false });
 
-export const metadata: Metadata = {
-  title: "Wola",
-  description: "Staff loan management",
+// Metadata is built per request so canonical URLs, link-preview URLs and the
+// sitemap use whichever host (tenant subdomain or custom domain) served the
+// page. Default is PRIVATE (noindex): the sign-in page opts in to indexing
+// (see lib/site.ts for the policy).
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    metadataBase: new URL(await siteOrigin()),
+    title: { default: `${SITE_NAME} — ${SITE_TAGLINE}`, template: `%s · ${SITE_NAME}` },
+    description: SITE_DESCRIPTION,
+    applicationName: SITE_NAME,
+    robots: { index: false, follow: false },
+    openGraph: { siteName: SITE_NAME, type: "website", locale: "en", title: `${SITE_NAME} — ${SITE_TAGLINE}`, description: SITE_DESCRIPTION, images: SHARE_IMAGES.openGraph },
+    twitter: { card: "summary_large_image", title: `${SITE_NAME} — ${SITE_TAGLINE}`, description: SITE_DESCRIPTION, images: SHARE_IMAGES.twitter },
+    formatDetection: { telephone: false, email: false, address: false },
+  };
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#16A34A",
 };
 
 export default async function RootLayout({

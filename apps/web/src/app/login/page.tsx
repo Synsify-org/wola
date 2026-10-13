@@ -8,6 +8,8 @@ import { resolveTenant } from "@wola/db";
 import { db, TenantError } from "@/lib/tenant";
 import { login, SESSION_COOKIE } from "@/lib/auth";
 import LoginForm from "./login-form";
+import { SITE_DESCRIPTION, SITE_NAME, pageMeta, siteOrigin } from "@/lib/site";
+import JsonLd from "@/components/json-ld";
 
 export type LoginState = { error?: string; ok?: boolean };
 
@@ -49,15 +51,46 @@ async function doLogin(_prev: LoginState, formData: FormData): Promise<LoginStat
 // which company they're signing into before typing a password — the
 // cheapest defence against a look-alike phishing page. Display only; the
 // action above re-resolves the tenant itself.
+export const metadata = pageMeta({ title: "Sign in", description: "Sign in to Wola with your work email to apply for, approve and track staff loans.", path: "/login", index: true });
+
 export default async function LoginPage() {
   const h = await headers();
   const slug = h.get("x-tenant-slug");
   const tenant = slug ? await resolveTenant(db, slug) : null;
+  const origin = await siteOrigin();
   return (
-    <LoginForm
-      action={doLogin}
-      tenantName={(tenant?.name as string | undefined) ?? null}
-      host={(h.get("host") ?? "").split(":")[0] || null}
-    />
+    <>
+      {/* Structured data for the one public page: what Wola is and who makes it.
+          Deliberately a software application, not a LocalBusiness — Wola is a
+          web product with no storefront, and inventing an address or opening
+          hours would be false data. */}
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            name: SITE_NAME,
+            description: SITE_DESCRIPTION,
+            url: `${origin}/login`,
+            applicationCategory: "BusinessApplication",
+            operatingSystem: "Any (web browser)",
+            browserRequirements: "Requires JavaScript",
+            inLanguage: "en",
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: SITE_NAME,
+            url: origin,
+            logo: `${origin}/icon.svg`,
+          },
+        ]}
+      />
+      <LoginForm
+        action={doLogin}
+        tenantName={(tenant?.name as string | undefined) ?? null}
+        host={(h.get("host") ?? "").split(":")[0] || null}
+      />
+    </>
   );
 }

@@ -67,8 +67,8 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
           icon={ClipboardCheck}
           accent={done === checks.length ? "approved" : "awaiting"}
         />
-        <Metric label="Loan products" value={<CountUp value={status.productsCount} />} sub="Configured for this tenant" icon={Package} />
-        <Metric label="Approval pipelines" value={<CountUp value={status.pipelinesCount} />} sub="Routing rules in force" icon={GitBranch} />
+        <Metric tone="brand" label="Loan products" value={<CountUp value={status.productsCount} />} sub="Configured for this tenant" icon={Package} />
+        <Metric tone="info" label="Approval pipelines" value={<CountUp value={status.pipelinesCount} />} sub="Routing rules in force" icon={GitBranch} />
       </section>
 
       {/* Row 2 (2/3 + 1/3): the checklist beside the admin shortcuts. */}

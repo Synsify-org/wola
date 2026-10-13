@@ -3,7 +3,6 @@
 // it (ACCESS_EDIT_ROLES — also enforced in the server actions). The "what each
 // role can do" table is computed from the same constants the guard and the
 // pages use, so it can't drift from what the system actually enforces.
-import Link from "next/link";
 import { Check, Minus } from "lucide-react";
 import { listAccess } from "@wola/db";
 import { MEMBERSHIP_ROLES } from "@wola/engine";
@@ -15,9 +14,13 @@ import {
 } from "@/lib/permissions";
 import { roleLabel } from "@/lib/product-summary";
 import AccessManager from "@/components/access-manager";
+import { pageMeta } from "@/lib/site";
+import Breadcrumbs from "@/components/breadcrumbs";
 
 const fmtDate = (d: Date) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+export const metadata = pageMeta({ title: "Roles & access", description: "Who can sign in to this organisation, and what each role can do.", path: "/settings/access" });
 
 export default async function AccessPage() {
   const data = await requireSession(async (tx, ctx) => {
@@ -64,7 +67,7 @@ export default async function AccessPage() {
   return (
     <>
       <div className="mb-6">
-        <Link href="/settings" className="text-xs font-medium text-ink-soft hover:text-ink">← Settings</Link>
+        <Breadcrumbs items={[{ label: "Settings", href: "/settings" }, { label: "Roles & access" }]} />
         <h1 className="mt-1 text-xl font-semibold text-ink">Roles &amp; access</h1>
         <p className="mt-1 text-sm text-ink-soft">
           Who can sign in to this organisation, and as what. A change applies on the person&apos;s very next click.

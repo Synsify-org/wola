@@ -179,6 +179,7 @@
   --color-accent:               var(--color-brand-wash);
   --color-accent-foreground:    var(--color-brand-deep);
   --color-destructive:          var(--color-rejected);
+  --color-destructive-foreground: oklch(1 0 0);
   --color-border:               var(--color-rule);
   --color-input:                var(--color-rule);
   --color-ring:                 var(--color-brand);

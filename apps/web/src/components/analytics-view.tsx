@@ -1,10 +1,7 @@
 ﻿"use client";
-import {
-  PieChart, Pie, Cell,
-} from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import TrendLineChart from "./trend-line-chart";
 import LoanSizeChart, { type SizeBand } from "./loan-size-chart";
+import StatusDonut from "./status-donut";
 import Metric from "./metric";
 import ProductBars from "./product-bars";
 import DashboardCard from "./dashboard-card";
@@ -49,13 +46,6 @@ export default function AnalyticsView({
   const avgLoan = book.activeLoans > 0 ? book.principalDisbursed / book.activeLoans : 0;
   const donutData = statusCounts.map((s) => ({ name: label(s.status), value: s.n, key: s.status }));
 
-  // Status codes are fixed, code-level identifiers (safe as CSS custom-
-  // property keys), unlike free-text product/department names elsewhere —
-  // so this donut gets full config-driven colouring via chart.tsx.
-  const statusChartConfig = Object.fromEntries(
-    Object.entries(STATUS_COLOR).map(([status, color]) => [status, { label: label(status), color }]),
-  ) satisfies ChartConfig;
-
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -66,11 +56,11 @@ export default function AnalyticsView({
 
       {/* KPI strip */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-        <Metric label="Applications" value={<CountUp value={totalApps} />} sub="All time" icon={FileText} accent="brand" />
-        <Metric label="Approval rate" value={<CountUp value={approvalRate} format="percent" />} sub="Of all applications" icon={CheckCircle} accent="approved" />
-        <Metric label="Avg. decision time" value={<CountUp value={avgDecisionDays} format="days" />} sub="Submission to final decision" icon={Clock3} accent="brand" />
-        <Metric label="Portfolio" value={<CountUp value={book.totalExposure} format="money" currency={currency} />} sub={book.activeLoans + " active loans"} icon={Wallet} accent="brand" />
-        <Metric label="Avg loan size" value={<CountUp value={avgLoan} format="money" currency={currency} />} sub="Per active loan" icon={Layers} accent="brand" />
+        <Metric tone="brand" label="Applications" value={<CountUp value={totalApps} />} sub="All time" icon={FileText} accent="brand" />
+        <Metric tone="teal" label="Approval rate" value={<CountUp value={approvalRate} format="percent" />} sub="Of all applications" icon={CheckCircle} accent="approved" />
+        <Metric tone="deep" label="Avg. decision time" value={<CountUp value={avgDecisionDays} format="days" />} sub="Submission to final decision" icon={Clock3} accent="brand" />
+        <Metric tone="info" label="Portfolio" value={<CountUp value={book.totalExposure} format="money" currency={currency} />} sub={book.activeLoans + " active loans"} icon={Wallet} accent="brand" />
+        <Metric tone="ink" label="Avg loan size" value={<CountUp value={avgLoan} format="money" currency={currency} />} sub="Per active loan" icon={Layers} accent="brand" />
       </section>
 
       {/* Collections: a full year of money in vs instalments due. */}
@@ -113,14 +103,7 @@ export default function AnalyticsView({
             <p className="text-sm text-ink-soft">No data.</p>
           ) : (
             <>
-              <ChartContainer config={statusChartConfig} className="aspect-auto h-[160px] w-full">
-                <PieChart accessibilityLayer>
-                  <Pie data={donutData} dataKey="value" nameKey="key" innerRadius={45} outerRadius={70} paddingAngle={2}>
-                    {donutData.map((d) => <Cell key={d.key} fill={`var(--color-${d.key})`} />)}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent nameKey="key" hideLabel />} />
-                </PieChart>
-              </ChartContainer>
+              <StatusDonut data={donutData} colors={STATUS_COLOR} />
               {/* Kept as a custom list rather than ChartLegendContent — this
                   shows the count per status, which the stock legend doesn't. */}
               <ul className="mt-3 space-y-1.5">

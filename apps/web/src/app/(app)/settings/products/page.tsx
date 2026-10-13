@@ -10,6 +10,10 @@ import { listProductsAdmin } from "@wola/db";
 import { requireSession } from "@/lib/guard";
 import { CONFIG_VIEW_ROLES, PRODUCT_EDIT_ROLES } from "@/lib/permissions";
 import { KIND_LABEL, limitSummary, roleLabel } from "@/lib/product-summary";
+import { pageMeta } from "@/lib/site";
+import Breadcrumbs from "@/components/breadcrumbs";
+
+export const metadata = pageMeta({ title: "Loan products", description: "What staff can apply for, how much they can borrow and on what terms.", path: "/settings/products" });
 
 export default async function ProductsPage() {
   const data = await requireSession(async (tx, ctx) => {
@@ -34,7 +38,7 @@ export default async function ProductsPage() {
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href="/settings" className="text-xs font-medium text-ink-soft hover:text-ink">← Settings</Link>
+          <Breadcrumbs items={[{ label: "Settings", href: "/settings" }, { label: "Loan products" }]} />
           <h1 className="mt-1 text-xl font-semibold text-ink">Loan products</h1>
           <p className="mt-1 text-sm text-ink-soft">
             What staff can apply for, how much they can borrow and on what terms.

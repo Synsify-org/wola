@@ -6,8 +6,11 @@ import { requireSuperSession } from "@/lib/super-admin-guard";
 import { crossTenantAuditLog } from "@wola/db";
 import { db } from "@/lib/tenant";
 import SuperAdminShell from "@/components/super-admin-shell";
+import { pageMeta } from "@/lib/site";
 
 const label = (s: string) => s.replace(/_/g, " ").replace(/\./g, " · ");
+
+export const metadata = pageMeta({ title: "Platform audit log", description: "Recent activity across every organisation.", path: "/admin/audit-log" });
 
 export default async function CrossTenantAuditLogPage() {
   const data = await requireSuperSession(async (ctx) => {

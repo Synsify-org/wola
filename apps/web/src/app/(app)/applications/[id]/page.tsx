@@ -1,5 +1,6 @@
 ﻿import { requireSession, scopePredicate } from "@/lib/guard";
 import { routeApplication, getEmployeeProfile, loadProductRules } from "@wola/db";
+import { notFound } from "next/navigation";
 import { canAct } from "@wola/engine";
 import { decideAction } from "./actions";
 import UnderwritingChecklist from "@/components/underwriting-checklist";
@@ -8,8 +9,12 @@ import ScheduleTable from "@/components/schedule-table";
 import { User, FileText } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
+import { pageMeta } from "@/lib/site";
+import Breadcrumbs from "@/components/breadcrumbs";
 
 const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+export const metadata = pageMeta({ title: "Application", description: "Review an application: the applicant, the figures, the decision timeline and the next step.", path: "/applications" });
 
 export default async function ApplicationDetail({
   params,
@@ -108,14 +113,8 @@ export default async function ApplicationDetail({
     return { ...loaded, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule };
   });
 
-  if (!data) {
-    return (
-      <div className="p-8">
-        <h1 className="text-lg font-semibold text-ink">No such application</h1>
-        <a href="/applications" className="text-sm text-brand hover:underline">Back to applications</a>
-      </div>
-    );
-  }
+  // A missing application and one you may not see are the same real 404.
+  if (!data) notFound();
 
   const { app, routing, isMyTurn, meta, decisions, profile, rules, externalDeclared, loan, schedule } = data;
   const doneIds = routing.completed.map((s) => s.id);
@@ -149,11 +148,7 @@ export default async function ApplicationDetail({
 
   return (
     <>
-      <nav className="mb-3 flex items-center gap-2 text-sm">
-        <a href="/applications" className="font-medium text-ink-soft transition-colors hover:text-brand-700">Applications</a>
-        <span className="text-ink-faint">/</span>
-        <span className="font-medium text-ink">{meta.full_name}</span>
-      </nav>
+      <Breadcrumbs items={[{ label: "Applications", href: "/applications" }, { label: meta.full_name as string }]} />
 
       {/* Rich header card */}
       <div className="mt-3 rounded-xl border border-rule bg-surface p-6 shadow-theme-sm">

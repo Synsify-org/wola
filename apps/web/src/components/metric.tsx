@@ -1,20 +1,15 @@
 // apps/web/src/components/metric.tsx
-// A dashboard KPI card: sentence-case title with a plain accent icon
-// top-right, a dominant number with its period-over-period pill beside it,
-// and one quiet context line underneath ("vs last month · 8 active loans").
-// Static — no hover lift, because nothing here is clickable.
+// A dashboard KPI card. The look lives in stat-card.tsx (tinted tile, soft
+// pattern, dominant number, period-over-period badge, "vs last month" footer);
+// this wrapper keeps the call sites' API (label / value / sub / icon / accent /
+// trend) stable. DeltaPill below is still used by the plain, untinted places.
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
+import StatCard, { type StatMenuLink, type StatTone } from "./stat-card";
+
 type Accent = "awaiting" | "approved" | "rejected" | "brand";
 export type Delta = { dir: "up" | "down"; pct: number; note: string };
-
-const ICON_TONE: Record<Accent, string> = {
-  brand: "text-brand",
-  awaiting: "text-warning-600",
-  approved: "text-success-600",
-  rejected: "text-error-600",
-};
 
 /** Small filled-triangle pill: green up, red down. Shared by every KPI card
  *  so the delta treatment is identical across all eight dashboards. */
@@ -37,13 +32,22 @@ export function DeltaPill({ delta }: { delta: Delta }) {
   );
 }
 
+const ACCENT_TONE: Record<Accent, StatTone> = {
+  brand: "brand",
+  approved: "success",
+  awaiting: "warn",
+  rejected: "danger",
+};
+
 export default function Metric({
   label,
   value,
   sub,
-  icon: Icon,
+  icon,
   accent = "brand",
+  tone,
   trend,
+  menu,
 }: {
   label: string;
   /** Usually a formatted string; a ReactNode is accepted so callers can pass
@@ -51,29 +55,26 @@ export default function Metric({
   value: ReactNode;
   sub?: string;
   icon?: LucideIcon;
+  /** Meaning of the metric; picks the tile colour unless `tone` overrides it. */
   accent?: Accent;
+  /** Explicit tile colour — used to vary a row of tiles. State colours
+   *  (success / warn / danger) should only be used when they mean that. */
+  tone?: StatTone;
   /** Real period-over-period change. Omit rather than fabricate one when
    *  there's nothing honest to compare against. */
   trend?: Delta;
+  /** Real destinations only (reports, analytics…). */
+  menu?: StatMenuLink[];
 }) {
-  const context = [trend?.note, sub].filter(Boolean).join(" · ");
-
   return (
-    <div className="@container flex min-w-0 flex-col rounded-2xl border border-rule bg-surface p-4 shadow-theme-xs sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-[0.9375rem] font-medium leading-snug text-ink">{label}</span>
-        {Icon ? <Icon className={"h-5 w-5 shrink-0 " + ICON_TONE[accent]} strokeWidth={2} aria-hidden /> : null}
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:mt-6">
-        <span
-          className="num text-xl font-semibold leading-tight tracking-tight text-ink @[12.5rem]:whitespace-nowrap @[12.5rem]:text-2xl @[12.5rem]:leading-none @[15rem]:text-[1.75rem]"
-          title={typeof value === "string" ? value : undefined}
-        >
-          {value}
-        </span>
-        {trend ? <DeltaPill delta={trend} /> : null}
-      </div>
-      {context ? <p className="mt-2 text-[0.8125rem] text-ink-soft">{context}</p> : null}
-    </div>
+    <StatCard
+      label={label}
+      value={value}
+      sub={sub}
+      icon={icon}
+      tone={tone ?? ACCENT_TONE[accent]}
+      delta={trend}
+      menu={menu}
+    />
   );
 }

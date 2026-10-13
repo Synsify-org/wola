@@ -6,6 +6,7 @@ import { db } from "@/lib/tenant";
 import SuperAdminShell from "@/components/super-admin-shell";
 import { Building2, Layers, Banknote, Wallet } from "lucide-react";
 import { formatMoney } from "@wola/engine";
+import { pageMeta } from "@/lib/site";
 
 // This page sums across EVERY tenant regardless of each tenant's own
 // currency — a true multi-currency total would need real FX conversion,
@@ -13,6 +14,8 @@ import { formatMoney } from "@wola/engine";
 // status quo (every tenant is UGX in practice); revisit if a non-UGX
 // tenant is ever onboarded and this total needs to mean something exact.
 const ugx = (n: number) => formatMoney(n, "UGX");
+
+export const metadata = pageMeta({ title: "Platform overview", description: "Totals across every organisation on the platform.", path: "/admin" });
 
 export default async function SuperAdminOverview() {
   const data = await requireSuperSession(async (ctx) => {

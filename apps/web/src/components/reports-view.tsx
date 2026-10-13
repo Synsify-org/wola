@@ -94,8 +94,8 @@ export default function ReportsView({
               </span>
               <div>
                 <p className="caps">Confidential — board & audit report</p>
-                <h1 className="mt-0.5 text-2xl font-bold text-ink">{tenantName}</h1>
-                <p className="mt-0.5 text-sm text-ink-soft">Portfolio report · Prepared {now}</p>
+                <h1 className="mt-0.5 text-2xl font-bold text-ink">{tenantName} portfolio report</h1>
+                <p className="mt-0.5 text-sm text-ink-soft">Prepared {now}</p>
               </div>
             </div>
             <button

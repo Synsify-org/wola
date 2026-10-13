@@ -35,6 +35,7 @@ import DashboardEmployee from "@/components/dashboard-employee";
 import DashboardWelcomeBanner, { type BannerHighlight, type HeaderAction } from "@/components/dashboard-welcome-banner";
 import { formatMoney } from "@wola/engine";
 import { CheckSquare, FileBarChart, FilePlus, ScrollText, Settings, Users, Wallet } from "lucide-react";
+import { pageMeta } from "@/lib/site";
 
 // Money-operations console (§6.2's CFO hero) is scoped to the roles that can
 // actually disburse — must match DISBURSER_ROLES in loans/[id]/actions.ts.
@@ -53,6 +54,8 @@ const EXEC_APPROVER_ROLES = ["coo", "group_ceo"];
 // lending role. 'admin' kept alongside 'org_admin' — see guard.ts's note on
 // the two spellings.
 const ADMIN_ROLES = ["org_admin", "admin"];
+
+export const metadata = pageMeta({ title: "Dashboard", description: "Your loans, approvals and the numbers that matter, at a glance.", path: "/" });
 
 export default async function Dashboard({
   searchParams,

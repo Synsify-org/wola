@@ -5,6 +5,9 @@ import { requireSession } from "@/lib/guard";
 import { resolveTenant, approverMetrics, inboxFor } from "@wola/db";
 import { db } from "@/lib/tenant";
 import ReportsView from "@/components/reports-view";
+import { pageMeta } from "@/lib/site";
+
+export const metadata = pageMeta({ title: "Reports", description: "Portfolio, interest and exposure reports, ready to print or export.", path: "/reports" });
 
 export default async function ReportsPage() {
   // Still needed here (not just by the layout's Shell): the report

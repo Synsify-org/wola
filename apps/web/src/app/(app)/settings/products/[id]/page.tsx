@@ -5,6 +5,10 @@ import { getProductAdmin, listCurrentRateIndices, listProductsAdmin } from "@wol
 import { requireSession } from "@/lib/guard";
 import { CONFIG_VIEW_ROLES, PRODUCT_EDIT_ROLES } from "@/lib/permissions";
 import ProductForm from "@/components/product-form";
+import { pageMeta } from "@/lib/site";
+import Breadcrumbs from "@/components/breadcrumbs";
+
+export const metadata = pageMeta({ title: "Edit loan product", description: "Change a loan product. Changes apply to new applications only.", path: "/settings/products" });
 
 export default async function EditProductPage({
   params,
@@ -37,7 +41,7 @@ export default async function EditProductPage({
   return (
     <>
       <div className="mb-6">
-        <Link href="/settings/products" className="text-xs font-medium text-ink-soft hover:text-ink">← Loan products</Link>
+        <Breadcrumbs items={[{ label: "Settings", href: "/settings" }, { label: "Loan products", href: "/settings/products" }, { label: product.name }]} />
         <h1 className="mt-1 text-xl font-semibold text-ink">{product.name}</h1>
       </div>
 

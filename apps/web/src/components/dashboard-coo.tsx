@@ -36,10 +36,10 @@ export default function DashboardCOO({
       {/* Compact book row — context, not a hero. Sits right under the
           welcome banner on every dashboard now (user request). */}
       <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-        <Metric label="Total exposure" value={<CountUp value={totalExposure} format="money" currency={currency} />} sub="Current outstanding" icon={Wallet} accent="brand" />
-        <Metric label="Active loans" value={<CountUp value={activeLoans} />} sub="Across the whole book" icon={Layers} accent="brand" />
-        <Metric label="Principal disbursed" value={<CountUp value={principalDisbursed} format="money" currency={currency} />} sub="Total lent out" icon={Banknote} accent="brand" />
-        <Metric label="Interest book" value={<CountUp value={interestBook} format="money" currency={currency} />} sub="If every loan runs to term" icon={TrendingUp} accent="brand" />
+        <Metric tone="deep" label="Total exposure" value={<CountUp value={totalExposure} format="money" currency={currency} />} sub="Current outstanding" icon={Wallet} accent="brand" />
+        <Metric tone="brand" label="Active loans" value={<CountUp value={activeLoans} />} sub="Across the whole book" icon={Layers} accent="brand" />
+        <Metric tone="info" label="Principal disbursed" value={<CountUp value={principalDisbursed} format="money" currency={currency} />} sub="Total lent out" icon={Banknote} accent="brand" />
+        <Metric tone="ink" label="Interest book" value={<CountUp value={interestBook} format="money" currency={currency} />} sub="If every loan runs to term" icon={TrendingUp} accent="brand" />
       </section>
 
       <DecisionQueue

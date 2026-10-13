@@ -10,6 +10,37 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phase 1.16 — Stat cards, production polish, SEO hygiene (2026-10-13) `DONE, on branch feat/stat-cards-seo`
+
+- [x] **Stat cards** — tinted tiles with a soft pattern, dominant number, delta
+      badge and a "vs last month" footer ([stat-card.tsx](apps/web/src/components/stat-card.tsx)),
+      adapted from the statistics-card-2 reference. Tones come from the tenant
+      brand scale + dark neutrals/state colours (white text >= 4.5:1). `Metric` /
+      `FeaturedMetric` keep their APIs, so every dashboard picked it up.
+      New primitives: `ui/badge-2`, `ui/button-1`, `ui/card`. NOT copied from the
+      paste: `avatar` and `dropdown-menu` (would overwrite our own, which other
+      screens depend on) and the counter placeholder `statistics-card-2.tsx`.
+- [x] **Dashboard frame bug** (blank band under the sidebar) — absolutely
+      positioned content escaped the unpositioned app frame and stretched the
+      document; `position: relative` on the frame contains it.
+- [x] **Head & identity** — per-page titles (`Page · Wola`), descriptions,
+      canonical URLs, one `<h1>` per page (reports page fixed), Open Graph /
+      Twitter images generated on demand, favicon + apple icon + web manifest
+      (the default Next favicon and the five create-next-app SVGs / README are
+      gone), custom 404 and error pages (inside the app shell where it applies).
+- [x] **Crawlers** — `robots.txt`, `sitemap.xml`, `llms.txt`, all built from the
+      request host. Only `/login` is indexable; everything else is noindex (meta +
+      `X-Robots-Tag`). JSON-LD: WebApplication + Organization on sign-in,
+      BreadcrumbList on nested pages (visible breadcrumbs too).
+- [x] **Delivery** — no browser source maps (verified: 0 in `.next/static`), no
+      `X-Powered-By`, recharts lazy-loaded when a chart nears the viewport.
+      Measured gzip JS: sign-in 191 KB, settings 227 KB, CFO dashboard 357 KB
+      (94 KB of that is recharts, now deferred past hydration). The rest is React
+      + Next (~163 KB) and the shared UI chunk.
+- Not done on purpose: LocalBusiness schema (Wola is software, no storefront —
+  inventing an address would be false data); custom domain (needs a domain, DNS
+  and Vercel + `WOLA_BASE_DOMAIN` / `SITE_URL`; no code change needed).
+
 ## Phase 1.15 — Loan products + approval routing admin (2026-10-12) `DONE, on branch feat/products-routing`
 
 **Migration 0020 must be applied to production BEFORE this deploys** — the
