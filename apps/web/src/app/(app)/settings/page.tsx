@@ -11,15 +11,17 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import ThemeEditor from "@/components/theme-editor";
 import RateIndexEditor from "@/components/rate-index-editor";
-import { RATE_INDEX_EDIT_ROLES } from "@/lib/permissions";
+import { RATE_INDEX_EDIT_ROLES, CONFIG_VIEW_ROLES } from "@/lib/permissions";
 import DashboardCard from "@/components/dashboard-card";
-import { User, Building2, Settings as Cog, Users, GitBranch, ShieldCheck, ArrowRight } from "lucide-react";
+import { User, Building2, Settings as Cog, Users, GitBranch, ShieldCheck, ArrowRight, UserMinus } from "lucide-react";
+import MyDetailsForm from "@/components/my-details-form";
+import LoanExitPolicy from "@/components/loan-exit-policy";
+import { can } from "@/lib/permissions";
 import { pageMeta } from "@/lib/site";
+import { roleLabel } from "@/lib/product-summary";
 
-const ADMIN_ROLES = ["cfo", "ceo", "md", "coo", "group_ceo", "admin", "org_admin"];
+const ADMIN_ROLES = CONFIG_VIEW_ROLES;
 
-const roleLabel = (r: string) =>
-  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export const metadata = pageMeta({ title: "Settings", description: "Your account, your organisation and its configuration.", path: "/settings" });
 
@@ -29,12 +31,14 @@ export default async function SettingsPage() {
 
   const data = await requireSession(async (tx, ctx) => {
     const [me] = await tx`
-      SELECT e.full_name, e.employee_no, e.department, e.title, u.email
+      SELECT e.id AS employee_id, e.full_name, e.employee_no, e.department, e.title, e.phone, e.location, u.email
       FROM users u LEFT JOIN employees e ON e.user_id = u.id
       WHERE u.id = ${ctx.userId}`;
     // Current brand (for the theme editor), from tenants.settings.brand.
     const [t] = await tx`SELECT settings FROM tenants WHERE id = ${ctx.tenantId}`;
-    const brand = ((t?.settings ?? {}) as { brand?: { primary?: string; accent?: string; font?: string } }).brand ?? {};
+    const settings = (t?.settings ?? {}) as { brand?: { primary?: string; accent?: string; font?: string }; loanExit?: { policy?: string } };
+    const brand = settings.brand ?? {};
+    const exitPolicy: "recover_balance" | "manual" = settings.loanExit?.policy === "manual" ? "manual" : "recover_balance";
 
     const isAdmin = ADMIN_ROLES.includes(ctx.role);
     const rateIndices = isAdmin ? await listCurrentRateIndices(tx, ctx.tenantId) : [];
@@ -50,7 +54,12 @@ export default async function SettingsPage() {
         employeeNo: (me?.employee_no as string) ?? null,
         department: (me?.department as string) ?? null,
         title: (me?.title as string) ?? null,
+        phone: (me?.phone as string) ?? "",
+        location: (me?.location as string) ?? "",
+        hasRecord: Boolean(me?.employee_id),
       },
+      exitPolicy,
+      canEditPolicy: can(ctx.role, "access.edit"),
       isAdmin,
       rateIndices,
       productsMissing,
@@ -60,7 +69,7 @@ export default async function SettingsPage() {
     };
   });
 
-  const { user, isAdmin, rateIndices, productsMissing, brandPrimary, brandAccent, brandFont } = data;
+  const { user, isAdmin, rateIndices, productsMissing, brandPrimary, brandAccent, brandFont, exitPolicy, canEditPolicy } = data;
 
   const Field = ({ label, value }: { label: string; value: string }) => (
     <div>
@@ -117,29 +126,31 @@ export default async function SettingsPage() {
         <p className="mt-1 text-sm text-ink-soft">Your account and workspace.</p>
       </div>
 
-      {/* Account + Workspace side by side — related, both read-only identity
-          info, no reason to stack them full-width on a wide screen. */}
-      <section className="mb-6 grid gap-4 lg:grid-cols-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <DashboardCard title="Account" action={<User className="h-4 w-4 text-ink-faint" />}>
-          <div className="grid grid-cols-2 gap-5">
-            <Field label="Name" value={user.name} />
-            <Field label="Email" value={user.email} />
-            <Field label="Role" value={roleLabel(user.role)} />
-            <Field label="Employee no" value={user.employeeNo ?? ""} />
-            <Field label="Department" value={user.department ?? ""} />
-            <Field label="Title" value={user.title ?? ""} />
-          </div>
-          <Link href="/settings/security" className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">
-            <ShieldCheck className="h-4 w-4" aria-hidden /> Security and two-step sign-in <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-          </Link>
+      {/* Your details (editable contact info) beside the quiet read-only cards. One column
+          on a phone, details first. */}
+      <section className="mb-6 grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-3 xl:gap-5">
+        <DashboardCard title="Your details" action={<User className="h-4 w-4 text-ink-faint" />} className="lg:col-span-2">
+          <MyDetailsForm
+            name={user.name} email={user.email} employeeNo={user.employeeNo ?? ""} department={user.department ?? ""} title={user.title ?? ""}
+            phone={user.phone} location={user.location} hasRecord={user.hasRecord}
+          />
         </DashboardCard>
 
-        <DashboardCard title="Workspace" action={<Building2 className="h-4 w-4 text-ink-faint" />}>
-          <div className="grid grid-cols-2 gap-5">
+        <div className="grid content-start gap-4 xl:gap-5">
+          <DashboardCard title="Account" action={<ShieldCheck className="h-4 w-4 text-ink-faint" />}>
+            <div className="grid grid-cols-2 gap-5">
+              <Field label="Role" value={roleLabel(user.role)} />
+              <Field label="Your access" value={user.canSeeAllLoans ? "Full book" : user.canApprove ? "Approver" : "Employee"} />
+            </div>
+            <Link href="/settings/security" className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">
+              <ShieldCheck className="h-4 w-4" aria-hidden /> Security and two-step sign-in <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </Link>
+          </DashboardCard>
+
+          <DashboardCard title="Workspace" action={<Building2 className="h-4 w-4 text-ink-faint" />}>
             <Field label="Company" value={(tenant?.name as string) ?? "—"} />
-            <Field label="Your access" value={user.canSeeAllLoans ? "Full book" : user.canApprove ? "Approver" : "Employee"} />
-          </div>
-        </DashboardCard>
+          </DashboardCard>
+        </div>
       </section>
 
       {/* Admin (role-gated scaffold for Phase 6) */}
@@ -167,6 +178,12 @@ export default async function SettingsPage() {
               productsMissing={productsMissing}
               canEdit={RATE_INDEX_EDIT_ROLES.includes(user.role)}
             />
+          </div>
+
+          <div className="mb-3 mt-6">
+            <DashboardCard title="When a borrower leaves" action={<UserMinus className="h-4 w-4 text-ink-faint" />}>
+              <LoanExitPolicy initial={exitPolicy} canEdit={canEditPolicy} />
+            </DashboardCard>
           </div>
 
           <p className="mb-3 mt-6 text-xs text-ink-soft">

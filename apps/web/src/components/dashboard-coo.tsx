@@ -35,7 +35,7 @@ export default function DashboardCOO({
     <div className="space-y-4 xl:space-y-5">
       {/* Compact book row — context, not a hero. Sits right under the
           welcome banner on every dashboard now (user request). */}
-      <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <Metric tone="deep" label="Total exposure" value={<CountUp value={totalExposure} format="money" currency={currency} />} sub="Current outstanding" icon={Wallet} accent="brand" />
         <Metric tone="brand" label="Active loans" value={<CountUp value={activeLoans} />} sub="Across the whole book" icon={Layers} accent="brand" />
         <Metric tone="info" label="Principal disbursed" value={<CountUp value={principalDisbursed} format="money" currency={currency} />} sub="Total lent out" icon={Banknote} accent="brand" />
