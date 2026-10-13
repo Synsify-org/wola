@@ -146,6 +146,20 @@ test("a challenge only works for its own tenant, and only once", async () => {
   assert.deepEqual(again, { ok: false, reason: "unknown" }, "the challenge is consumed");
 });
 
+test("a platform (super-admin) challenge and a tenant challenge can never unlock each other", async () => {
+  const future = Date.now() + 400_000;
+  const platform = await createChallenge(app, { userId, tenantId: null, remember: false });
+  const asTenant = await verifyChallenge(app, { token: platform, tenantId: T, code: totpAt(secret, future), key, now: future });
+  assert.deepEqual(asTenant, { ok: false, reason: "unknown" }, "a platform challenge is useless on a tenant");
+  const ok = await verifyChallenge(app, { token: platform, tenantId: null, code: totpAt(secret, future), key, now: future });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.tenantId, null);
+
+  const tenant = await createChallenge(app, { userId, tenantId: T, remember: false });
+  const asPlatform = await verifyChallenge(app, { token: tenant, tenantId: null, code: totpAt(secret, future + 30_000), key, now: future + 30_000 });
+  assert.deepEqual(asPlatform, { ok: false, reason: "unknown" }, "a tenant challenge can't open the platform console");
+});
+
 test("wrong guesses are capped: after MAX_ATTEMPTS even the right code is refused", async () => {
   const token = await createChallenge(app, { userId, tenantId: T, remember: false });
   let last;

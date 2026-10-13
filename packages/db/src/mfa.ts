@@ -243,7 +243,7 @@ export async function disableMfa(sql: Sql, userId: string): Promise<void> {
 /** The step between "password OK" and "code OK". Returns a raw token the
  *  browser holds in memory only; the database keeps its hash. */
 export async function createChallenge(
-  sql: Sql, args: { userId: string; tenantId: string; remember: boolean },
+  sql: Sql, args: { userId: string; /** null = a platform (super-admin) challenge */ tenantId: string | null; remember: boolean },
 ): Promise<string> {
   await sql`DELETE FROM mfa_challenges WHERE expires_at < now()`;
   const token = randomBytes(32).toString("hex");
@@ -254,14 +254,16 @@ export async function createChallenge(
 }
 
 export type ChallengeResult =
-  | { ok: true; userId: string; tenantId: string; remember: boolean; via: "app" | "recovery" }
+  | { ok: true; userId: string; tenantId: string | null; remember: boolean; via: "app" | "recovery" }
   | { ok: false; reason: "invalid" | "unknown" | "expired" | "locked" | "unavailable" };
 
-/** Verify the second factor for a challenge issued FOR THIS TENANT. A wrong
+/** Verify the second factor for a challenge issued FOR THIS TENANT (or, with a null
+ *  tenant, for the platform console: a tenant challenge can never unlock the
+ *  platform, nor the reverse). A wrong
  *  code costs one of MAX_ATTEMPTS; after that the challenge is dead and the
  *  person must sign in with their password again. A right code deletes it. */
 export async function verifyChallenge(
-  sql: Sql, args: { token: string; tenantId: string; code: string; key: Buffer | null; now?: number },
+  sql: Sql, args: { token: string; tenantId: string | null; code: string; key: Buffer | null; now?: number },
 ): Promise<ChallengeResult> {
   const [c] = await sql`
     SELECT id, user_id, tenant_id, remember, attempts, expires_at FROM mfa_challenges
@@ -281,5 +283,5 @@ export async function verifyChallenge(
     return { ok: false, reason: Number(c.attempts) + 1 >= MAX_ATTEMPTS ? "locked" : "invalid" };
   }
   await sql`DELETE FROM mfa_challenges WHERE id = ${c.id as string}`;
-  return { ok: true, userId: c.user_id as string, tenantId: c.tenant_id as string, remember: c.remember as boolean, via: r.via };
+  return { ok: true, userId: c.user_id as string, tenantId: (c.tenant_id as string | null) ?? null, remember: c.remember as boolean, via: r.via };
 }

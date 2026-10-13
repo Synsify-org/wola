@@ -134,7 +134,7 @@ export async function completeMfaLogin(
     if (email && (r.reason === "invalid" || r.reason === "locked")) await recordLoginAttempt(db, email, ip, false);
     return { ok: false, reason: r.reason };
   }
-  const { token, expires } = await createSession(r.userId, r.tenantId, r.remember);
+  const { token, expires } = await createSession(r.userId, tenantId, r.remember);
   return { ok: true, token, expires };
 }
 

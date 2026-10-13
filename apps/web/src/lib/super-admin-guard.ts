@@ -12,11 +12,15 @@ export interface SuperAdminCtx {
   userId: string;
 }
 
+/** `skipMfaGate` is for the setup page only: a platform session that has not yet
+ *  proven its second factor may reach nothing else. */
 export async function requireSuperSession<T>(
   fn: (ctx: SuperAdminCtx) => Promise<T>,
+  opts: { skipMfaGate?: boolean } = {},
 ): Promise<T> {
   const token = (await cookies()).get(SUPER_SESSION_COOKIE)?.value;
   const session = await verifySuperSession(token);
   if (!session) redirect("/admin/login");
+  if (!session.mfaVerified && !opts.skipMfaGate) redirect("/admin/security");
   return fn({ userId: session.userId });
 }

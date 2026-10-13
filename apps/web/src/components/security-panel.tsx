@@ -18,7 +18,7 @@ const inputCls =
 
 const group = (secret: string) => secret.replace(/(.{4})/g, "$1 ").trim();
 
-function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
+export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const text = codes.join("\n");
@@ -78,9 +78,27 @@ function CodeForm({
   );
 }
 
+type Res = { ok: boolean; error?: string } & Record<string, unknown>;
+/** The four calls the panel makes. Tenant users get the defaults; the platform console
+ *  passes its own (a different session and audit trail, the same flow). */
+export type SecurityActions = {
+  start: () => Promise<Res>;
+  confirm: (code: string) => Promise<Res>;
+  disable: (code: string) => Promise<Res>;
+  renew: (code: string) => Promise<Res>;
+};
+const TENANT_ACTIONS: SecurityActions = {
+  start: startMfaAction, confirm: confirmMfaAction, disable: disableMfaAction, renew: newRecoveryCodesAction,
+};
+
 export default function SecurityPanel({
-  enrolled, recoveryCodesLeft, keyAvailable, requiredForMe, setupRequired,
+  enrolled, recoveryCodesLeft, keyAvailable, requiredForMe, setupRequired, actions = TENANT_ACTIONS, requiredNote, introNote,
 }: {
+  actions?: SecurityActions;
+  /** Overrides the "your organisation requires it" wording (the platform console says its own). */
+  requiredNote?: string;
+  /** Overrides the paragraph that explains what two-step sign-in is, before setup. */
+  introNote?: string;
   enrolled: boolean;
   recoveryCodesLeft: number;
   keyAvailable: boolean;
@@ -123,7 +141,7 @@ export default function SecurityPanel({
       {setupRequired && !enrolled ? (
         <div className="mb-4 flex items-start gap-2 rounded-xl bg-awaiting-wash px-3.5 py-3 text-sm text-ink">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-awaiting" aria-hidden />
-          Your organisation requires two-step sign-in for your role. Set it up to carry on using Wola.
+          {requiredNote ?? "Your organisation requires two-step sign-in for your role. Set it up to carry on using Wola."}
         </div>
       ) : null}
 
@@ -144,17 +162,17 @@ export default function SecurityPanel({
 
           {panel === "renew" ? (
             <CodeForm label="Enter a code from your app to confirm it's you" button="Get new recovery codes" pending={pending} error={error}
-              onSubmit={(c) => run(() => newRecoveryCodesAction(c), (r) => setCodes(r.recoveryCodes as string[]))} />
+              onSubmit={(c) => run(() => actions.renew(c), (r) => setCodes(r.recoveryCodes as string[]))} />
           ) : panel === "off" ? (
             <CodeForm danger label="Enter a code from your app (or a recovery code) to turn it off" button="Turn off two-step sign-in" pending={pending} error={error}
-              onSubmit={(c) => run(() => disableMfaAction(c), () => { setPanel("none"); router.refresh(); })} />
+              onSubmit={(c) => run(() => actions.disable(c), () => { setPanel("none"); router.refresh(); })} />
           ) : (
             <div className="flex flex-wrap items-center gap-4">
               <button type="button" onClick={() => { setPanel("renew"); setError(null); }} className="btn btn--ghost h-10 rounded-full px-5 text-sm">
                 New recovery codes
               </button>
               {requiredForMe ? (
-                <span className="text-xs text-ink-soft">Your organisation requires this for your role.</span>
+                <span className="text-xs text-ink-soft">{requiredNote ? "Required for the platform console." : "Your organisation requires this for your role."}</span>
               ) : (
                 <button type="button" onClick={() => { setPanel("off"); setError(null); }} className="text-sm font-medium text-rejected hover:underline">
                   Turn off
@@ -181,17 +199,17 @@ export default function SecurityPanel({
             <li>Enter the 6-digit code it shows to finish.</li>
           </ol>
           <CodeForm label="6-digit code" button="Turn on" pending={pending} error={error}
-            onSubmit={(c) => run(() => confirmMfaAction(c), (r) => setCodes(r.recoveryCodes as string[]))} />
+            onSubmit={(c) => run(() => actions.confirm(c), (r) => setCodes(r.recoveryCodes as string[]))} />
           <button type="button" onClick={() => { setSetup(null); setError(null); }} className="text-sm font-medium text-ink-soft hover:text-ink">Cancel</button>
         </div>
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-ink-soft">
-            Add a second step to signing in: after your password, Wola asks for a 6-digit code from an app on your phone. A stolen
-            or guessed password alone then can&apos;t open your account. Recommended for anyone who approves or pays out loans.
+            {introNote ?? <>Add a second step to signing in: after your password, Wola asks for a 6-digit code from an app on your phone. A stolen
+            or guessed password alone then can&apos;t open your account. Recommended for anyone who approves or pays out loans.</>}
           </p>
           {error ? <p className="text-xs font-medium text-error-600">{error}</p> : null}
-          <button type="button" disabled={pending} onClick={() => run(() => startMfaAction(), (r) => setSetup({ secret: r.secret as string, uri: r.uri as string }))}
+          <button type="button" disabled={pending} onClick={() => run(() => actions.start(), (r) => setSetup({ secret: r.secret as string, uri: r.uri as string }))}
             className="btn btn--primary inline-flex h-10 items-center gap-2 rounded-full px-5 text-sm">
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} Set up two-step sign-in
           </button>
