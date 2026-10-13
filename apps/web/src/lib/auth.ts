@@ -14,6 +14,7 @@ import { db } from "./tenant";
 import {
   tenantTx, type Tx,
   hashPassword, verifyPassword, isRateLimited, recordLoginAttempt,
+  getMfaStatus, createChallenge, verifyChallenge, mfaKey,
 } from "@wola/db";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8;        // 8h — default
@@ -23,7 +24,10 @@ const COOKIE = "wola_session";
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 export type LoginResult =
-  | { ok: true; token: string; expires: Date }
+  | { ok: true; mfa?: false; token: string; expires: Date }
+  /** Password was right, but this person has two-step sign-in on: no session
+   *  exists yet. The browser must come back with `challenge` and a code. */
+  | { ok: true; mfa: true; challenge: string }
   | { ok: false; reason: "invalid" | "rate_limited" };
 
 /** Issue a tenant-pinned session for an already-authenticated user — the
@@ -99,7 +103,38 @@ export async function login(
     return { ok: false, reason: "invalid" };
   }
 
+  // Two-step sign-in: no session until the code is accepted.
+  if ((await getMfaStatus(db, user.id as string)).enrolled) {
+    const challenge = await createChallenge(db, { userId: user.id as string, tenantId, remember });
+    return { ok: true, mfa: true, challenge };
+  }
+
   const { token, expires } = await createSession(user.id as string, tenantId, remember);
+  return { ok: true, token, expires };
+}
+
+export type MfaLoginResult =
+  | { ok: true; token: string; expires: Date }
+  | { ok: false; reason: "invalid" | "unknown" | "expired" | "locked" | "unavailable" | "rate_limited" };
+
+/** Second step of sign-in: swap a challenge + code for a session. A wrong code
+ *  counts as a failed login for this (email, ip) — otherwise someone who knows
+ *  a password could keep asking for fresh challenges and guessing codes. */
+export async function completeMfaLogin(
+  challenge: string, code: string, tenantId: string, ip: string,
+): Promise<MfaLoginResult> {
+  const [row] = await db`
+    SELECT u.email FROM mfa_challenges c JOIN users u ON u.id = c.user_id
+    WHERE c.token_hash = ${sha256(challenge)}`;
+  const email = (row?.email as string | undefined) ?? "";
+  if (email && (await isRateLimited(db, email, ip))) return { ok: false, reason: "rate_limited" };
+
+  const r = await verifyChallenge(db, { token: challenge, tenantId, code, key: mfaKey() });
+  if (!r.ok) {
+    if (email && (r.reason === "invalid" || r.reason === "locked")) await recordLoginAttempt(db, email, ip, false);
+    return { ok: false, reason: r.reason };
+  }
+  const { token, expires } = await createSession(r.userId, r.tenantId, r.remember);
   return { ok: true, token, expires };
 }
 

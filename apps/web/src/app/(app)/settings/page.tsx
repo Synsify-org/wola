@@ -129,6 +129,9 @@ export default async function SettingsPage() {
             <Field label="Department" value={user.department ?? ""} />
             <Field label="Title" value={user.title ?? ""} />
           </div>
+          <Link href="/settings/security" className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">
+            <ShieldCheck className="h-4 w-4" aria-hidden /> Security and two-step sign-in <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
         </DashboardCard>
 
         <DashboardCard title="Workspace" action={<Building2 className="h-4 w-4 text-ink-faint" />}>

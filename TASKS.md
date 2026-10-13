@@ -10,6 +10,43 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phase 1.17 — Two-step sign-in (MFA) and checklist sweep (2026-10-13) `DONE, on branch chore/checklist-sweep`
+
+**Migration 0022 must reach production before this deploys** (the sign-in path
+reads `user_mfa`). With `ci/migrate-production` set up it applies itself; else
+`npm run migrate`. It is additive and changes nothing until someone enrols.
+
+- [x] **TOTP authenticator + recovery codes** ([mfa.ts](packages/db/src/mfa.ts)) — RFC 6238
+      verified against the RFC's own test vectors; secrets encrypted at rest
+      (AES-256-GCM, key in `MFA_ENCRYPTION_KEY`, never in the database); a code
+      works once (replay-proof, compare-and-set); +/-1 step clock skew; 10
+      single-use recovery codes stored hashed.
+- [x] **Sign-in is two real steps** — password OK creates a short-lived challenge
+      (5 min, 5 wrong tries, tenant-pinned), NOT a session; the session is issued
+      only after the code. Wrong codes also count against the (email, ip) login
+      rate limit. If MFA is on but the key is missing, sign-in fails closed.
+- [x] **Settings -> Security** — set up (key + `otpauth://` link), recovery codes
+      (copy / download, must confirm saved), new codes, turn off (needs a code).
+- [x] **Organisation policy** — administrators pick roles that MUST use it. Enforced
+      in `requireSession` (every page and server action), not only at login, so
+      an old session can't skip it; the setup page is exempt so there is no
+      redirect loop. Not enforceable (and not selectable) until the key is set, so
+      it can never lock people out with no way to comply.
+- Tests: 16 DB (RFC vectors, replay, attempt cap, expiry, tenant pin, recovery
+  single-use, fail-closed, RLS lockout), 15 web (login step, security panel).
+- **To switch on in production:** generate a key
+  (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`),
+  add it as `MFA_ENCRYPTION_KEY` in Vercel (Production), redeploy, THEN set the
+  policy. Keep the key safe: if it is lost, enrolled people need recovery codes.
+- Not built: QR code (key + `otpauth://` link only, no new dependency),
+  trusted-device "remember this browser", SMS/WhatsApp codes.
+- Still open (tracked under Phase 3): **restructuring / top-up flow** — deliberately not started: it
+      needs lending-policy decisions first (who may request, who approves, fees,
+      whether it re-prices at today's rate, effect on the schedule version and on
+      reports). Proposal: a "Restructure" request on an active loan, routed through
+      the product's approval chain, creating `loan_schedules` version N+1 over the
+      remaining balance at the ORIGINAL rate unless the approver re-prices.
+
 ## Phase 1.16 — Stat cards, production polish, SEO hygiene (2026-10-13) `DONE, on branch feat/stat-cards-seo`
 
 - [x] **Stat cards** — tinted tiles with a soft pattern, dominant number, delta
@@ -310,11 +347,12 @@ share a hero shape**, secondary panels stay visually quiet, each role names
 things its own way. Acceptance check = the squint test (blur two role
 screens; their shapes must still differ).
 
-- [ ] **1.0a — Copy pass** `NEW`
+- [x] **1.0a — Copy pass** `NEW`
   User feedback: current wording across the app "is not so professional."
   Sweep labels/microcopy for tone once the visual pass (1.0) has settled the
   layout it sits inside — copy on a component that's about to be rebuilt is
   wasted work.
+      **DONE 2026-10-13** — swept user-facing errors and admin labels: "You don't have permission to…" everywhere, plain-language validation messages, no "tenant" / "pipeline" jargon on the admin dashboard, clearer employee-record and missing-loan messages. Tests updated.
 
 - [x] **1.0 — Global design-system pass** `VERIFIED — mostly already done`
   DECISIONS.md's own "NEXT SESSION" note flagged this as blocking *before*
@@ -504,16 +542,16 @@ User feedback (2026-09-10): current dashboard UI "is so lacking," and is
 **not responsive above 1024px** — Phase 1's work (1.0–1.10) fixed structure
 (one hero per role, squint-test distinctness) but not this. Scope, as given:
 
-- [ ] Audit and fix responsiveness for large/desktop viewports (>1024px) —
+- [x] Audit and fix responsiveness for large/desktop viewports (>1024px) —
       every dashboard, not just one. Check what actually breaks (stretched
       cards, wasted whitespace, fixed-width assumptions) before redesigning.
-- [ ] Use the installed design skills (`ui-ux-pro-max` — styles, palettes,
+- [x] Use the installed design skills (`ui-ux-pro-max` — styles, palettes,
       font pairings, chart specs, stack guidance) to inform the visual
       refresh, not just eyeball it.
-- [ ] Animated welcome banner on the Overview/Dashboard page — user asked
+- [x] Animated welcome banner on the Overview/Dashboard page — user asked
       for this explicitly ("well animated"); scope the animation itself
       (entrance only vs. something ongoing) before building.
-- [ ] Reference: user shared a dark-theme analytics dashboard screenshot
+- [x] Reference: user shared a dark-theme analytics dashboard screenshot
       ("Efferd" — KPI card row, line chart, donut chart, sparkline) as a
       style/layout reference — take inspiration from the *shape* (KPI strip,
       chart card grid, clean card treatment), not a literal copy; Wola's
@@ -529,6 +567,10 @@ User feedback (2026-09-10): current dashboard UI "is so lacking," and is
   source, not a legitimate component library. Rebuild the look with our own
   components + the official shadcn/ui registry instead, if shadcn pieces
   are wanted.
+      **DONE 2026-10-13** — audited all eight role dashboards at 1100px (just above the sidebar breakpoint) and CFO/auditor at 1920px: no horizontal overflow, content capped at 1440px and centred, KPI rows reflow 2 -> 4 columns at xl. No defects found; the real desktop bug (page scrolling the app frame) was fixed separately in 1.16.
+      **DONE 2026-10-13** — applied through 1.14 (mobile rows, tooltips, skeletons, scroll reveal) and 1.16 (stat cards, brand-scale tones with contrast checks). No further work as a standalone item.
+      **DONE 2026-10-13** — built earlier (dashboard-welcome-banner.tsx: animated entrance + concentric-ring backdrop), honours prefers-reduced-motion since 1.14. Entrance-only, by decision.
+      **DONE 2026-10-13** — decision: keep Wola's light brand-themed look; adopted the reference's SHAPE (KPI strip, chart-card grid, clean cards) in 1.1 / 1.14 / 1.16.
 
 ---
 
@@ -855,7 +897,7 @@ chosen over Playwright e2e to match the codebase's lean-tooling preference
     separate credential/session system, no tenant data touched insecurely),
     just an availability inconsistency with the doc's "one dedicated
     surface" framing. Would need a `proxy.ts`-level check to close.
-- [ ] `DECISION NEEDED` (from the doc): is MFA in scope for v1, at least for finance/admin roles?
+- [x] `DECIDED + BUILT` — MFA is in scope: see Phase 1.17.
 
 ---
 

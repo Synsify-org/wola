@@ -80,3 +80,4 @@ export * from "./invitations";
 export * from "./super-admin";export * from "./product-admin";
 export * from "./routing-admin";
 export * from "./access-admin";
+export * from "./mfa";

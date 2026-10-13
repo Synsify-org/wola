@@ -216,3 +216,24 @@ relies on the migration (~30s) finishing before the build (~1 min+) goes live,
 not on a hard gate. That makes "migrations are backward compatible with the
 previous release" a rule, not a preference. Also: the Vercel `DATABASE_ADMIN_URL`
 variable should be removed; the app doesn't use it.
+
+
+## 2026-10-13 — Two-step sign-in: TOTP, enforced in requireSession, fail closed
+Decided in scope for v1 (finance and admin roles first). Choices and why:
+- **TOTP (authenticator app), not SMS.** No per-message cost, no SIM-swap risk,
+  works on cheap handsets and offline. Recovery codes cover a lost phone.
+- **No session until the code is accepted.** Password OK mints an `mfa_challenges`
+  row (5 min, 5 attempts, tenant-pinned), not a half-authenticated session, so no
+  code path can forget to check a "mfa_verified" flag.
+- **Enforced in `requireSession`, not just at login.** Otherwise a required role
+  could keep using a session issued before the policy changed. The setup page and
+  its actions pass `skipMfaGate`; the layout does too (it only draws chrome) —
+  gating there would redirect-loop the setup page.
+- **Fail closed.** Enrolled but no `MFA_ENCRYPTION_KEY` => sign-in refused, never
+  skipped. The opposite case (policy requires it, key missing) is not enforced and
+  not selectable, because nobody could comply.
+- **Secrets encrypted with an environment key.** A database leak alone must not
+  yield second factors. Cost: losing the key strands enrolled users until they use
+  recovery codes — hence the key belongs in a secrets manager.
+- **No QR dependency yet.** Manual key + `otpauth://` link; a QR library is a
+  follow-up if desktop enrolment proves clumsy.
