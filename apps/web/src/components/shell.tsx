@@ -13,6 +13,7 @@ import { X } from "lucide-react";
 import NavLinks, { AppDock, SideLink, SETTINGS_ITEM, useActiveHref } from "./nav-links";
 import Sidebar from "./sidebar";
 import Topbar from "./topbar";
+import type { Notification } from "@wola/db";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export interface ShellUser {
@@ -28,10 +29,13 @@ const COLLAPSE_KEY = "wola.sidebar.collapsed";
 export default function Shell({
   user,
   tenantName,
+  notifications,
   children,
 }: {
   user: ShellUser;
   tenantName: string;
+  /** The bell's first page (from the server, so the count is right on first paint). */
+  notifications?: { items: Notification[]; unread: number };
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -91,6 +95,7 @@ export default function Shell({
         tenantName={tenantName}
         canSeeAllLoans={user.canSeeAllLoans}
         canApprove={user.canApprove}
+        notifications={notifications}
         collapsed={collapsed}
         onToggleCollapse={toggleCollapse}
         onOpenMenu={() => setDrawer(true)}

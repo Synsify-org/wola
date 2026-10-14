@@ -16,6 +16,7 @@ Last reviewed: 2026-10-13.
 | Two-step sign-in | TOTP + recovery codes; secrets encrypted at rest; policy per organisation enforced on every page and action; fails closed if the key is missing. The platform console has its own mandatory version; a platform challenge can never unlock a tenant and the reverse. | 17 DB tests (incl. platform/tenant separation), 20+ web tests. |
 | Roles | One table of privileges (`apps/web/src/lib/permissions.ts`); the auditor can only look; nobody on an approval chain can edit the chains. | `permissions.test.ts`. |
 | Money actions | Every money-moving action re-checks the role on the server and writes an audit entry. | `reconciliation/actions.ts`; audit rows `payroll.bulk_run`, `payroll.import`, `loan.repayment_recorded`, `loan.paused`, `repayment.early_*`. |
+| Operator audit trail | Platform operators' sign-ins, two-step enrolment and every organisation they open are recorded in an append-only table, and each organisation's page shows who from Wola looked at it. | `platform.test.mjs` (recording, listing, append-only). |
 | Errors | Failures are logged with a request digest, never shown with internals to the user. | `instrumentation.ts`, `error-report.ts` and their tests. |
 | Deploys | Migrations run from CI against production with a protected secret; a restore drill exists. | `docs/OPERATIONS.md`, `scripts/restore-check.mjs`. |
 

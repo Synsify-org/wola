@@ -10,6 +10,52 @@ Status tags match the architecture document's convention:
 
 ---
 
+## Phones, platform console (2026-10-14) `DONE, on branch feat/login-notifications`
+
+**Migrations 0026 and 0027 must reach production BEFORE this deploys.**
+
+- [x] **Phone layout fixes from real-device screenshots.** Dashboard KPI numbers now scale to their
+      tile instead of being cut off; the application page no longer runs wider than the screen
+      (a grid column wouldn't shrink around the long repayment table): every two-column grid now
+      has an explicit one-column phone layout (15 places); the Payroll list is a card per loan on
+      phones; the Settings rate table no longer overflows. `main` clips instead of letting the page
+      slide sideways, as a safety net.
+- [x] **The phone audit is trustworthy now.** It tests several widths (360/390/412), no longer
+      treats the app's scroll area as "meant to scroll" (that blindness hid all of the above),
+      checks for text cut off inside its box, uses the biggest application (long amounts are what
+      overflow), reports tables that scroll sideways, and can reuse a running server (`--url=`).
+- [x] **Platform console rebuilt** (it was 3 pages and 4 numbers). Overview: totals, what needs
+      attention per organisation, platform checks (two-step key, operator enrolment, error
+      alerts, email delivery, failed sign-ins), operators with their two-step status, recent
+      activity. Organisations: searchable list. Organisation page: people and roles, loan book,
+      applications, access policy, recent activity, and which operators looked at it. Activity:
+      inside-organisation activity and an operators' audit trail (migration 0027, append-only).
+      Navigation on phones (there was none).
+- [x] Operator sign-in, sign-out, two-step enrolment and viewing an organisation are recorded.
+
+## Sign-in screens, feedback pop-ups, in-app notifications (2026-10-14) `DONE, on branch feat/login-notifications`
+
+**Migration 0026 must reach production BEFORE this deploys** (the layout reads `notifications`).
+
+- [x] **Login redesign** (staff `/login` and platform `/admin/login`) to the split layout from the
+      reference: frosted fields, show/hide password, Caps Lock warning, brand panel with three
+      real product statements instead of testimonials. No Google button and no "create account"
+      (access is provisioned). Built from our brand tokens, no external images.
+- [x] **Sign-in feedback pop-ups:** wrong password / too many attempts / wrong code / "password
+      accepted, now your code" each pop a toast (and stay on the form for screen readers);
+      "Signed in. Welcome back, <first name>" after sign-in; "Signed out" after sign-out;
+      "Your session ended" when a session expires. The message travels as a short-lived cookie
+      holding a CODE, mapped to fixed wording, so a crafted link or cookie can't show arbitrary
+      text in a trusted-looking toast.
+- [x] **In-app notifications** (migration 0026, `inapp.ts`): a bell with an unread badge in the top
+      bar, latest items, mark read / mark all read, a "View all" page, a toast when something new
+      arrives (checked once a minute while the tab is visible). Created by the SAME events that
+      already send emails, in the same transaction: awaiting your decision, approved, rejected,
+      disbursed, paused, early repayment requested/recorded/declined, loan fully repaid.
+      Per-person scoping, tenant isolation, in-app-only links and append-only (no delete) are all tested.
+- Not done: email/push for notification kinds beyond approvals, per-user notification
+  preferences, and a retention job to trim old notifications.
+
 ## UI pass: phones, settings, pipeline (2026-10-13) `DONE`
 
 - [x] **Phone audit tool** (`npm run audit:mobile`): every role x every page at phone width.

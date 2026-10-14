@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { resolveTenant } from "@wola/db";
 import { db } from "@/lib/tenant";
 import { themeStyle } from "@/lib/theme";
+import { Toaster } from "@/components/ui/sonner";
 import { SHARE_IMAGES, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, siteOrigin } from "@/lib/site";
 
 // Fonts are self-hosted from ./fonts (Latin, variable weight axis), not
@@ -90,6 +91,8 @@ export default async function RootLayout({
         style={Object.keys(brandStyle).length ? brandStyle : undefined}
       >
         {children}
+        {/* The one toast host for the whole app — see components/ui/sonner.tsx. */}
+        <Toaster />
       </body>
     </html>
   );

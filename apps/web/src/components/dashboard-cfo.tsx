@@ -143,7 +143,7 @@ export default function DashboardCFO({
       </section>
 
       {/* Row 1 (2/3 + 1/3): collections trend beside the application pipeline. */}
-      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
         <TrendLineChart
           title="Collections"
           subtitle={`Money received against instalments due, last 6 months · ${currency}`}
@@ -164,7 +164,7 @@ export default function DashboardCFO({
       {/* Row 2 (2/3 + 1/3): the money-operations console — the CFO's hero,
           only for roles that can actually disburse — beside the book breakup. */}
       {canDisburse || mix.length > 0 ? (
-        <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+        <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
           {canDisburse ? (
             <div className={"min-w-0 " + (mix.length > 0 ? "lg:col-span-2" : "lg:col-span-3")}>
               <CFOMoneyOps queue={queue} reconciliation={reconciliation} currency={currency} />
@@ -179,7 +179,7 @@ export default function DashboardCFO({
       ) : null}
 
       {/* Row 3 (2/3 + 1/3): decision worklist beside recent activity. */}
-      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
         <DecisionQueue
           title="Needs your decision"
           items={inbox}

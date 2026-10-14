@@ -67,7 +67,7 @@ export default async function ProductsPage() {
           </p>
         </div>
       ) : (
-        <ul className="grid gap-4 lg:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {products.map((p) => {
             const needsRouting = p.active && p.chain.length === 0;
             const needsRate = p.active && p.interestApplies && p.currentRate === null;

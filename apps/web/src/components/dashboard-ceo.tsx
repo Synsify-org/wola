@@ -62,7 +62,7 @@ export default function DashboardCEO({
     <div className="space-y-4 xl:space-y-5">
       {/* HERO (row 1): programme health + trend, with the activity counts as
           the third column instead of a loose strip underneath. */}
-      <section className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 md:grid-cols-2 xl:grid-cols-3 xl:gap-5">
+      <section className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 md:grid-cols-2 xl:grid-cols-3 xl:gap-5">
         <FeaturedMetric
           label="Total exposure"
           value={<CountUp value={totalExposure} format="money" currency={currency} />}
@@ -97,7 +97,7 @@ export default function DashboardCEO({
       </section>
 
       {/* Row 2 (2/3 + 1/3): collections trend beside the product mix. */}
-      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
         <TrendLineChart
           title="Collections"
           subtitle={`Money received against instalments due, last 6 months · ${currency}`}

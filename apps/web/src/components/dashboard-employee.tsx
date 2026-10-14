@@ -45,7 +45,7 @@ export default function DashboardEmployee({ mine, currency }: { mine: Mine; curr
 
   if (empty) {
     return (
-      <div className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
         <div className="flex flex-col items-center rounded-2xl border border-rule bg-surface px-6 py-10 text-center shadow-theme-xs animate-in fade-in slide-in-from-bottom-2 duration-500 lg:col-span-2">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 text-brand-700">
             <Wallet className="h-7 w-7" strokeWidth={1.75} aria-hidden />
@@ -85,7 +85,7 @@ export default function DashboardEmployee({ mine, currency }: { mine: Mine; curr
   const hasLoans = mine.loans.length > 0;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
       {/* HERO (2/3): one position card per active loan. The outstanding
           balance is the biggest number on the screen. */}
       {hasLoans ? (

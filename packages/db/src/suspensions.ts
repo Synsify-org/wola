@@ -4,6 +4,7 @@
 // so what is "due now" and what the payroll cycle expects both honour it.
 import { addMonthsIso, cycleBounds, windowsOverlap, type SuspensionWindow } from "@wola/engine";
 import type { Tx } from "./client";
+import { loanBorrower, notifyUsers } from "./inapp";
 
 export interface Suspension {
   id: string;
@@ -70,6 +71,13 @@ export async function suspendLoan(
     INSERT INTO loan_suspensions (tenant_id, loan_id, from_date, to_date, reason, created_by)
     VALUES (${args.tenantId}, ${args.loanId}, ${from}::date, ${to}::date, ${reason}, ${args.actorId})
     RETURNING id`;
+  const borrower = await loanBorrower(tx, args.tenantId, args.loanId);
+  if (borrower) {
+    await notifyUsers(tx, args.tenantId, [borrower.userId], {
+      kind: "loan.paused", title: "Your loan payments are paused",
+      body: `${borrower.product}: no deductions from ${from} to ${to}. Reason: ${reason}`, href: `/loans/${args.loanId}`,
+    });
+  }
   return { ok: true, id: row.id as string, from, to, months: args.months };
 }
 

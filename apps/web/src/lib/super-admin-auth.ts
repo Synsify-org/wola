@@ -6,7 +6,7 @@
 import "server-only";
 import { randomBytes, createHash } from "node:crypto";
 import { db } from "./tenant";
-import { authenticateSuperAdmin, createChallenge, verifyChallenge, getMfaStatus, mfaKey, isRateLimited, recordLoginAttempt } from "@wola/db";
+import { authenticateSuperAdmin, createChallenge, verifyChallenge, getMfaStatus, mfaKey, isRateLimited, recordLoginAttempt, recordPlatformEvent } from "@wola/db";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8; // 8h — same as a tenant session
 const COOKIE = "wola_super_session";
@@ -26,11 +26,13 @@ export type SuperLoginResult =
   | { ok: true; step: "code"; challenge: string }
   | { ok: false; reason: "invalid" | "rate_limited" };
 
-async function issueSession(userId: string, verified: boolean) {
+async function issueSession(userId: string, verified: boolean, ip: string, how: string) {
   const token = randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + SESSION_TTL_MS);
   await db`INSERT INTO super_admin_sessions (user_id, token_hash, expires_at, mfa_verified_at)
     VALUES (${userId}, ${sha256(token)}, ${expires}, ${verified ? new Date() : null})`;
+  // The operators' own audit trail: who signed in, from where, and how (never the secrets).
+  await recordPlatformEvent(db, { actorId: userId, action: "platform.signed_in", ip, detail: { how } });
   return { token, expires };
 }
 
@@ -38,11 +40,11 @@ export async function superLogin(email: string, password: string, ip: string): P
   const auth = await authenticateSuperAdmin(db, email, password, ip);
   if (!auth.ok) return auth;
 
-  if (!mfaKey()) return { ok: true, step: "done", ...(await issueSession(auth.userId, true)) };
+  if (!mfaKey()) return { ok: true, step: "done", ...(await issueSession(auth.userId, true, ip, "password only")) };
   if ((await getMfaStatus(db, auth.userId)).enrolled) {
     return { ok: true, step: "code", challenge: await createChallenge(db, { userId: auth.userId, tenantId: null, remember: false }) };
   }
-  return { ok: true, step: "enroll", ...(await issueSession(auth.userId, false)) };
+  return { ok: true, step: "enroll", ...(await issueSession(auth.userId, false, ip, "password, setting up two-step")) };
 }
 
 /** Second step: a code for a platform challenge. Wrong codes burn the challenge's
@@ -59,7 +61,7 @@ export async function superCompleteLogin(challenge: string, code: string, ip: st
     if (email && (r.reason === "invalid" || r.reason === "locked")) await recordLoginAttempt(db, email, ip, false);
     return r;
   }
-  return { ok: true as const, ...(await issueSession(r.userId, true)) };
+  return { ok: true as const, ...(await issueSession(r.userId, true, ip, r.via === "recovery" ? "password and recovery code" : "password and authenticator code")) };
 }
 
 /** Verify a super-admin session cookie. No tenant to match against: this

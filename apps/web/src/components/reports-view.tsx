@@ -140,7 +140,7 @@ export default function ReportsView({
       </div>
 
       {/* Portfolio at risk detail */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <DashboardCard title="Portfolio at risk">
           <div className="flex items-start gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-error-100 text-error-700">

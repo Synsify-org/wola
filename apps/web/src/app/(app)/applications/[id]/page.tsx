@@ -152,19 +152,21 @@ export default async function ApplicationDetail({
 
       {/* Rich header card */}
       <div className="mt-3 rounded-xl border border-rule bg-surface p-6 shadow-theme-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-ink">{meta.full_name}</h1>
+        {/* Wraps on a phone (name above, amount below) and sits side by side from sm: a long
+            amount can no longer push the page wider than the screen. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-4">
+          <div className="min-w-0 flex-1 basis-56">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <h1 className="min-w-0 break-words text-2xl font-bold text-ink">{meta.full_name}</h1>
               <span className={statusChip}>{label(routing.state)}</span>
             </div>
-            <p className="mt-1 text-sm text-ink-soft">
+            <p className="mt-1 break-words text-sm text-ink-soft">
               {meta.product_name}{cleanPurpose ? " \u00B7 " + cleanPurpose : ""}
             </p>
             <p className="mt-1 text-xs text-ink-faint">Applied {appliedDate}</p>
           </div>
-          <div className="text-right">
-            <div className="num text-3xl font-bold text-brand-700">{ugx(app.amount)}</div>
+          <div className="max-w-full text-left sm:text-right">
+            <div className="num break-words text-2xl font-bold text-brand-700 sm:text-3xl">{ugx(app.amount)}</div>
             <div className="caps mt-1">Requested</div>
           </div>
         </div>
@@ -177,9 +179,9 @@ export default async function ApplicationDetail({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Left column */}
-        <div className="space-y-5 lg:col-span-2">
+        <div className="min-w-0 space-y-5 lg:col-span-2">
           {/* Applicant Information */}
           <div className="rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
             <div className="mb-4 flex items-center gap-2">
@@ -252,7 +254,7 @@ export default async function ApplicationDetail({
         </div>
 
         {/* Right rail */}
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           {profile && rules ? (
             <UnderwritingChecklist
               profile={profile}

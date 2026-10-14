@@ -2,43 +2,17 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, Building2, Eye, EyeOff, Landmark, Loader2, Lock, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { AlertCircle, Building2, ShieldCheck } from "lucide-react";
+import AuthShell from "@/components/auth/auth-shell";
+import { AuthAlert, AuthButton, AuthField, AuthPasswordField } from "@/components/auth/auth-fields";
+import { setFlash } from "@/lib/flash";
 import type { LoginState } from "./page";
-
-// CSS-only entrance animation (tw-animate-css), not motion/react — this is
-// the front door of the app and has to render reliably above everything
-// else; a client-side animation library silently failing here is a much
-// worse outcome than a slightly plainer fade-in.
-const enter = "animate-in fade-in slide-in-from-bottom-2 duration-500";
 
 // Mirrors the server-side caps in lib/auth.ts, so the browser stops input
 // early; the server still enforces them.
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 256;
-
-function Brand({ tenantName, light = false }: { tenantName: string | null; light?: boolean }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span
-        className={
-          "grid h-10 w-10 shrink-0 place-items-center rounded-xl " +
-          (light ? "bg-white/15 backdrop-blur-sm" : "bg-brand text-brand-ink")
-        }
-      >
-        <Landmark className="h-5 w-5" strokeWidth={2} aria-hidden />
-      </span>
-      <span className="min-w-0 leading-tight">
-        <span className="block text-lg font-semibold tracking-tight">Wola</span>
-        {tenantName ? (
-          <span className={"block truncate text-xs " + (light ? "text-white/70" : "text-ink-soft")}>{tenantName}</span>
-        ) : null}
-      </span>
-    </div>
-  );
-}
 
 export default function LoginForm(props: {
   action: (prev: LoginState, formData: FormData) => Promise<LoginState>;
@@ -49,8 +23,6 @@ export default function LoginForm(props: {
 }) {
   const { tenantName, host } = props;
   const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false);
-  const [capsLock, setCapsLock] = useState(false);
   // Controlled, so a failed attempt keeps the email (React resets an
   // uncontrolled form after its action runs). The password is deliberately
   // NOT kept: it clears after every failed attempt.
@@ -63,229 +35,129 @@ export default function LoginForm(props: {
   const [challenge, setChallenge] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Feedback: an inline message stays on the form (it is what a screen reader and a
+  // slow reader need); a toast also pops up so a failed attempt can't go unnoticed.
   useEffect(() => {
     setNotice(state.error ?? null);
-    if (state.mfa) setChallenge(state.mfa.challenge);
+    if (state.error) toast.error("Couldn't sign you in", { id: "signin-error", description: state.error });
+    if (state.mfa) {
+      setChallenge(state.mfa.challenge);
+      toast.info("Password accepted", { id: "signin-mfa", description: "Now enter the code from your authenticator app." });
+    }
   }, [state]);
 
   useEffect(() => {
     if (vState.mfa) { setChallenge(vState.mfa.challenge); setNotice(vState.error ?? null); }
     else if (vState.error) { setChallenge(null); setNotice(vState.error); }
+    if (vState.error) toast.error("That didn't work", { id: "signin-error", description: vState.error });
   }, [vState]);
 
   useEffect(() => {
     if (state.ok || vState.ok) {
+      // The next page shows "Signed in. Welcome back, …" (see components/auth-flash.tsx).
+      setFlash("signed-in");
       router.replace("/");
       router.refresh();
     }
   }, [state.ok, vState.ok, router]);
 
-  const onPasswordKey = (e: React.KeyboardEvent<HTMLInputElement>) =>
-    setCapsLock(e.getModifierState?.("CapsLock") ?? false);
-
   return (
-    <div className="grid min-h-dvh w-full bg-paper lg:grid-cols-2">
-      {/* Brand panel (lg+): tenant brand ramp, same treatment as the
-          dashboard banner — our own tokens, no external image. */}
-      <aside className="relative hidden p-4 lg:block" aria-hidden>
-        <div
-          className="relative flex h-full flex-col justify-between overflow-hidden rounded-3xl p-10 text-white shadow-theme-lg"
-          style={{
-            background:
-              "radial-gradient(120% 120% at 100% 0%, color-mix(in oklch, var(--color-brand-500) 70%, transparent) 0%, transparent 55%), linear-gradient(145deg, var(--color-brand-900), var(--color-brand-700))",
-          }}
-        >
-          <svg
-            className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] text-white/10"
-            viewBox="0 0 320 320"
-            fill="none"
-          >
-            {[150, 122, 94, 66, 38].map((r) => (
-              <circle key={r} cx="160" cy="160" r={r} stroke="currentColor" strokeWidth="1" />
-            ))}
-          </svg>
-
-          <div className="relative">
-            <Brand tenantName={tenantName} light />
+    <AuthShell
+      audience="staff"
+      tenantName={tenantName}
+      title="Sign in"
+      description="Welcome back. Use your work email to continue."
+      footer={<p>No account? Access is provisioned by your HR team.</p>}
+    >
+      <div className="space-y-5">
+        {/* Which company is this? Shown before any password is typed:
+            a look-alike phishing page can't show the real address. */}
+        {tenantName ? (
+          <div className="flex items-center gap-3 rounded-2xl border border-rule bg-ink/[0.03] px-4 py-3">
+            <Building2 className="h-5 w-5 shrink-0 text-brand" aria-hidden />
+            <div className="min-w-0 text-sm leading-tight">
+              <div className="truncate font-medium text-ink">{tenantName}</div>
+              {host ? <div className="truncate text-xs text-ink-soft">{host}</div> : null}
+            </div>
           </div>
+        ) : null}
 
-          <div className="relative max-w-sm">
-            <p className="text-3xl font-semibold leading-tight tracking-tight text-balance">
-              Lending, built on the payroll you already run.
-            </p>
-            <p className="mt-4 text-sm text-white/75">Staff loan management for East African employers.</p>
-          </div>
+        {notice ? (
+          <AuthAlert>
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <span>{notice}</span>
+          </AuthAlert>
+        ) : null}
 
-          <p className="relative flex items-center gap-2 text-xs text-white/65">
-            <Lock className="h-3.5 w-3.5" />
-            Protected environment. Sign-in attempts are logged.
-          </p>
-        </div>
-      </aside>
-
-      {/* Form: centred on both axes at every size. */}
-      <main className="flex items-center justify-center px-4 py-10 sm:px-6">
-        <div className={"w-full max-w-[26rem] " + enter}>
-          <div className="mb-8 flex justify-center lg:hidden">
-            <Brand tenantName={tenantName} />
-          </div>
-
-          <div className="rounded-2xl border border-rule bg-surface p-6 shadow-theme-sm sm:p-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">Sign in</h1>
-            <p className="mt-1.5 text-sm text-ink-soft">Welcome back. Use your work email to continue.</p>
-
-            {/* Which company is this? Shown before any password is typed —
-                a look-alike phishing page can't show the real address. */}
-            {tenantName ? (
-              <div className="mt-5 flex items-center gap-3 rounded-xl border border-rule bg-paper px-3.5 py-2.5">
-                <Building2 className="h-4.5 w-4.5 shrink-0 text-brand" aria-hidden />
-                <div className="min-w-0 text-sm leading-tight">
-                  <div className="truncate font-medium text-ink">{tenantName}</div>
-                  {host ? <div className="truncate text-xs text-ink-soft">{host}</div> : null}
-                </div>
-              </div>
-            ) : null}
-
-            {notice ? (
-              <div
-                role="alert"
-                className="mt-5 flex items-start gap-2.5 rounded-xl border border-error-200 bg-rejected-wash px-3.5 py-3 text-sm text-rejected"
-              >
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                <span>{notice}</span>
-              </div>
-            ) : null}
-
-            {challenge ? (
-              <form action={verifyFormAction} className="mt-6 flex flex-col gap-5">
-                <input type="hidden" name="challenge" value={challenge} />
-                <div className="flex items-start gap-3 rounded-xl border border-rule bg-paper px-3.5 py-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden />
-                  <p className="text-sm text-ink-soft">
-                    Your password is right. Now enter the 6-digit code from your authenticator app.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="code">Code</Label>
-                  <Input
-                    id="code"
-                    name="code"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    maxLength={24}
-                    placeholder="123 456"
-                    autoFocus
-                    required
-                    className="h-11 text-center text-lg tracking-widest"
-                  />
-                  <p className="text-xs text-ink-faint">Lost your phone? Enter one of your recovery codes instead.</p>
-                </div>
-                <Button type="submit" disabled={verifying} className="h-11 w-full text-sm font-semibold">
-                  {verifying ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Checking…</>) : "Verify and sign in"}
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => { setChallenge(null); setNotice(null); }}
-                  className="text-sm font-medium text-ink-soft hover:text-ink"
-                >
-                  Use a different account
-                </button>
-              </form>
-            ) : (
-            <form action={formAction} className="mt-6 flex flex-col gap-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Work email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  inputMode="email"
-                  maxLength={MAX_EMAIL_LENGTH}
-                  placeholder="you@company.com"
-                  autoFocus
-                  required
-                  className="h-11"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link href="/forgot-password" className="text-xs font-medium text-brand hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    maxLength={MAX_PASSWORD_LENGTH}
-                    onKeyDown={onPasswordKey}
-                    onKeyUp={onPasswordKey}
-                    onBlur={() => setCapsLock(false)}
-                    aria-describedby={capsLock ? "caps-lock" : undefined}
-                    required
-                    className="h-11 pr-11"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-md text-ink-faint transition-colors hover:text-ink-soft focus-visible:text-ink"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    aria-pressed={showPassword}
-                  >
-                    {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
-                  </button>
-                </div>
-                {capsLock ? (
-                  <p id="caps-lock" className="text-xs font-medium text-awaiting" role="status">
-                    Caps Lock is on.
-                  </p>
-                ) : null}
-              </div>
-
-              <label htmlFor="remember" className="flex cursor-pointer items-center gap-2.5 text-sm text-ink-soft">
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  value="1"
-                  className="size-[18px] rounded border-rule accent-[var(--color-brand)]"
-                />
-                Keep me signed in for 30 days
-              </label>
-
-              <Button type="submit" disabled={pending} className="h-11 w-full text-sm font-semibold">
-                {pending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Signing in…
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </Button>
-            </form>
-            )}
-          </div>
-
-          <p className="mt-6 text-center text-xs text-ink-faint">
-            No account? Access is provisioned by your HR team.
-          </p>
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-ink-faint lg:hidden">
-            <Lock className="h-3 w-3" aria-hidden />
-            Protected environment. Sign-in attempts are logged.
-          </p>
-        </div>
-      </main>
-    </div>
+        {challenge ? (
+          <form action={verifyFormAction} className="flex flex-col gap-5">
+            <input type="hidden" name="challenge" value={challenge} />
+            <div className="flex items-start gap-3 rounded-2xl border border-rule bg-ink/[0.03] px-4 py-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden />
+              <p className="text-sm text-ink-soft">
+                Your password is right. Now enter the 6-digit code from your authenticator app.
+              </p>
+            </div>
+            <AuthField
+              label="Code"
+              id="code"
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={24}
+              placeholder="123 456"
+              autoFocus
+              required
+              hint="Lost your phone? Enter one of your recovery codes instead."
+              className="h-12 w-full min-w-0 rounded-2xl bg-transparent px-4 text-center text-lg tracking-widest text-ink outline-none placeholder:text-ink-faint"
+            />
+            <AuthButton type="submit" pending={verifying} pendingLabel="Checking…">Verify and sign in</AuthButton>
+            <button
+              type="button"
+              onClick={() => { setChallenge(null); setNotice(null); }}
+              className="text-sm font-medium text-ink-soft hover:text-ink"
+            >
+              Use a different account
+            </button>
+          </form>
+        ) : (
+          <form action={formAction} className="flex flex-col gap-5">
+            <AuthField
+              label="Work email"
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="email"
+              maxLength={MAX_EMAIL_LENGTH}
+              placeholder="you@company.com"
+              autoFocus
+              required
+            />
+            <AuthPasswordField
+              label="Password"
+              id="password"
+              name="password"
+              autoComplete="current-password"
+              maxLength={MAX_PASSWORD_LENGTH}
+              placeholder="Enter your password"
+              required
+              aside={<Link href="/forgot-password" className="text-xs font-medium text-brand hover:underline">Forgot password?</Link>}
+            />
+            <label htmlFor="remember" className="flex cursor-pointer items-center gap-2.5 text-sm text-ink-soft">
+              <input id="remember" name="remember" type="checkbox" value="1" className="size-[18px] rounded border-rule accent-[var(--color-brand)]" />
+              Keep me signed in for 30 days
+            </label>
+            <AuthButton type="submit" pending={pending} pendingLabel="Signing in…">Sign in</AuthButton>
+          </form>
+        )}
+      </div>
+    </AuthShell>
   );
 }

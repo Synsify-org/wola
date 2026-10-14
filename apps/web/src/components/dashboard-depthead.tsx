@@ -98,7 +98,7 @@ export default function DashboardDeptHead({
 }) {
   const ugx = (n: number) => formatMoney(n, currency);
   return (
-    <div className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
       {/* HERO (2/3): the team queue, decided inline. */}
       <DashboardCard
         title={"Needs your decision" + (queue.length > 0 ? ` (${queue.length})` : "")}

@@ -48,7 +48,7 @@ export default function PipelinePanel({ data, currency }: { data: PipelineRow[];
                   <span className={`h-3 w-3 shrink-0 rounded-full ${s.cls} ${n === 0 ? "opacity-30" : ""}`} aria-hidden />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-ink">{s.label}</div>
-                    <div className="num truncate text-xs text-ink-soft">
+                    <div className="num text-xs text-ink-soft">
                       {n} {n === 1 ? "application" : "applications"}{hasAmounts ? ` · ${money(row?.amount ?? 0)}` : ""}
                     </div>
                   </div>

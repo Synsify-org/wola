@@ -183,7 +183,7 @@ export default function ApplyForm({
       </ol>
 
       {/* Two-column layout: form + sticky summary */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* MAIN FORM */}
         <div className="lg:col-span-2">
           <div

@@ -79,7 +79,7 @@ export default function AnalyticsView({
       />
 
       {/* Trend + status */}
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Trend */}
         <TrendLineChart
           title="Applications over time"
@@ -123,7 +123,7 @@ export default function AnalyticsView({
       </section>
 
       {/* Book by product + department + rejection bottlenecks */}
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {mix.length > 0 ? <ProductBars data={mix} currency={currency} /> : null}
         {/* Department bars */}
         <DashboardCard title="Exposure by department">

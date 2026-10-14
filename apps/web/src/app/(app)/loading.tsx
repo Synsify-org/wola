@@ -36,7 +36,7 @@ function DashboardSkeleton() {
         ))}
       </div>
       {/* chart + side card */}
-      <div className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
         <div className={card + " p-5 lg:col-span-2"}>
           <Skeleton className="h-4 w-36" />
           <Skeleton className="mt-4 h-52 w-full sm:h-64" />

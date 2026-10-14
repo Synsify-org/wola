@@ -20,7 +20,7 @@ const label = (s: string) => s.replace(/_/g, " ").replace(/\./g, " · ");
 // UPDATE/DELETE on audit_log), not merely hidden here.
 export default function DashboardAuditor({ rows }: { rows: AuditRow[] }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
       <DashboardCard
         title="Recent activity"
         flush

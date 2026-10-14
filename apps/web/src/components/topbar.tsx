@@ -14,6 +14,8 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { IconTip } from "@/components/ui/tooltip";
 import { visibleNavItems, SETTINGS_ITEM } from "./nav-links";
+import NotificationBell from "./notification-bell";
+import type { Notification } from "@wola/db";
 
 const roleLabel = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -112,10 +114,12 @@ export default function Topbar({
   tenantName,
   canSeeAllLoans,
   canApprove,
+  notifications,
   collapsed,
   onToggleCollapse,
   onOpenMenu,
 }: {
+  notifications?: { items: Notification[]; unread: number };
   userName: string;
   userEmail: string;
   role: string;
@@ -168,6 +172,8 @@ export default function Topbar({
           <PageSearch canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} />
         </div>
 
+        <div className="flex shrink-0 items-center gap-2">
+        {notifications ? <NotificationBell initialItems={notifications.items} initialUnread={notifications.unread} /> : null}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full p-1 pr-2 text-sm transition-colors hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
             <Avatar name={userName} size="md" />
@@ -201,6 +207,7 @@ export default function Topbar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </header>
   );
