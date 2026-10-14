@@ -8,7 +8,6 @@ import { DISBURSER_ROLES, SETUP_VIEW_ROLES } from "@/lib/permissions";
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
 import {
-  resolveTenant,
   employeePosition,
   approverMetrics,
   loansByProduct,
@@ -20,7 +19,7 @@ import {
   collectionsTrend,
   type CollectionsPoint,
 } from "@wola/db";
-import { db } from "@/lib/tenant";
+import { db, getTenantBySlug } from "@/lib/tenant";
 import { rejectionsFor } from "@/lib/rejections";
 import DashboardTabs from "@/components/dashboard-tabs";
 import RejectionsPanel from "@/components/rejections-panel";
@@ -65,7 +64,7 @@ export default async function Dashboard({
   const { view } = await searchParams;
   const showRejections = view === "rejections";
   const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
+  const tenant = slug ? await getTenantBySlug(slug) : null;
 
   const data = await requireSession(async (tx, ctx) => {
     const [me] = await tx`

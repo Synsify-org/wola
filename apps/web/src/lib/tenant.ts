@@ -17,11 +17,16 @@ export class TenantError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-/** Resolve the current request's tenant or throw. TODO: Redis cache with short TTL. */
+/** The organisation behind a subdomain, looked up ONCE per request. A page used to ask for
+ *  this about six times (root layout, app layout, the guard twice, the page, the currency);
+ *  React's cache() collapses those to a single query for the life of the request. */
+export const getTenantBySlug = cache(async (slug: string) => resolveTenant(db, slug));
+
+/** Resolve the current request's tenant or throw. */
 export async function requireTenant() {
   const slug = (await headers()).get("x-tenant-slug");
   if (!slug) throw new TenantError(404, "No tenant for apex host");
-  const tenant = await resolveTenant(db, slug);
+  const tenant = await getTenantBySlug(slug);
   if (!tenant) throw new TenantError(404, `Unknown or inactive tenant: ${slug}`);
   return tenant;
 }

@@ -1,9 +1,10 @@
 // apps/web/src/lib/guard.ts — call at the top of any protected page/route.
 import "server-only";
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { resolveTenant, tenantTx, getMfaStatus, mfaKey, type Tx } from "@wola/db";
-import { db } from "./tenant";
+import { tenantTx, getMfaStatus, mfaKey, type Tx } from "@wola/db";
+import { db, getTenantBySlug } from "./tenant";
 import { verifySession, SESSION_COOKIE } from "./auth";
 import { FULL_BOOK_ROLES, APPROVER_ROLES } from "./permissions";
 
@@ -86,19 +87,18 @@ export function scopePredicate(
   return tx`e.user_id = ${ctx.userId}`;
 }
 
-/** Require a valid session for the CURRENT tenant. Redirects to /login
- *  on any failure. Returns tenant + userId + role, runs fn in RLS scope. */
-export async function requireSession<T>(
-  fn: (tx: Tx, ctx: SessionCtx) => Promise<T>,
-  /** skipMfaGate: only the pages and actions where someone SETS UP two-step
-   *  sign-in. Everything else is refused until a person whose role the
-   *  organisation requires it for has done so (so a required role can't just
-   *  keep using an old session and skip it). */
-  opts: { skipMfaGate?: boolean } = {},
-): Promise<T> {
+/** Who is making this request and what may they see: computed ONCE per request.
+ *
+ *  The app layout and the page both call requireSession, and each used to repeat the whole
+ *  check (find the organisation, verify the session, look up the role, the employee record
+ *  and, for a department head, their reports): about eight queries, twice per page. React's
+ *  cache() makes them one set for the life of the request. Nothing is shared BETWEEN requests,
+ *  so a removed person or an ended session is noticed on the very next request, exactly as
+ *  before. */
+const loadRequestContext = cache(async () => {
   const slug = (await headers()).get("x-tenant-slug");
   if (!slug) redirect("/login");
-  const tenant = await resolveTenant(db, slug);
+  const tenant = await getTenantBySlug(slug);
   if (!tenant) redirect("/login");
 
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
@@ -107,35 +107,22 @@ export async function requireSession<T>(
   // elsewhere): say so on the login page. No cookie at all is just a first visit.
   if (!session) redirect(token ? "/login?reason=expired" : "/login");
 
-  return tenantTx(db, tenant.id as string, async (tx) => {
-    // Role comes from the membership in THIS tenant.
+  const ctx = await tenantTx(db, tenant.id as string, async (tx): Promise<SessionCtx> => {
+    // Role (from the membership in THIS tenant) and the caller's own employee record, together.
     const [m] = await tx`
-      SELECT role FROM memberships
-      WHERE user_id = ${session.userId} AND tenant_id = ${tenant.id}`;
+      SELECT m.role, e.id AS employee_id
+      FROM memberships m
+      LEFT JOIN employees e ON e.user_id = m.user_id AND e.tenant_id = m.tenant_id
+      WHERE m.user_id = ${session.userId} AND m.tenant_id = ${tenant.id}
+      LIMIT 1`;
     // No membership = no access. This used to fall back to "employee", so a
     // person removed from the tenant kept employee access through any session
     // issued before the removal. Fail closed instead.
     if (!m) redirect("/login");
     const role = m.role as string;
-
-    // Organisation policy: some roles must use two-step sign-in. Enforced
-    // here, on every page and action, not just at login. Only enforceable when
-    // the server can actually verify codes (a key is configured) — otherwise
-    // requiring it would lock those people out with no way to comply.
-    if (!opts.skipMfaGate && mfaKey()) {
-      const required = ((tenant.settings ?? {}) as { security?: { mfaRequiredRoles?: string[] } }).security?.mfaRequiredRoles ?? [];
-      if (required.includes(role) && !(await getMfaStatus(db, session.userId)).enrolled) {
-        redirect("/settings/security?setup=required");
-      }
-    }
-
     const canSeeAllLoans = FULL_BOOK_ROLES.includes(role);
-
-    // The caller's own employee row in this tenant (may be null for pure
-    // platform users who have no employee record).
-    const [meEmp] = await tx`
-      SELECT id FROM employees WHERE user_id = ${session.userId} LIMIT 1`;
-    const employeeId = (meEmp?.id as string) ?? null;
+    // May be null for pure platform users who have no employee record.
+    const employeeId = (m.employee_id as string | null) ?? null;
 
     // Data scope. Full-book roles => all. dept_head => department (resolve
     // reports). Everyone else => own.
@@ -151,7 +138,7 @@ export async function requireSession<T>(
       scopeEmployeeIds = reports.map((r) => r.id as string);
     }
 
-    return fn(tx, {
+    return {
       tenantId: tenant.id as string,
       userId: session.userId,
       role,
@@ -160,6 +147,36 @@ export async function requireSession<T>(
       scope,
       employeeId,
       scopeEmployeeIds,
-    });
+    };
   });
+  return { ctx, settings: (tenant.settings ?? {}) as { security?: { mfaRequiredRoles?: string[] } } };
+});
+
+/** Whether this person has finished setting up two-step sign-in (asked at most once a request). */
+const mfaEnrolled = cache(async (userId: string) => (await getMfaStatus(db, userId)).enrolled);
+
+/** Require a valid session for the CURRENT tenant. Redirects to /login
+ *  on any failure. Returns tenant + userId + role, runs fn in RLS scope. */
+export async function requireSession<T>(
+  fn: (tx: Tx, ctx: SessionCtx) => Promise<T>,
+  /** skipMfaGate: only the pages and actions where someone SETS UP two-step
+   *  sign-in. Everything else is refused until a person whose role the
+   *  organisation requires it for has done so (so a required role can't just
+   *  keep using an old session and skip it). */
+  opts: { skipMfaGate?: boolean } = {},
+): Promise<T> {
+  const { ctx, settings } = await loadRequestContext();
+
+  // Organisation policy: some roles must use two-step sign-in. Enforced
+  // here, on every page and action, not just at login. Only enforceable when
+  // the server can actually verify codes (a key is configured) — otherwise
+  // requiring it would lock those people out with no way to comply.
+  if (!opts.skipMfaGate && mfaKey()) {
+    const required = settings.security?.mfaRequiredRoles ?? [];
+    if (required.includes(ctx.role) && !(await mfaEnrolled(ctx.userId))) {
+      redirect("/settings/security?setup=required");
+    }
+  }
+
+  return tenantTx(db, ctx.tenantId, (tx) => fn(tx, ctx));
 }

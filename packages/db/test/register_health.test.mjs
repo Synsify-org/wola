@@ -27,12 +27,17 @@ before(async () => {
     return u.id;
   };
   const uCeo = await user("ceo@reg.t", "ceo");
+  const uCfo = await user("cfo@reg.t", "cfo");
+  const uHr = await user("hr@reg.t", "hr");
   const uHead = await user("head@reg.t", "dept_head");
   const uGap = await user("gap@reg.t", "employee");
 
   // The CEO: nobody above them, so no department head — and that is correct.
   await admin`INSERT INTO employees (tenant_id,user_id,employee_no,full_name,gross_salary,net_salary)
     VALUES (${T},${uCeo},'E1','Chief Executive',20000000,16000000)`;
+  // The CFO and HR: function heads with nobody above them either.
+  await admin`INSERT INTO employees (tenant_id,user_id,employee_no,full_name,gross_salary,net_salary) VALUES (${T},${uCfo},'F1','Finance Chief',12000000,9000000)`;
+  await admin`INSERT INTO employees (tenant_id,user_id,employee_no,full_name,gross_salary,net_salary) VALUES (${T},${uHr},'R1','HR Lead',8000000,6000000)`;
   const [head] = await admin`INSERT INTO employees (tenant_id,user_id,employee_no,full_name,gross_salary,net_salary)
     VALUES (${T},${uHead},'H1','Dept Head',9000000,7000000) RETURNING id`;
   // A fine employee, with a head.
@@ -50,14 +55,13 @@ after(async () => {
   await admin.end();
 });
 
-test("the CEO is not flagged as missing a department head; a real gap is, by name", async () => {
+test("executives and function heads are not flagged as missing a department head; a real gap is, by name", async () => {
   const h = await inTenant((tx) => registerHealth(tx, T));
   const names = h.missingDeptHeadPeople.map((p) => p.name);
-  assert.ok(!names.includes("Chief Executive"), "top-of-chain roles have no department head by design");
-  assert.ok(names.includes("No Head"));
-  // The department head themself also has nobody above them in this fixture —
-  // flagged as a genuine gap, since they hold no top-of-chain role.
-  assert.ok(names.includes("Dept Head"));
+  for (const exempt of ["Chief Executive", "Finance Chief", "HR Lead", "Dept Head"]) {
+    assert.ok(!names.includes(exempt), `${exempt} holds a role above plain employee, so having no department head is correct`);
+  }
+  assert.deepEqual(names, ["No Head"], "only an ordinary employee with no head is a genuine gap");
   assert.equal(h.missingDeptHead, h.missingDeptHeadPeople.length);
 });
 
@@ -65,5 +69,5 @@ test("missing salary is reported with the person's name and employee number", as
   const h = await inTenant((tx) => registerHealth(tx, T));
   assert.deepEqual(h.missingSalaryPeople.map((p) => [p.name, p.employeeNo]), [["No Salary", "S3"]]);
   assert.equal(h.missingSalary, 1);
-  assert.equal(h.headcount, 5);
+  assert.equal(h.headcount, 7);
 });

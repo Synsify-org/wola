@@ -102,7 +102,7 @@ export default function Shell({
       />
 
       <div className="app-body flex min-h-0 flex-1 overflow-clip">
-        <Sidebar canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} collapsed={collapsed} />
+        <Sidebar role={user.role} canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} collapsed={collapsed} />
 
         {/* Only THIS column scrolls — sidebar and topbar stay put. */}
         <main id="main" className="min-w-0 flex-1 overflow-y-auto px-4 pb-32 pt-6 sm:px-6 md:px-8 md:pt-8 lg:pb-10">
@@ -114,10 +114,10 @@ export default function Shell({
           sidebar). Phone shows the daily four + More; tablet shows everything. */}
       <div className="no-print pointer-events-none fixed inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 flex justify-center lg:hidden">
         <div className="pointer-events-auto max-w-full md:hidden">
-          <AppDock variant="phone" canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} onMore={() => setDrawer(true)} />
+          <AppDock variant="phone" role={user.role} canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} onMore={() => setDrawer(true)} />
         </div>
         <div className="pointer-events-auto hidden max-w-full md:block">
-          <AppDock variant="tablet" canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} />
+          <AppDock variant="tablet" role={user.role} canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} />
         </div>
       </div>
 
@@ -146,7 +146,7 @@ export default function Shell({
               </button>
             </div>
             <nav className="flex-1 overflow-y-auto px-4 py-5">
-              <NavLinks canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} onNavigate={() => setDrawer(false)} />
+              <NavLinks role={user.role} canSeeAllLoans={user.canSeeAllLoans} canApprove={user.canApprove} onNavigate={() => setDrawer(false)} />
             </nav>
             <div className="border-t border-rule px-4 py-4">
               <SideLink item={SETTINGS_ITEM} active={settingsActive} onNavigate={() => setDrawer(false)} />

@@ -17,6 +17,14 @@ describe("GET /api/health", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
+  test("reports how fast the database is, in headers only (the body stays {ok:true})", async () => {
+    const res = await GET();
+    expect(res.headers.get("server-timing")).toMatch(/^db-first;dur=\d+, db-rtt;dur=\d+$/);
+    expect(res.headers.get("x-wola-region")).toBe("local");
+    expect(Number(res.headers.get("x-wola-instance-age"))).toBeGreaterThanOrEqual(0);
+    expect(Object.keys(await res.json())).toEqual(["ok"]);
+  });
+
   test("503 when the database does not answer, without leaking internals", async () => {
     query = () => Promise.reject(new Error("connect ECONNREFUSED"));
     const res = await GET();

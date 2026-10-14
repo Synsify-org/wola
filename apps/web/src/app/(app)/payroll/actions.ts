@@ -16,7 +16,7 @@ const DENIED = "You don't have permission to record payroll deductions.";
 type Fail = { ok: false; error: string };
 
 const refresh = () => {
-  revalidatePath("/reconciliation");
+  revalidatePath("/payroll");
   revalidatePath("/");
   revalidatePath("/loans");
   revalidatePath("/book");
