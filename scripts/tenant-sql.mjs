@@ -5,6 +5,8 @@
 //
 //   --template benefit-scheme   (default) the staff-loan products and approval chains agreed with MUA
 //   --template blank            just the organisation and its first administrator
+//   --trial                     flag it as a TRIAL organisation: every page shows a "practice data" banner, and a
+//                               platform operator can load practice loans into it (never do that to a real client)
 //   --show-link                 also print the invitation link (use only if email is not working yet)
 //   --print                     print the SQL instead of copying it to the clipboard
 //
@@ -30,7 +32,7 @@ if (errors.length) {
   process.exit(1);
 }
 
-const { sql, link } = tenantSql({ ...input, token: randomBytes(32).toString("hex") });
+const { sql, link } = tenantSql({ ...input, trial: flag("trial"), token: randomBytes(32).toString("hex") });
 
 if (flag("print")) {
   process.stdout.write(sql);

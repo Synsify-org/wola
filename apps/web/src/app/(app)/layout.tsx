@@ -39,8 +39,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // the setup page into a redirect loop.
   }, { skipMfaGate: true });
 
+  // A trial organisation is flagged in its settings (set when it is created). Everything in it that looks
+  // like pay, a loan or a repayment is practice data, and every page says so.
+  const settings = (tenant?.settings ?? {}) as { trial?: boolean; trialBanner?: boolean; trialNotice?: string };
   return (
     <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"} notifications={notifications}>
+      {settings.trial === true && settings.trialBanner !== false ? (
+        <div role="status" className="mb-5 rounded-xl border border-awaiting bg-awaiting-wash px-4 py-2.5 text-sm text-ink">
+          <span className="font-semibold">Trial.</span>{" "}
+          {settings.trialNotice ?? "Pay, loans and repayments in this organisation are practice data, not real figures. Names and departments are real."}
+        </div>
+      ) : null}
       {children}
       {/* "Signed in. Welcome back, …" after a successful sign-in. */}
       <AuthFlash name={user.name} />

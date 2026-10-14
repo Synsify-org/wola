@@ -34,6 +34,8 @@ type ParsedRow = {
   on_final_warning: boolean;
   work_email: string | null;
   review_note: string | null;
+  /** Only "suspended" or null (leave as is / active). "Exited" is deliberately not importable. */
+  status: "active" | "suspended" | null;
 };
 
 export type ImportResult =
@@ -77,6 +79,13 @@ function parseCsv(text: string): { rows: ParsedRow[]; errors: string[] } {
     if (seenNos.has(employeeNo)) { errors.push(`Row ${rowNum}: duplicate employee_no "${employeeNo}" in this file.`); continue; }
     seenNos.add(employeeNo);
 
+    const statusRaw = get(cells, "status").toLowerCase();
+    if (statusRaw && !["active", "suspended"].includes(statusRaw)) {
+      errors.push(statusRaw === "exited"
+        ? `Row ${rowNum}: status "exited" cannot be imported. Mark someone as exited one at a time, so any loan balance is handled.`
+        : `Row ${rowNum}: status "${statusRaw}" must be active or suspended.`);
+      continue;
+    }
     const email = get(cells, "work_email").toLowerCase();
     if (email && !EMAIL_RE.test(email)) { errors.push(`Row ${rowNum}: work_email "${email}" is not a valid email address.`); continue; }
 
@@ -98,6 +107,7 @@ function parseCsv(text: string): { rows: ParsedRow[]; errors: string[] } {
       on_final_warning: truthy(get(cells, "on_final_warning")),
       work_email: email || null,
       review_note: get(cells, "review_note").slice(0, 500) || null,
+      status: (statusRaw as "active" | "suspended") || null,
     });
   }
 
@@ -132,14 +142,17 @@ export async function importEmployeesAction(csvText: string): Promise<ImportResu
       await tx`
         INSERT INTO employees
           (tenant_id, employee_no, full_name, department, title,
-           gross_salary, net_salary, is_post_probation, on_final_warning, work_email, review_note)
+           gross_salary, net_salary, is_post_probation, on_final_warning, work_email, review_note, status)
         VALUES
           (${ctx.tenantId}, ${r.employee_no}, ${r.full_name}, ${r.department}, ${r.title},
-           ${r.gross_salary}, ${r.net_salary}, ${r.is_post_probation}, ${r.on_final_warning}, ${r.work_email}, ${r.review_note})
+           ${r.gross_salary}, ${r.net_salary}, ${r.is_post_probation}, ${r.on_final_warning}, ${r.work_email}, ${r.review_note},
+           ${r.status ?? "active"})
         ON CONFLICT (tenant_id, employee_no) DO UPDATE SET
           -- An email in the file fills the gap; a blank never erases one HR typed in. A review note is
           -- only ever set when a person is first loaded, so re-importing never re-flags what HR settled.
           work_email = COALESCE(EXCLUDED.work_email, employees.work_email),
+          -- A status in the file applies; a blank leaves the person as they are.
+          status = COALESCE(${r.status}::text, employees.status),
           full_name = EXCLUDED.full_name,
           department = EXCLUDED.department,
           title = EXCLUDED.title,

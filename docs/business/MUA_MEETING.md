@@ -38,17 +38,22 @@ Wola (Settings -> Employees -> Fill in details), and every change is recorded. A
 ## 3. Work emails
 
 Needed so each person can be invited. Typed in by HR or an administrator (same screen), or supplied in a list.
-- Do all 47 staff have a work email? Anyone who does not (drivers, support staff) needs another way, or no login.
+- Does every one of the 55 staff have a work email? Anyone who does not (drivers, support staff) needs another way, or no login.
 
-## 4. Records the staff list left unclear (details in review.md)
+## 4. Records the HR export left unclear (details in review.md)
+
+MUA's own HR export (55 people) replaced the first staff list. It gave work emails, statuses and employee numbers. What is left:
 
 | Item | What we did | Decision |
 | --- | --- | --- |
-| One person has **no employee number** | Loaded as `TEMP-001`; HR is warned on the dashboard until the real number is entered | Real number: ________ |
-| One person's **line manager is a job title** that matches nobody on the list | No department head set; flagged on the HR dashboard | Who is it (or is the post vacant)? ________ |
-| One person has **two managers and two departments** | Loaded under the first of each; flagged on the HR dashboard | Which department? Which manager approves their loans? ________ |
+| **Eight new joiners** (mostly fixed-term contractors, numbers like `MUA/FTC001`) have **no line manager on file** | No department head set; flagged on the HR dashboard | Who is each person's line manager? ________ |
+| One person's line manager is a **job title** ("Senior Accountant Reporting") | Matched to the person who holds that exact title | Confirm it is right ________ |
+| One person has **two managers** (Commercial and Finance) | The first is used; flagged | Which manager approves their loans? ________ |
+| One person is **suspended** in MUA's HR system | Loaded as suspended; no role suggested; cannot borrow | Confirm ________ |
+| One person's email is a **personal address** (not `@mua.co.ug`) | Flagged | Right address for their invitation? ________ |
+| One person's job title is only **"Internal"** | Loaded as written | Full title ________ |
 | The **CEO has no department** | Entered as "Executive" | Confirm ________ |
-| One job title looks **misspelled** | Imported as written | Correct spelling ________ |
+| **Fixed-term contractors** | Loaded as on probation, so they cannot borrow | May fixed-term staff borrow, and how close to their contract end? (Blocking a loan that would outlast a contract is on the roadmap, not built yet.) ________ |
 
 ## 5. Interest rates
 

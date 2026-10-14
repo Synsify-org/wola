@@ -86,6 +86,7 @@ export * from "./config-status";
 export * from "./notifications";
 export * from "./invitations";
 export * from "./bulk-invite";
+export * from "./practice-data";
 export * from "./super-admin";export * from "./product-admin";
 export * from "./routing-admin";
 export * from "./access-admin";

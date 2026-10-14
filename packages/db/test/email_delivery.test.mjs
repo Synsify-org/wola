@@ -185,3 +185,33 @@ test("sends are spaced out, and a 'slow down' answer is waited out and retried",
   const always429 = makeResendMailer({ apiKey: "k", from: "a@b.test", sleep: async () => {}, fetchImpl: async () => new Response("{}", { status: 429 }) });
   await assert.rejects(always429.send({ to: "x@y.test", subject: "s", html: "h" }), /429/, "it gives up after three tries instead of looping");
 });
+
+test("an organisation that switches email off queues nothing; every other organisation is unaffected", async () => {
+  await admin`UPDATE tenants SET settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{email}', '{"enabled": false}'::jsonb) WHERE id = ${B.id}`;
+  try {
+    const hook = []; setEmailQueuedHook((tid) => hook.push(tid));
+    const off = await tenantTx(app, B.id, (tx) => sendEmail(tx, { tenantId: B.id, to: "demo@off.t", template: { subject: "s", html: "h" } }));
+    assert.equal(off.id, null, "no row, no id");
+    assert.equal((await admin`SELECT 1 FROM email_outbox WHERE to_email = 'demo@off.t'`).length, 0);
+    assert.deepEqual(hook, [], "nothing queued means no send is requested");
+    const on = await tenantTx(app, A.id, (tx) => sendEmail(tx, { tenantId: A.id, to: "real@on.t", template: { subject: "s", html: "h" } }));
+    assert.ok(on.id, "another organisation still queues mail");
+    assert.deepEqual(hook, [A.id]);
+    setEmailQueuedHook(null);
+    // Turning it back on (or never setting it) means mail is queued as normal.
+    await admin`UPDATE tenants SET settings = settings - 'email' WHERE id = ${B.id}`;
+    assert.ok((await tenantTx(app, B.id, (tx) => sendEmail(tx, { tenantId: B.id, to: "back@on.t", template: { subject: "s", html: "h" } }))).id);
+  } finally {
+    await admin`UPDATE tenants SET settings = settings - 'email' WHERE id = ${B.id}`;
+  }
+});
+
+test("addresses on reserved names are never queued, so practice accounts cannot cause bounces", async () => {
+  for (const to of ["practice.hr@mua-trial.invalid", "a@b.test", "a@b.example", "a@host.localhost", "A@Trial.INVALID "]) {
+    const r = await tenantTx(app, A.id, (tx) => sendEmail(tx, { tenantId: A.id, to, template: { subject: "s", html: "h" } }));
+    assert.equal(r.id, null, to);
+  }
+  assert.equal((await admin`SELECT 1 FROM email_outbox WHERE to_email ILIKE '%trial.invalid' OR to_email IN ('a@b.test','a@b.example','a@host.localhost')`).length, 0);
+  const real = await tenantTx(app, A.id, (tx) => sendEmail(tx, { tenantId: A.id, to: "person@mua.co.ug", template: { subject: "s", html: "h" } }));
+  assert.ok(real.id, "a real address is queued as normal");
+});

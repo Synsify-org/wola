@@ -80,3 +80,14 @@ test("bad answers are refused before any SQL exists", () => {
   assert.deepEqual(validate(input), []);
   assert.throws(() => tenantSql({ ...input, slug: "x" }), /short name/);
 });
+
+test("--trial flags the organisation as a trial in its settings; a normal organisation is not flagged", async () => {
+  await wipe();
+  await admin.unsafe(tenantSql({ ...input, trial: true }).sql);
+  const [t] = await admin`SELECT settings FROM tenants WHERE slug = ${SLUG}`;
+  assert.equal(t.settings.trial, true);
+  await wipe();
+  await admin.unsafe(tenantSql({ ...input }).sql);
+  const [n] = await admin`SELECT settings FROM tenants WHERE slug = ${SLUG}`;
+  assert.equal(n.settings.trial, undefined, "no flag unless asked for");
+});

@@ -8,6 +8,8 @@
 //     confirmed with MUA HR (see DECISIONS.md): limits, longest terms, post-probation and
 //     final-warning rules, "no car loan and development loan together", and the CEO-applies routes,
 //   - an invitation for the first administrator, and the email that carries it.
+// With trial: true the organisation is flagged as a TRIAL (settings.trial): every page shows a "practice data"
+// banner, and only a trial organisation can be given practice loans and repayments by a platform operator.
 // It creates NO password and NO staff. The administrator chooses their own password from the
 // invitation link, and staff are loaded afterwards from inside Wola (Settings -> Employees).
 // It does not invent an interest rate: setting the rate index is the administrator's first job.
@@ -67,7 +69,7 @@ const PRODUCTS = `
 `;
 
 /** @returns {{ sql: string, link: string }} */
-export function tenantSql({ slug, name, adminEmail, adminName, origin, template = "benefit-scheme", token }) {
+export function tenantSql({ slug, name, adminEmail, adminName, origin, template = "benefit-scheme", token, trial = false }) {
   const errors = validate({ slug, name, adminEmail, adminName, origin, template });
   if (errors.length) throw new Error(errors.join(" "));
   const email = adminEmail.trim().toLowerCase();
@@ -86,7 +88,7 @@ BEGIN
     RAISE EXCEPTION 'An organisation with the short name % already exists. Nothing was changed.', ${lit(slug)};
   END IF;
 
-  INSERT INTO tenants (slug, name, status) VALUES (${lit(slug)}, ${lit(name.trim())}, 'active') RETURNING id INTO t;
+  INSERT INTO tenants (slug, name, status${trial ? ", settings" : ""}) VALUES (${lit(slug)}, ${lit(name.trim())}, 'active'${trial ? `, '{"trial": true}'::jsonb` : ""}) RETURNING id INTO t;
 ${template === "benefit-scheme" ? PRODUCTS : "  -- template \"blank\": no products or approval chains; the administrator sets them up.\n"}
   -- The first administrator: an invitation (they set their own password) and the email that carries it.
   INSERT INTO invitations (tenant_id, email, role, token_hash, expires_at)

@@ -21,20 +21,72 @@ email or a ticket.** The tools below are built so you never need to.
 | 6 | Bring across running loans | you + client finance | not built yet (see step 6) |
 | 7 | One payroll cycle in parallel, then cut over | everyone | [SPREADSHEET_MIGRATION.md](business/SPREADSHEET_MIGRATION.md), [PILOT.md](business/PILOT.md) |
 
+## The trial first: MUA's real people, practice money
+
+Before a client goes live, give them a **trial organisation**: their real names, departments and emails, with practice
+pay, loans and repayments, so they experience Wola the way they would after buying it. It is a separate organisation
+(slug `mua-trial`), flagged as a trial: every page carries a banner saying the money is practice data. The real
+organisation (`mua`) is created clean later, so no made-up loan ever sits in the real ledger (the ledger and audit trail
+are append-only: practice entries cannot be removed, so a trial is thrown away whole, never converted).
+
+1. **Address.** A second Vercel project pinned to the trial (`WOLA_SINGLE_TENANT=mua-trial`): see step 0 below.
+2. **Prepare the people.** From the client's HR export and the line-manager list:
+   ```powershell
+   npm run staff:prepare -- "<hr export.csv>" --managers "<line managers.xlsx>" --org "MUA Insurance Uganda (Trial)" --practice-pay --out onboarding-data\mua-trial
+   ```
+   `--practice-pay` fills in **invented** pay and probation status (scaled by seniority; recent joiners and fixed-term staff
+   start on probation, so they cannot borrow). The review says so in capitals; never load that file into a real organisation.
+3. **Create the organisation**, flagged as a trial, with yourself as its administrator (a trial holds no real money, so a
+   Synsify administrator is fine here, unlike the real organisation):
+   ```powershell
+   npm run tenant:sql -- --trial --slug mua-trial --name "MUA Insurance Uganda (Trial)" --admin-email <your email> --admin-name "<your name>" --origin https://<the trial address>
+   ```
+   Paste into the Supabase SQL Editor, as in step 1 below.
+4. **Load the people** the way a real client would: sign in from the invitation, then Settings -> Employees -> Import employees
+   with `employees.csv`. The file carries each person's work email, status (a suspended person loads as suspended) and a
+   note on every record that needs a decision: HR sees them on the dashboard and fixes them there.
+5. **Load the practice book** (platform operator only): platform console -> Organisations -> the trial -> *Practice data* ->
+   type its short name -> **Load practice loans and history**. It creates seven running loans with six months of payroll history
+   (last month left with one missed and one short deduction), a loan waiting for disbursement, applications at every approval
+   stage and a rejection. Approvals are attributed to "Practice ..." accounts that cannot sign in and are never emailed.
+   It refuses anything that is not a trial, and anything that already has loans.
+6. **Invite people when you choose to.** Nobody is invited automatically. Pick who sees it (decision-makers first) and use
+   Settings -> Roles & access -> Invite many people from a list. Work emails are already on file.
+
 ## 0. Before you start
 
-**The address.** Each organisation lives on its own subdomain (`mua.<your domain>`); Wola reads
-the organisation from the host name. You need a domain you control with a **wildcard** pointing at
-the Vercel project. `*.vercel.app` addresses cannot do this: they have no wildcard subdomains.
+**The address.** Wola decides which organisation you are looking at in one of two ways. Pick one per deployment:
 
-1. Choose the base domain, for example `wola.synsify.africa`, so MUA is `mua.wola.synsify.africa`.
-2. Vercel -> Project -> Settings -> Domains -> add `*.wola.synsify.africa` (and the bare
-   `wola.synsify.africa`). Vercel requires its own name servers for wildcard certificates: either
-   move that domain's DNS to Vercel, or in Namecheap add `NS` records for the `wola` subdomain pointing
-   at the name servers Vercel shows. Follow what Vercel's Domains page tells you; it checks each record.
-3. Vercel -> Environment Variables: `WOLA_BASE_DOMAIN` = `wola.synsify.africa`, then redeploy.
-4. Check: `https://mua.wola.synsify.africa/api/health` answers `{"ok":true}` (it answers on any
-   host, even before the organisation exists).
+- **Pinned (one organisation per Vercel project).** `WOLA_SINGLE_TENANT=<short name>` makes every request
+  resolve to that one organisation, whatever the address. This is how the live demo works today:
+  `wola-pi.vercel.app` shows Kampala Steelworks Ltd and nothing else. It needs no domain setup, and the
+  organisations stay separated by the database either way. The cost: **only that organisation is reachable
+  on that address** (the other organisations exist, but only the platform console can see them).
+- **Subdomains (many organisations, one project).** Each organisation lives at `mua.<your domain>`. Needs a
+  domain you control with a **wildcard** pointing at the project (`*.vercel.app` has no wildcard subdomains),
+  and `WOLA_SINGLE_TENANT` must be **unset**: while it is set, every address shows that one organisation.
+
+**Recommended path for MUA now: a second, pinned deployment.** Keep `wola-pi.vercel.app` as the demo and give
+MUA its own address, so nothing real ever sits on the demo's address:
+
+1. Vercel -> Add New -> Project -> import the same GitHub repository. Copy every setting from the existing
+   project (Root Directory, framework, Node version, **Functions region = Dublin**).
+2. Copy **all** environment variables from the existing project, then change/add: `WOLA_SINGLE_TENANT` = `mua`,
+   `SITE_URL` = the new project's address. Keep `DATABASE_URL`, `MFA_ENCRYPTION_KEY`, `RESEND_API_KEY` and
+   `EMAIL_FROM` **identical** to the existing project: both projects use the same database, and platform
+   operators' two-step secrets are encrypted with that one key.
+3. Deploy, then check `https://<the new address>/api/health` answers `{"ok":true}`.
+4. Use that address as `--origin` in step 1 below. Give MUA the address only after the organisation exists.
+
+**Later, when you have several client organisations:** switch to subdomains.
+
+1. Choose the base domain, for example `wola.synsify.africa`, so MUA becomes `mua.wola.synsify.africa`.
+2. Vercel -> Project -> Settings -> Domains -> add `*.wola.synsify.africa` (and the bare `wola.synsify.africa`).
+   Vercel requires its own name servers for wildcard certificates: either move that domain's DNS to Vercel,
+   or in Namecheap add `NS` records for the `wola` subdomain pointing at the name servers Vercel shows.
+   Follow what Vercel's Domains page tells you; it checks each record.
+3. Set `WOLA_BASE_DOMAIN` = `wola.synsify.africa`, **remove `WOLA_SINGLE_TENANT`**, redeploy. The demo
+   then moves to its own subdomain too, so rename its short name first if you want a tidy address.
 
 **From the client** (send this list on day one):
 
@@ -52,7 +104,7 @@ the Vercel project. `*.vercel.app` addresses cannot do this: they have no wildca
 ```powershell
 npm run tenant:sql -- --slug mua --name "MUA Insurance Uganda" `
   --admin-email <the administrator's work email> --admin-name "<their name>" `
-  --origin https://mua.wola.synsify.africa
+  --origin https://<the address from step 0>
 ```
 
 It copies SQL to your clipboard. Then, **in this order**:
@@ -97,10 +149,11 @@ employee number a **temporary** one (`TEMP-001`, ...), writes a **note** on any 
 (a line manager that matches nobody, two managers, two departments), catches doubled numbers, loops in
 reporting lines and likely typos, and suggests a role from each job title and who manages whom.
 
-**For MUA, the list gave:** 47 people in 7 departments. One has no employee number (loaded as `TEMP-001`),
-one has a line manager that is a job title matching nobody, one has two managers and two departments (loaded
-under the first, with a note); the CEO has no department, and one job title looks misspelled. There is no
-`group_ceo` yet: see [business/MUA_MEETING.md](business/MUA_MEETING.md).
+**For MUA, the HR export plus the line-manager list gave:** 55 people in 6 departments, with real work emails. One is
+suspended (loaded as suspended); eight new joiners have no line manager on file; one person's manager is a job title
+(matched to the person holding it); one has two managers; one uses a personal email address; the CEO has no department.
+Each is written into the file as a note that the HR dashboard shows until it is settled. There is no `group_ceo` yet:
+see [business/MUA_MEETING.md](business/MUA_MEETING.md).
 
 Run it again whenever the client sends a corrected list; it is safe to repeat.
 

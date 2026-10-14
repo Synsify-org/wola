@@ -61,6 +61,13 @@ over 3 days is not sent (a reset link that old has expired); the platform consol
 5. In the app, use **Forgot password** on a real account; the email should arrive within seconds.
    The platform console's *Platform checks -> Email delivery* turns green once mail has been sent.
 
+**Add the two Vercel variables for Production only** (untick Preview): preview deployments are pinned to the demo
+organisation and share its database, and should never send mail from the live key.
+
+**Demo organisations must have email switched off**, because their people have made-up addresses that would bounce
+and damage the sending domain's reputation. See [DEMO.md](DEMO.md) for the one-line SQL (it sets
+`tenants.settings.email.enabled = false`; nothing is queued for that organisation afterwards).
+
 Resend's "Enable tracking metrics" (open/click tracking) is optional and rewrites links; leave it
 off for password-reset and invitation emails.
 

@@ -37,8 +37,17 @@ export interface SendEmailArgs {
 /** Enqueue an email. Call inside the same tenantTx as the triggering
  *  mutation, so the send and the thing it's about commit or roll back
  *  together. Returns the outbox row id, not a delivery result — delivery
- *  hasn't happened yet. */
-export async function sendEmail(tx: Tx, args: SendEmailArgs): Promise<{ id: string }> {
+ *  hasn't happened yet.
+ *
+ *  An organisation can switch its email OFF (tenants.settings.email.enabled = false). A demo
+ *  organisation must: its people have made-up addresses, and mail to them would bounce and harm the
+ *  sending domain's reputation. Nothing is queued then, and `id` is null. Everything else is unaffected. */
+export async function sendEmail(tx: Tx, args: SendEmailArgs): Promise<{ id: string | null }> {
+  const [setting] = await tx`SELECT settings #>> '{email,enabled}' AS enabled FROM tenants WHERE id = ${args.tenantId}`;
+  if (setting?.enabled === "false") return { id: null };
+  // Addresses on reserved names (RFC 2606/6761) can never be delivered. Practice accounts use them, and
+  // mail to them would only bounce and harm the sending domain's reputation, so nothing is queued.
+  if (/\.(invalid|test|example|localhost)$/i.test(args.to.trim())) return { id: null };
   const data = args.data ?? {};
   // A subject is one line of plain text: no line breaks (header injection), no escaping.
   const subject = renderTemplate(args.template.subject, data).replace(/[\r\n]+/g, " ").trim();
