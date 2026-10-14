@@ -44,6 +44,12 @@ URL-encoded; use the NEW password). After that, merging to `main` applies pendin
 migrations by itself (Actions -> migrate-production). You can also run it by hand:
 Actions -> migrate-production -> Run workflow.
 
+**Option C: no connection needed (use this if connecting from your computer fails).**
+`npm run migration:sql -- 0026 0027` copies the SQL for those migrations, plus the line that records
+them as applied, to your clipboard. In the Supabase dashboard open SQL Editor -> New query, paste
+(Ctrl+V), Run. It skips anything already recorded, applies everything or nothing, and ends by
+listing the newest recorded migrations (yours should be at the top). Delete the query afterwards.
+
 **Option B: by hand, from this repo.** PowerShell:
 
 ```powershell
