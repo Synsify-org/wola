@@ -66,18 +66,17 @@ export default function RateIndexEditor({
       ) : null}
 
       {indices.length > 0 ? (
-        <table className="ledger mb-4">
-          <tbody>
-            {indices.map((r) => (
-              <tr key={r.name}>
-                <td className="text-sm font-medium text-ink">{r.name}</td>
-                <td className="num r text-sm text-ink">{r.currentValue.toFixed(3)}%</td>
-                <td className="text-xs text-ink-soft">since {r.effectiveFrom}</td>
-                <td className="text-xs text-ink-soft">{r.productsLinked} product{r.productsLinked === 1 ? "" : "s"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul className="mb-4 divide-y divide-rule rounded-xl border border-rule">
+          {indices.map((r) => (
+            <li key={r.name} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3">
+              <span className="text-sm font-medium text-ink">{r.name}</span>
+              <span className="num text-sm text-ink">{r.currentValue.toFixed(3)}%</span>
+              <span className="basis-full text-xs text-ink-soft sm:basis-auto">
+                since {r.effectiveFrom} · {r.productsLinked} product{r.productsLinked === 1 ? "" : "s"}
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : (
         <p className="mb-4 text-xs text-ink-soft">No rate index set yet.</p>
       )}

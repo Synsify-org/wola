@@ -164,9 +164,12 @@ export default function StatCard({
           <span
             className={cn(
               "num font-semibold leading-tight tracking-tight",
+              // The number's size follows the TILE's width (the card is a size container), so
+              // "UGX 78,200,000" shrinks to fit a narrow phone tile instead of being cut off,
+              // and still reaches full size on a wide one. If it can't fit, it wraps.
               featured
-                ? "text-[1.75rem] leading-none sm:text-[2.125rem]"
-                : "text-xl @[12.5rem]:whitespace-nowrap @[12.5rem]:text-2xl @[12.5rem]:leading-none @[15rem]:text-[1.75rem]",
+                ? "break-words text-[length:clamp(1.25rem,calc((100cqw-2.5rem)/8),2.125rem)] leading-none"
+                : "break-words text-[length:clamp(1.0625rem,calc((100cqw-2.5rem)/9.5),1.75rem)] leading-tight",
             )}
             title={typeof value === "string" ? value : undefined}
           >

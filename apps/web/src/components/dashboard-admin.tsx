@@ -72,7 +72,7 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
       </section>
 
       {/* Row 2 (2/3 + 1/3): the checklist beside the admin shortcuts. */}
-      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
         <DashboardCard title="Configuration status" className="lg:col-span-2">
           <div className="-mt-3 divide-y divide-rule">
             <ChecklistItem

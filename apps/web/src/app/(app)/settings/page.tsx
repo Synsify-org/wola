@@ -128,7 +128,7 @@ export default async function SettingsPage() {
 
       {/* Your details (editable contact info) beside the quiet read-only cards. One column
           on a phone, details first. */}
-      <section className="mb-6 grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-3 xl:gap-5">
+      <section className="mb-6 grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 lg:grid-cols-3 xl:gap-5">
         <DashboardCard title="Your details" action={<User className="h-4 w-4 text-ink-faint" />} className="lg:col-span-2">
           <MyDetailsForm
             name={user.name} email={user.email} employeeNo={user.employeeNo ?? ""} department={user.department ?? ""} title={user.title ?? ""}

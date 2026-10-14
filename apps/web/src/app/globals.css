@@ -402,3 +402,17 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Toasts sit BELOW the top bar (4rem on phones, 4.5rem from md), so they never cover the
+   bell or the user menu. Sonner sets its offsets inline, hence !important. */
+[data-sonner-toaster] {
+  --offset-top: 5.25rem !important;
+  --mobile-offset-top: 4.75rem !important;
+}
+
+/* Safety net for phones: if some layout ever runs wider than the screen, CLIP it inside the
+   content area instead of letting the whole page slide sideways with the header cut off.
+   Wide tables are unaffected (they scroll inside their own card). The phone audit
+   (npm run audit:mobile) still reports clipped content, so a real bug is found and fixed,
+   not hidden. */
+main { overflow-x: clip; }

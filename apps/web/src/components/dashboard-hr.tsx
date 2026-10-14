@@ -87,7 +87,7 @@ export default function DashboardHR({
       </section>
 
       {/* Row 2 (2/3 + 1/3): HR-stage queue beside register issues + pipeline. */}
-      <Reveal as="section" className="grid gap-4 lg:grid-cols-3 xl:gap-5">
+      <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
         <DecisionQueue title="At your stage" items={inbox} currency={currency} className="lg:col-span-2" />
         <div className="flex min-w-0 flex-col gap-4 xl:gap-5">
           <DashboardCard title="Register issues">

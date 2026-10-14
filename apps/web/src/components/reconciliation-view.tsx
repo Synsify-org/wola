@@ -95,6 +95,34 @@ export default function ReconciliationView({
     });
   }
 
+  // The pay / pause form, shown under a loan when its button was pressed. One definition
+  // for the table (wide screens) and the cards (phones).
+  const inlineForm = (l: CycleLine) => open?.loanId === l.loanId ? (
+
+                          <div className="mt-3 flex flex-wrap items-end gap-2">
+                            {open.mode === "pay" ? (
+                              <>
+                                <label className="text-xs text-ink-soft">Amount received<input className={`${inputCls} mt-1 block w-36`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+                                <button className={primaryCls} disabled={pending} onClick={() => catchUp(l)}>Record</button>
+                              </>
+                            ) : (
+                              <>
+                                <label className="text-xs text-ink-soft">Months<select className={`${inputCls} mt-1 block`} value={months} onChange={(e) => setMonths(e.target.value)}>{[1, 2, 3, 4, 5, 6, 9, 12].map((m) => <option key={m}>{m}</option>)}</select></label>
+                                <label className="text-xs text-ink-soft">Reason<input className={`${inputCls} mt-1 block w-52`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unpaid leave" /></label>
+                                <button className={primaryCls} disabled={pending || !reason.trim()} onClick={() => pause(l)}>Pause from {report.label}</button>
+                              </>
+                            )}
+                            <button className={btnCls} onClick={() => setOpen(null)}>Cancel</button>
+                          </div>
+  ) : null;
+
+  const rowButtons = (l: CycleLine) => canAct && open?.loanId !== l.loanId && (l.status === "short" || l.status === "missed" || l.status === "awaiting") ? (
+    <span className="inline-flex flex-wrap gap-1.5">
+      <button className={btnCls} onClick={() => { setAmount(String(l.remaining)); setOpen({ loanId: l.loanId, mode: "pay" }); }}><Wallet className="h-4 w-4" /> Record payment</button>
+      <button className={btnCls} onClick={() => setOpen({ loanId: l.loanId, mode: "pause" })}><Pause className="h-4 w-4" /> Pause</button>
+    </span>
+  ) : null;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -144,7 +172,8 @@ export default function ReconciliationView({
         {report.lines.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-ink-soft">No deductions are due for this month.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
                 <tr><th className="px-5 py-2">Employee</th><th className="px-3 py-2 text-right">Expected</th><th className="px-3 py-2 text-right">Received</th><th className="px-3 py-2 text-right">Remaining</th><th className="px-3 py-2">Status</th><th className="px-5 py-2"><span className="sr-only">Actions</span></th></tr>
@@ -152,49 +181,49 @@ export default function ReconciliationView({
               <tbody className="divide-y divide-rule">
                 {report.lines.map((l) => {
                   const s = STATUS[l.status];
-                  const isOpen = open?.loanId === l.loanId;
-                  const actionable = canAct && (l.status === "short" || l.status === "missed" || l.status === "awaiting");
                   return (
                     <tr key={l.loanId} className="align-top">
                       <td className="px-5 py-3">
                         <Link href={`/loans/${l.loanId}`} className="font-medium text-ink hover:underline">{l.name}</Link>
                         <div className="text-xs text-ink-soft">{l.employeeNo} · {l.product}{l.arrearsBroughtForward > 0 ? ` · incl. ${money(l.arrearsBroughtForward)} arrears` : ""}</div>
-                        {isOpen ? (
-                          <div className="mt-3 flex flex-wrap items-end gap-2">
-                            {open.mode === "pay" ? (
-                              <>
-                                <label className="text-xs text-ink-soft">Amount received<input className={`${inputCls} mt-1 block w-36`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
-                                <button className={primaryCls} disabled={pending} onClick={() => catchUp(l)}>Record</button>
-                              </>
-                            ) : (
-                              <>
-                                <label className="text-xs text-ink-soft">Months<select className={`${inputCls} mt-1 block`} value={months} onChange={(e) => setMonths(e.target.value)}>{[1, 2, 3, 4, 5, 6, 9, 12].map((m) => <option key={m}>{m}</option>)}</select></label>
-                                <label className="text-xs text-ink-soft">Reason<input className={`${inputCls} mt-1 block w-52`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unpaid leave" /></label>
-                                <button className={primaryCls} disabled={pending || !reason.trim()} onClick={() => pause(l)}>Pause from {report.label}</button>
-                              </>
-                            )}
-                            <button className={btnCls} onClick={() => setOpen(null)}>Cancel</button>
-                          </div>
-                        ) : null}
+                        {inlineForm(l)}
                       </td>
                       <td className="num px-3 py-3 text-right">{money(l.expected)}</td>
                       <td className="num px-3 py-3 text-right">{money(l.received)}</td>
                       <td className="num px-3 py-3 text-right">{l.remaining > 0 ? money(l.remaining) : "—"}</td>
                       <td className="px-3 py-3"><span className={`chip ${s.chip}`}>{s.label}</span></td>
-                      <td className="px-5 py-3 text-right">
-                        {actionable && !isOpen ? (
-                          <span className="inline-flex gap-1.5">
-                            <button className={btnCls} onClick={() => { setAmount(String(l.remaining)); setOpen({ loanId: l.loanId, mode: "pay" }); }}><Wallet className="h-4 w-4" /> Record payment</button>
-                            <button className={btnCls} onClick={() => setOpen({ loanId: l.loanId, mode: "pause" })}><Pause className="h-4 w-4" /> Pause</button>
-                          </span>
-                        ) : null}
-                      </td>
+                      <td className="px-5 py-3 text-right">{rowButtons(l)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          <ul className="divide-y divide-rule sm:hidden">
+            {report.lines.map((l) => {
+              const st = STATUS[l.status];
+              return (
+                <li key={l.loanId} className="space-y-3 px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link href={`/loans/${l.loanId}`} className="block break-words font-medium text-ink hover:underline">{l.name}</Link>
+                      <div className="mt-0.5 break-words text-xs text-ink-soft">{l.employeeNo} · {l.product}</div>
+                    </div>
+                    <span className={`chip shrink-0 ${st.chip}`}>{st.label}</span>
+                  </div>
+                  <dl className="grid grid-cols-3 gap-2 rounded-xl bg-paper px-3 py-2.5 text-sm">
+                    <div className="min-w-0"><dt className="text-[0.6875rem] uppercase tracking-wide text-ink-soft">Expected</dt><dd className="num mt-0.5 break-words font-medium text-ink">{money(l.expected)}</dd></div>
+                    <div className="min-w-0"><dt className="text-[0.6875rem] uppercase tracking-wide text-ink-soft">Received</dt><dd className="num mt-0.5 break-words font-medium text-ink">{money(l.received)}</dd></div>
+                    <div className="min-w-0"><dt className="text-[0.6875rem] uppercase tracking-wide text-ink-soft">Remaining</dt><dd className="num mt-0.5 break-words font-medium text-ink">{l.remaining > 0 ? money(l.remaining) : "—"}</dd></div>
+                  </dl>
+                  {l.arrearsBroughtForward > 0 ? <p className="text-xs text-ink-soft">Includes {money(l.arrearsBroughtForward)} brought forward from earlier months.</p> : null}
+                  {inlineForm(l)}
+                  {rowButtons(l)}
+                </li>
+              );
+            })}
+          </ul>
+          </>
         )}
       </section>
 
