@@ -24,6 +24,7 @@ export function makeSmtpMailer(config: SmtpConfig): Mailer {
         to: msg.to,
         subject: msg.subject,
         html: msg.html,
+        text: msg.text,
       });
     },
   };

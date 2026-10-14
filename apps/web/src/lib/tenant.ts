@@ -7,11 +7,13 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { makeDb, resolveTenant, tenantTx, type Tx } from "@wola/db";
+import { registerEmailFlush } from "./email-flush";
 export { tenantTx, type Tx } from "@wola/db";
 
 // One pool per server process (Next dev hot-reload guard).
 const globalForDb = globalThis as unknown as { __wolaDb?: ReturnType<typeof makeDb> };
 export const db = (globalForDb.__wolaDb ??= makeDb());
+registerEmailFlush(db); // mail queued by a request goes out right after it (see email-flush.ts)
 
 export class TenantError extends Error {
   constructor(public status: number, message: string) { super(message); }

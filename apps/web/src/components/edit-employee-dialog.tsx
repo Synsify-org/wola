@@ -10,9 +10,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { updateEmployeeAction, type EmployeeUpdate } from "@/app/(app)/settings/employees-actions";
+import { PROVISIONAL_EMPLOYEE_NO_PREFIX } from "@wola/engine";
 
 type Employee = {
   id: string;
+  employee_no: string;
+  work_email: string | null;
+  review_note: string | null;
   full_name: string;
   department: string | null;
   department_head_no: string | null;
@@ -40,7 +44,11 @@ export default function EditEmployeeDialog({ employee }: { employee: Employee })
     net_salary: Number(employee.net_salary),
     is_post_probation: employee.is_post_probation,
     on_final_warning: employee.on_final_warning,
+    employee_no: employee.employee_no,
+    work_email: employee.work_email,
+    resolve_review: false,
   });
+  const provisional = employee.employee_no.startsWith(PROVISIONAL_EMPLOYEE_NO_PREFIX);
 
   function submit() {
     setError(null);
@@ -72,7 +80,42 @@ export default function EditEmployeeDialog({ employee }: { employee: Employee })
           <DialogTitle>Edit {employee.full_name}</DialogTitle>
         </DialogHeader>
 
+        {employee.review_note ? (
+          <div className="rounded-xl bg-awaiting-wash px-3 py-2.5 text-sm text-ink">
+            <p className="font-medium">Needs a look</p>
+            <p className="mt-0.5 text-ink-soft">{employee.review_note}</p>
+            <label className="mt-2 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={fields.resolve_review}
+                onChange={(e) => setFields((f) => ({ ...f, resolve_review: e.target.checked }))}
+              />
+              I have settled this (clear the flag when I save)
+            </label>
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-2 gap-3">
+          <label>
+            <span className={labelCls}>Employee number</span>
+            <input
+              value={fields.employee_no}
+              disabled={!provisional}
+              onChange={(e) => setFields((f) => ({ ...f, employee_no: e.target.value }))}
+              className={inputCls + (provisional ? " border-awaiting" : " opacity-70")}
+            />
+            {provisional ? <span className="mt-1 block text-xs text-awaiting">Temporary. Enter the real number once HR has it.</span> : null}
+          </label>
+          <label>
+            <span className={labelCls}>Work email</span>
+            <input
+              type="email"
+              value={fields.work_email ?? ""}
+              placeholder="name@company.com"
+              onChange={(e) => setFields((f) => ({ ...f, work_email: e.target.value || null }))}
+              className={inputCls}
+            />
+          </label>
           <label className="col-span-2">
             <span className={labelCls}>Full name</span>
             <input

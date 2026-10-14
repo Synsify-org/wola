@@ -5,7 +5,10 @@
 // enforced again server-side in the action, and hidden here rather than
 // shown-then-denied for anyone who can't use it.
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ClipboardList } from "lucide-react";
 import { registerHealth } from "@wola/db";
+import { isProvisionalEmployeeNo } from "@wola/engine";
 import { requireSession } from "@/lib/guard";
 import EmployeeImport from "@/components/employee-import";
 import CreateAccountButton from "@/components/create-account-button";
@@ -34,12 +37,27 @@ type Row = {
   on_final_warning: boolean;
   status: string;
   has_account: boolean;
+  work_email: string | null;
+  review_note: string | null;
 };
+
+// Small flags shown next to a person's name when their record needs a look.
+function Flags({ r }: { r: Row }) {
+  return (
+    <>
+      {isProvisionalEmployeeNo(r.employee_no) ? <span className="chip chip--awaiting" title="Temporary number: enter the real one">Temporary no.</span> : null}
+      {r.review_note ? <span className="chip chip--awaiting" title={r.review_note}>Needs a look</span> : null}
+    </>
+  );
+}
 
 const ISSUE_LABELS: Record<string, string> = {
   missing_head: "staff missing a department head",
   missing_salary: "staff missing a salary on file",
+  needs_review: "staff flagged for a decision when the list was loaded",
 };
+// These are fixed by typing in a table, not one person at a time: they open the sheet.
+const SHEET_ISSUES: Record<string, string> = { missing_salary: "pay", missing_email: "email", provisional_id: "number" };
 
 export const metadata = pageMeta({ title: "Employee directory", description: "Employees, departments, salaries and who has a login.", path: "/settings/employees" });
 
@@ -49,6 +67,7 @@ export default async function EmployeesPage({
   searchParams: Promise<{ issue?: string }>;
 }) {
   const { issue } = await searchParams;
+  if (issue && SHEET_ISSUES[issue]) redirect(`/settings/employees/sheet?focus=${SHEET_ISSUES[issue]}`);
   const currency = await getTenantCurrency();
   const ugx = (n: string) => formatMoney(Number(n), currency);
   const data = await requireSession(async (tx, ctx) => {
@@ -57,7 +76,7 @@ export default async function EmployeesPage({
     const allRows = (await tx`
       SELECT e.id, e.employee_no, e.full_name, e.department, e.title,
              e.gross_salary, e.net_salary, e.is_post_probation, e.on_final_warning,
-             e.status, (e.user_id IS NOT NULL) AS has_account,
+             e.status, (e.user_id IS NOT NULL) AS has_account, e.work_email, e.review_note,
              head.employee_no AS department_head_no
       FROM employees e
       LEFT JOIN employees head ON head.id = e.department_head_id
@@ -66,11 +85,9 @@ export default async function EmployeesPage({
     // ?issue= is the HR dashboard's "Fix" link: show exactly the people the
     // register-health panel flagged, using the same definition it does.
     let rows = allRows;
-    if (issue === "missing_head" || issue === "missing_salary") {
+    if (issue === "missing_head" || issue === "needs_review") {
       const health = await registerHealth(tx, ctx.tenantId);
-      const ids = new Set(
-        (issue === "missing_head" ? health.missingDeptHeadPeople : health.missingSalaryPeople).map((p) => p.id),
-      );
+      const ids = new Set((issue === "missing_head" ? health.missingDeptHeadPeople : health.reviewPeople).map((p) => p.id));
       rows = allRows.filter((r) => ids.has(r.id));
     }
 
@@ -91,6 +108,11 @@ export default async function EmployeesPage({
           <h1 className="text-xl font-semibold text-ink">Employee directory</h1>
           <p className="mt-1 text-sm text-ink-soft">{data.rows.length} employee{data.rows.length === 1 ? "" : "s"}.</p>
         </div>
+        {data.canImport ? (
+          <Link href="/settings/employees/sheet" className="btn inline-flex h-10 items-center gap-2 rounded-full border border-rule bg-surface px-4 text-sm font-medium text-ink hover:border-ink-faint/50">
+            <ClipboardList className="h-4 w-4" /> Fill in details
+          </Link>
+        ) : null}
       </div>
 
       {issue && ISSUE_LABELS[issue] ? (
@@ -129,7 +151,10 @@ export default async function EmployeesPage({
                 value={ugx(r.gross_salary)}
                 valueNote="gross"
                 chip={
-                  <span className={r.status === "active" ? "chip chip--approved" : "chip"}>{r.status}</span>
+                  <span className="inline-flex flex-wrap items-center gap-1">
+                    <Flags r={r} />
+                    <span className={r.status === "active" ? "chip chip--approved" : "chip"}>{r.status}</span>
+                  </span>
                 }
                 actions={
                   <>
@@ -145,6 +170,9 @@ export default async function EmployeesPage({
                         <EditEmployeeDialog
                           employee={{
                             id: r.id,
+                            employee_no: r.employee_no,
+                            work_email: r.work_email,
+                            review_note: r.review_note,
                             full_name: r.full_name,
                             department: r.department,
                             department_head_no: r.department_head_no,
@@ -186,6 +214,7 @@ export default async function EmployeesPage({
                     <span className="flex items-center gap-3">
                       <Avatar name={r.full_name} size="sm" />
                       {r.full_name}
+                      <Flags r={r} />
                     </span>
                   </td>
                   <td className="num text-ink-soft">{r.employee_no}</td>
@@ -213,6 +242,9 @@ export default async function EmployeesPage({
                         <EditEmployeeDialog
                           employee={{
                             id: r.id,
+                            employee_no: r.employee_no,
+                            work_email: r.work_email,
+                            review_note: r.review_note,
                             full_name: r.full_name,
                             department: r.department,
                             department_head_no: r.department_head_no,

@@ -16,6 +16,9 @@ export type RegisterHealth = {
   missingSalary: number;
   missingDeptHeadPeople: RegisterPerson[];
   missingSalaryPeople: RegisterPerson[];
+  provisionalNoPeople: RegisterPerson[];
+  reviewPeople: (RegisterPerson & { note: string })[];
+  missingEmailPeople: RegisterPerson[];
 };
 export type HRInboxItem = {
   applicationId: string;
@@ -44,7 +47,8 @@ export default function DashboardHR({
 }) {
   // Each issue names the people behind it and links to the directory filtered
   // to exactly them — HR shouldn't have to hunt a 50-row table for "4 staff".
-  type Blocker = { label: string; people: RegisterPerson[]; href: string };
+  type Blocker = { label: string; people: RegisterPerson[]; href: string; detail?: string };
+  const n = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
   const blockers: Blocker[] = [
     health.missingDeptHead > 0
       ? {
@@ -60,9 +64,33 @@ export default function DashboardHR({
           href: "/settings/employees?issue=missing_salary",
         }
       : null,
+    health.provisionalNoPeople.length > 0
+      ? {
+          label: `${n(health.provisionalNoPeople.length, "person", "people")} on a temporary employee number`,
+          people: health.provisionalNoPeople,
+          href: "/settings/employees?issue=provisional_id",
+          detail: "Their list had no number. Enter the real one.",
+        }
+      : null,
+    health.reviewPeople.length > 0
+      ? {
+          label: `${n(health.reviewPeople.length, "record needs", "records need")} a decision`,
+          people: health.reviewPeople,
+          href: "/settings/employees?issue=needs_review",
+          detail: health.reviewPeople[0].note,
+        }
+      : null,
+    health.missingEmailPeople.length > 0
+      ? {
+          label: `${n(health.missingEmailPeople.length, "person has", "people have")} no work email`,
+          people: health.missingEmailPeople,
+          href: "/settings/employees?issue=missing_email",
+          detail: "Without one they cannot be invited to sign in.",
+        }
+      : null,
   ].filter((b): b is Blocker => b !== null);
 
-  const issues = health.missingDeptHead + health.missingSalary;
+  const issues = health.missingDeptHead + health.missingSalary + health.provisionalNoPeople.length + health.reviewPeople.length + health.missingEmailPeople.length;
 
   return (
     <div className="space-y-4 xl:space-y-5">
@@ -111,12 +139,13 @@ export default function DashboardHR({
                       {b.people.slice(0, 4).map((p) => p.name).join(", ")}
                       {b.people.length > 4 ? ` and ${b.people.length - 4} more` : ""}
                     </p>
+                    {b.detail ? <p className="mt-0.5 pl-6 text-xs text-ink-soft">{b.detail}</p> : null}
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="text-sm text-ink-soft">
-                No blocking data issues — every active employee has a department head and a salary on file.
+                No data issues: every active employee has a real employee number, a department head, a salary and a work email on file.
               </p>
             )}
           </DashboardCard>

@@ -38,7 +38,7 @@ export function systemChecks(
   if (health.emailsFailed > 0) {
     checks.push({ id: "email", label: "Email delivery", status: "warn", detail: `${health.emailsFailed} email${health.emailsFailed === 1 ? "" : "s"} failed after several attempts. Check the email provider and the sender's log.` });
   } else if (health.emailsPending > 0 && waitedMin >= 30) {
-    checks.push({ id: "email", label: "Email delivery", status: "warn", detail: `${health.emailsPending} email${health.emailsPending === 1 ? " has" : "s have"} been waiting ${waitedMin >= 120 ? Math.floor(waitedMin / 60) + " hours" : waitedMin + " minutes"}. Nothing is sending them: invitations, password resets and approval alerts are not reaching people. Set up the sender and an email provider.` });
+    checks.push({ id: "email", label: "Email delivery", status: "warn", detail: `${health.emailsPending} email${health.emailsPending === 1 ? " has" : "s have"} been waiting ${waitedMin >= 120 ? Math.floor(waitedMin / 60) + " hours" : waitedMin + " minutes"}. Nothing is sending them: invitations, password resets and approval alerts are not reaching people. Check that RESEND_API_KEY and EMAIL_FROM are set where Wola is hosted (docs/GO_LIVE.md, step 0b).` });
   } else if (health.emailsPending > 0) {
     checks.push({ id: "email", label: "Email delivery", status: "ok", detail: `${health.emailsPending} waiting to be sent, queued recently.` });
   } else if (health.emailsSent7d > 0) {

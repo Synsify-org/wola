@@ -25,6 +25,9 @@ The test suite refuses to run against a database whose name doesn't contain
 | `WOLA_BASE_DOMAIN` | app | Apex domain tenants live under. |
 | `SITE_URL` | app | Fallback public origin. |
 | `MFA_ENCRYPTION_KEY` | app | Enables two-step sign-in. Back it up. |
+| `RESEND_API_KEY` | app (Vercel) | Sends email through Resend. With `EMAIL_FROM`; see GO_LIVE step 0b. |
+| `EMAIL_FROM` | app (Vercel) | Sender, on a domain verified in Resend, e.g. `Wola <no-reply@bookings.synsify.africa>`. |
+| `EMAIL_REPLY_TO` | app (optional) | Where replies to Wola's emails go. |
 | `ERROR_WEBHOOK_URL` | app (optional) | Receives one JSON message per server error (Slack-compatible). |
 
 `.env` at the repo root is for scripts and tests; `apps/web/.env.local` is what

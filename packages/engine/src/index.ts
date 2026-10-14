@@ -5,3 +5,4 @@ export * from "./currency.js";
 export * from "./config-validation.js";
 export * from "./pricing.js";
 export * from "./suspension.js";
+export * from "./employee-no.js";

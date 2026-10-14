@@ -9,6 +9,7 @@ import { MEMBERSHIP_ROLES } from "@wola/engine";
 import { Avatar } from "@/components/ui/avatar";
 import { OptionSelect } from "@/components/ui/select";
 import DashboardCard from "./dashboard-card";
+import BulkInvite from "./bulk-invite";
 import { roleLabel } from "@/lib/product-summary";
 import {
   changeRoleAction, removeAccessAction, inviteAction, revokeInviteAction,
@@ -196,6 +197,8 @@ export default function AccessManager({
           </div>
         </DashboardCard>
       ) : null}
+
+      {canEdit ? <BulkInvite /> : null}
     </div>
   );
 }

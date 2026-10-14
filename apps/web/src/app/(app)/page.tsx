@@ -296,7 +296,8 @@ export default async function Dashboard({
     configStatus &&
     configStatus.productsCount > 0 &&
     configStatus.productsWithoutPipeline.length === 0 &&
-    configStatus.productsMissingRateIndex.length === 0;
+    configStatus.productsMissingRateIndex.length === 0 &&
+    configStatus.stagesWithoutHolder.length === 0;
   const exceptions = reconciliation?.exceptions.length ?? 0;
 
   const highlight: BannerHighlight | undefined = deptQueue
