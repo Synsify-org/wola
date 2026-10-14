@@ -86,7 +86,7 @@ test("what needs attention is spelled out per organisation, warnings first", asy
 });
 
 test("emails waiting for hours are a warning, with how long; a recent queue is only information", async () => {
-  await admin`UPDATE email_outbox SET created_at = now() - interval '3 hours' WHERE tenant_id = ${A} AND status = 'pending'`;
+  await admin`UPDATE email_outbox SET created_at = now() - interval '3 hours 5 minutes' WHERE tenant_id = ${A} AND status = 'pending'`;
   await admin`INSERT INTO email_outbox (tenant_id,to_email,subject,body_html,status,sent_at) VALUES (${A},'z@plat.t','s','b','sent', now() - interval '1 day')`;
   const c = await platformConsole(app);
   const a = c.orgs.find((o) => o.slug === "plat-a");
