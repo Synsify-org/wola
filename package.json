@@ -13,6 +13,7 @@
     "pretest:isolation": "node scripts/db-test-setup.mjs",
     "test:isolation": "node --import tsx --import dotenv/config --import ./scripts/use-test-db.mjs --test --test-concurrency=1 packages/db/test/*.test.mjs",
     "restore:check": "node --import dotenv/config scripts/restore-check.mjs",
+    "migration:sql": "node scripts/migration-sql.mjs",
     "operator:sql": "node scripts/operator-sql.mjs",
     "onboard:operator": "node scripts/onboard-production.mjs",
     "verify:production": "node scripts/verify-production.mjs",
