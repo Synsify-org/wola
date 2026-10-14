@@ -1,12 +1,16 @@
 "use server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { superLogout, SUPER_SESSION_COOKIE } from "@/lib/super-admin-auth";
+import { superLogout, verifySuperSession, SUPER_SESSION_COOKIE } from "@/lib/super-admin-auth";
+import { FLASH_COOKIE, FLASH_MAX_AGE } from "@/lib/flash";
 
 export async function superLogoutAction() {
   const token = (await cookies()).get(SUPER_SESSION_COOKIE)?.value;
+  const session = await verifySuperSession(token);
+  if (session) await recordPlatformEvent(db, { actorId: session.userId, action: "platform.signed_out" });
   await superLogout(token);
   (await cookies()).delete(SUPER_SESSION_COOKIE);
+  (await cookies()).set(FLASH_COOKIE, "signed-out", { path: "/", maxAge: FLASH_MAX_AGE, sameSite: "lax" });
   redirect("/admin/login");
 }
 
@@ -17,7 +21,7 @@ export async function superLogoutAction() {
 import { requireSuperSession } from "@/lib/super-admin-guard";
 import { db } from "@/lib/tenant";
 import {
-  beginEnrollment, confirmEnrollment, consumeSecondFactor, mfaKey, otpauthUri, replaceRecoveryCodes,
+  beginEnrollment, confirmEnrollment, consumeSecondFactor, mfaKey, otpauthUri, replaceRecoveryCodes, recordPlatformEvent,
 } from "@wola/db";
 import { markSuperSessionVerified } from "@/lib/super-admin-auth";
 
@@ -44,6 +48,7 @@ export async function superConfirmMfaAction(code: string): Promise<Result<{ reco
     if (!r.ok) return r;
     // The code was just proven, so this session is now fully signed in.
     await markSuperSessionVerified((await cookies()).get(SUPER_SESSION_COOKIE)?.value);
+    await recordPlatformEvent(db, { actorId: ctx.userId, action: "platform.mfa_enrolled" });
     return { ok: true, recoveryCodes: r.recoveryCodes };
   }, gate);
 }
@@ -55,7 +60,9 @@ export async function superNewRecoveryCodesAction(code: string): Promise<Result<
     if (!(await consumeSecondFactor(db, ctx.userId, code, key)).ok) {
       return { ok: false, error: "That code isn't right. Enter the newest code from your app." };
     }
-    return { ok: true, recoveryCodes: await replaceRecoveryCodes(db, ctx.userId) };
+    const recoveryCodes = await replaceRecoveryCodes(db, ctx.userId);
+    await recordPlatformEvent(db, { actorId: ctx.userId, action: "platform.recovery_codes_renewed" });
+    return { ok: true, recoveryCodes };
   }, gate);
 }
 

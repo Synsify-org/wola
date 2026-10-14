@@ -82,6 +82,8 @@ try {
   run("seed-demo.mjs");
   step("5b", "Payroll history (last month left with a missed and a short deduction)");
   run("seed-payroll-history.mjs");
+  step("5c", "A few notifications, so the bell has something to show");
+  run("seed-notifications.mjs");
 
   step(6, "Verifying the known-good state");
   const [c] = await sql`

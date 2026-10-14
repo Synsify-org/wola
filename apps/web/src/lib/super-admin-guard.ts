@@ -20,7 +20,7 @@ export async function requireSuperSession<T>(
 ): Promise<T> {
   const token = (await cookies()).get(SUPER_SESSION_COOKIE)?.value;
   const session = await verifySuperSession(token);
-  if (!session) redirect("/admin/login");
+  if (!session) redirect(token ? "/admin/login?reason=expired" : "/admin/login");
   if (!session.mfaVerified && !opts.skipMfaGate) redirect("/admin/security");
   return fn({ userId: session.userId });
 }

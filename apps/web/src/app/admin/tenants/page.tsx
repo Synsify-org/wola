@@ -1,72 +1,30 @@
-// apps/web/src/app/admin/tenants/page.tsx — Tenant Registry tab (spec §6.1
-// tab 2). Name, plan, status, loan volume, onboarding date, for every tenant.
+// apps/web/src/app/admin/tenants/page.tsx — every organisation on the platform, searchable,
+// each linking to its own page. Read-only.
 import { requireSuperSession } from "@/lib/super-admin-guard";
-import { tenantRegistry } from "@wola/db";
+import { platformConsole } from "@wola/db";
 import { db } from "@/lib/tenant";
 import SuperAdminShell from "@/components/super-admin-shell";
-import { formatMoney } from "@wola/engine";
+import OrgList from "@/components/admin/org-list";
 import { pageMeta } from "@/lib/site";
 
-const shortDate = (d: string) =>
-  new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-
 export const metadata = pageMeta({ title: "Organisations", description: "Every organisation on the platform.", path: "/admin/tenants" });
+export const dynamic = "force-dynamic";
 
-export default async function TenantRegistryPage() {
-  const data = await requireSuperSession(async (ctx) => {
+export default async function OrganisationsPage() {
+  const { email, orgs } = await requireSuperSession(async (ctx) => {
     const [u] = await db`SELECT email FROM users WHERE id = ${ctx.userId}`;
-    const tenants = await tenantRegistry(db);
-    return { email: (u?.email as string) ?? "", tenants };
+    return { email: (u?.email as string) ?? "", orgs: (await platformConsole(db)).orgs };
   });
-
-  const { email, tenants } = data;
 
   return (
     <SuperAdminShell email={email}>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-ink">Tenant registry</h1>
-        <p className="mt-1 text-sm text-ink-soft">{tenants.length} onboarded tenant{tenants.length === 1 ? "" : "s"}.</p>
+        <h1 className="text-xl font-semibold text-ink">Organisations</h1>
+        <p className="mt-1 text-sm text-ink-soft">
+          {orgs.length} onboarded organisation{orgs.length === 1 ? "" : "s"}. Open one to see its people, its loan book and what has happened there.
+        </p>
       </div>
-
-      {tenants.length === 0 ? (
-        <div className="rounded-xl border border-rule bg-surface p-8 text-center shadow-theme-sm">
-          <p className="text-sm text-ink-soft">No tenants onboarded yet.</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-rule bg-surface shadow-theme-xs">
-          <table className="ledger">
-            <thead>
-              <tr>
-                <th>Tenant</th>
-                <th>Plan</th>
-                <th>Status</th>
-                <th className="r">Active loans</th>
-                <th className="r">Principal disbursed</th>
-                <th>Onboarded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tenants.map((t) => (
-                <tr key={t.id}>
-                  <td>
-                    <div className="font-medium text-ink">{t.name}</div>
-                    <div className="num text-xs text-ink-faint">{t.slug}</div>
-                  </td>
-                  <td className="text-ink-soft">{t.plan}</td>
-                  <td>
-                    <span className={t.status === "active" ? "chip chip--approved" : "chip chip--awaiting"}>
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="r num">{t.activeLoans}</td>
-                  <td className="r num">{formatMoney(t.principalDisbursed, t.currency)}</td>
-                  <td className="text-ink-soft">{shortDate(t.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <OrgList orgs={orgs} />
     </SuperAdminShell>
   );
 }

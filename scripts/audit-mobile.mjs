@@ -13,13 +13,18 @@ import puppeteer from "puppeteer-core";
 import postgres from "postgres";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import "dotenv/config";
 
-const WIDTH = Number((process.argv.find((a) => a.startsWith("--width=")) ?? "--width=390").split("=")[1]);
+// One or more widths, comma separated. 412 is a very common phone width (and the one that
+// exposed layouts that only broke between the usual 360 and 390 test sizes).
+const WIDTHS = (process.argv.find((a) => a.startsWith("--width=")) ?? "--width=390").split("=")[1].split(",").map(Number);
+let WIDTH = WIDTHS[0];
 const SHOTS = (process.argv.find((a) => a.startsWith("--shots=")) ?? "").split("=")[1] || null;
+const URL_ARG = (process.argv.find((a) => a.startsWith("--url=")) ?? "").split("=").slice(1).join("=") || null; // reuse a running server
+if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const PORT = Number(process.env.AUDIT_PORT ?? 3198);
 const root = path.resolve(import.meta.dirname, "..");
 const admin = process.env.DATABASE_ADMIN_URL;
@@ -39,7 +44,7 @@ const ALL_ROLES = [
   ["dept_head", "head@testco.io"], ["employee", "staff@testco.io"], ["org_admin", "admin@testco.io"],
 ];
 const ALL_ROUTES = [
-  "/", "/apply", "/applications", "/approvals", "/loans", "/book", "/analytics", "/reports", "/reconciliation", "/audit-log",
+  "/", "/notifications", "/apply", "/applications", "/approvals", "/loans", "/book", "/analytics", "/reports", "/reconciliation", "/audit-log",
   "/settings", "/settings/employees", "/settings/products", "/settings/products/new", "/settings/routing",
   "/settings/access", "/settings/security",
 ];
@@ -50,32 +55,37 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sh = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8", shell: process.platform === "win32" });
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 
-const server = spawn("npx", ["next", "dev", "--webpack", "-p", String(PORT)], {
-  cwd: path.join(root, "apps/web"), shell: process.platform === "win32",
-  env: { ...process.env, WOLA_BASE_DOMAIN: "localhost", NEXT_TELEMETRY_DISABLED: "1" }, stdio: "ignore",
-});
-const stop = () => { if (process.platform === "win32") sh("taskkill", ["/pid", String(server.pid), "/T", "/F"]); else server.kill("SIGTERM"); };
+let server = null;
+const stop = () => { if (server) { if (process.platform === "win32") sh("taskkill", ["/pid", String(server.pid), "/T", "/F"]); else server.kill("SIGTERM"); } };
 process.on("exit", stop);
-
-const ping = () => new Promise((resolve) => {
-  const req = http.request({ host: "127.0.0.1", port: PORT, path: "/login", headers: { host: `testco.localhost:${PORT}` }, timeout: 60_000 }, (res) => { res.resume(); resolve(res.statusCode === 200); });
-  req.on("error", () => resolve(false)); req.on("timeout", () => { req.destroy(); resolve(false); }); req.end();
-});
-const t0 = Date.now();
-while (!(await ping())) {
-  if (Date.now() - t0 > 180_000) { console.error("dev server did not start"); process.exit(1); }
-  await sleep(2000);
+if (!URL_ARG) {
+  server = spawn("npx", ["next", "dev", "--webpack", "-p", String(PORT)], {
+    cwd: path.join(root, "apps/web"), shell: process.platform === "win32",
+    env: { ...process.env, WOLA_BASE_DOMAIN: "localhost", NEXT_TELEMETRY_DISABLED: "1" }, stdio: "ignore",
+  });
+  const ping = () => new Promise((resolve) => {
+    const req = http.request({ host: "127.0.0.1", port: PORT, path: "/login", headers: { host: `testco.localhost:${PORT}` }, timeout: 60_000 }, (res) => { res.resume(); resolve(res.statusCode === 200); });
+    req.on("error", () => resolve(false)); req.on("timeout", () => { req.destroy(); resolve(false); }); req.end();
+  });
+  const t0 = Date.now();
+  while (!(await ping())) {
+    if (Date.now() - t0 > 180_000) { console.error("dev server did not start"); process.exit(1); }
+    await sleep(2000);
+  }
 }
+const BASE_URL = URL_ARG ?? `http://testco.localhost:${PORT}`;
+const BASE_HOST = new URL(BASE_URL).hostname;
 
 const sql = postgres(admin, { max: 1 });
 const [tenant] = await sql`SELECT id FROM tenants WHERE slug = 'testco'`;
 if (!tenant) { console.error("testco not found; run npm run demo:reset"); process.exit(1); }
 const [loan] = await sql`SELECT id FROM loans WHERE tenant_id = ${tenant.id} AND status = 'active' LIMIT 1`;
-const routes = loan ? [...ROUTES, `/loans/${loan.id}`] : ROUTES;
+const [appn] = await sql`SELECT id FROM loan_applications WHERE tenant_id = ${tenant.id} ORDER BY amount DESC LIMIT 1`; // the biggest: long amounts are what overflow
+const routes = [...ROUTES, ...(loan ? [`/loans/${loan.id}`] : []), ...(appn ? [`/applications/${appn.id}`] : [])];
 
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: true,
-  args: [`--host-resolver-rules=MAP testco.localhost 127.0.0.1`, "--no-sandbox"],
+  args: [`--host-resolver-rules=MAP ${BASE_HOST} 127.0.0.1`, "--no-sandbox"],
 });
 
 // Runs in the page. Two kinds of "bleed":
@@ -96,17 +106,49 @@ const probe = (width) => {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
     const anc = chain(el);
-    const scroller = anc.find((p) => { const o = getComputedStyle(p).overflowX; return o === "auto" || o === "scroll"; });
+    // The app's own scrolling <main> is not "meant to scroll sideways": if its content is
+    // wider than the screen, that IS the bug. Only inner wrappers (tables) are intentional.
+    const scroller = anc.find((p) => p.tagName !== "MAIN" && p !== document.body && (() => { const o = getComputedStyle(p).overflowX; return o === "auto" || o === "scroll"; })());
     if (scroller) continue; // meant to scroll sideways (wide tables)
-    if (r.right > width + 1) { out.push(label(el, "past-edge", r.right - width)); continue; }
-    const clipper = anc.find((p) => { const o = getComputedStyle(p).overflowX; return (o === "hidden" || o === "clip") && p.getBoundingClientRect().right < r.right - 1; });
-    if (clipper && cs.position !== "absolute") out.push(label(el, "clipped", r.right - clipper.getBoundingClientRect().right));
+    // A box that hides its overflow while its CONTENT is wider than the box: text or controls
+    // are being cut off (e.g. a long amount in a card). Decorations (svg) don't count.
+    const hides = cs.overflowX === "hidden" || cs.overflowX === "clip";
+    if (hides && el.clientWidth > 4 && el.tagName.toLowerCase() !== "svg" && !el.matches(".sr-only") && el.scrollWidth > el.clientWidth + 1) {
+      const er = el.getBoundingClientRect();
+      // The in-flow, visible text that actually pokes out (not decorations or sr-only helpers).
+      const spill = [...el.querySelectorAll("*")].find((d) => {
+        const c = getComputedStyle(d);
+        return c.position !== "absolute" && c.position !== "fixed" && !d.closest("svg") && !d.closest(".sr-only")
+          && (d.childNodes.length && [...d.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))
+          && d.getBoundingClientRect().right > er.right + 1;
+      });
+      if (spill) out.push(label(spill, "content-cut", spill.getBoundingClientRect().right - er.right));
+    }
+    // Past the screen edge, unless an ancestor that hides overflow ends first (then it is
+    // "clipped", below, not "past-edge").
+    const clipper = anc.find((p) => { const o = getComputedStyle(p).overflowX; return (o === "hidden" || o === "clip") && p.tagName !== "BODY"; });
+    const clipRight = clipper ? clipper.getBoundingClientRect().right : Infinity;
+    if (r.right > width + 1 && clipRight > width + 1 && cs.position !== "absolute") { out.push(label(el, "past-edge", r.right - width)); continue; }
+    if (clipper && r.right > clipRight + 1 && cs.position !== "absolute" && el.tagName.toLowerCase() !== "svg") out.push(label(el, "clipped", r.right - clipRight));
   }
-  return { docWide: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - width, offenders: out.slice(0, 5), total: out.length };
+  // Page-level sideways scroll: the document OR the scrolling <main> is wider than the screen.
+  const pageWide = Math.max(
+    document.documentElement.scrollWidth - width,
+    document.body.scrollWidth - width,
+    ...[...document.querySelectorAll("main")].map((m) => m.scrollWidth - m.clientWidth),
+  );
+  // Tables that need a sideways scroll inside their card: allowed, but worth a look on a phone.
+  const wide = [...document.querySelectorAll("table")]
+    .filter((t) => { const w = t.closest("div"); return w && w.scrollWidth > w.clientWidth + 1 && t.getBoundingClientRect().width > width; })
+    .map((t) => `table ${Math.round(t.getBoundingClientRect().width)}px wide, headers: ${[...t.querySelectorAll("th")].slice(0, 4).map((h) => h.textContent.trim()).filter(Boolean).join(" | ")}`);
+  return { docWide: pageWide, offenders: out.slice(0, 5), total: out.length, wide };
 };
 
 const problems = [];
+const wideTables = new Map();
 let checks = 0;
+for (const w of WIDTHS) {
+WIDTH = w;
 for (const [role, email] of ROLES) {
   const [u] = await sql`SELECT id FROM users WHERE email = ${email}`;
   if (!u) continue;
@@ -114,11 +156,11 @@ for (const [role, email] of ROLES) {
   await sql`INSERT INTO sessions (user_id, tenant_id, token_hash, expires_at) VALUES (${u.id}, ${tenant.id}, ${sha256(token)}, now() + interval '1 hour')`;
   const page = await browser.newPage();
   await page.setViewport({ width: WIDTH, height: SHOTS ? 4200 : 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
-  await page.setCookie({ name: "wola_session", value: token, domain: "testco.localhost", path: "/" });
+  await page.setCookie({ name: "wola_session", value: token, domain: BASE_HOST, path: "/" });
   for (const route of routes) {
     checks++;
     try {
-      await page.goto(`http://testco.localhost:${PORT}${route}`, { waitUntil: "load", timeout: 120_000 });
+      await page.goto(`${BASE_URL}${route}`, { waitUntil: "load", timeout: 120_000 });
       await sleep(1500); // entrance animations settle
       const res = await page.evaluate(probe, WIDTH);
       if (SHOTS) {
@@ -128,26 +170,37 @@ for (const [role, email] of ROLES) {
           await page.screenshot({ path: path.join(SHOTS, `${role}${route.replace(/[^a-z0-9]+/gi, "_")}_${WIDTH}_${i}.png`), clip: { x: 0, y, width: WIDTH, height: Math.min(1400, 4200 - y) } });
         }
       }
-      if (res.docWide > 1 || res.total > 0) problems.push({ role, route: page.url().replace(/^https?:\/\/[^/]+/, ""), ...res });
+      for (const t of res.wide ?? []) wideTables.set(`${page.url().replace(/^https?:\/\/[^/]+/, "")} @${WIDTH}px: ${t}`, true);
+      if (res.docWide > 1 || res.total > 0) problems.push({ role, width: WIDTH, route: page.url().replace(/^https?:\/\/[^/]+/, ""), ...res });
     } catch (e) {
       // A redirect (e.g. a role that may not open the page) aborts the navigation: not a layout problem.
-      if (!/ERR_ABORTED/.test(e.message)) problems.push({ role, route, docWide: 0, offenders: [`could not load: ${e.message}`], total: 1 });
+      if (!/ERR_ABORTED|Execution context was destroyed/.test(e.message)) problems.push({ role, route, docWide: 0, offenders: [`could not load: ${e.message}`], total: 1 });
     }
   }
   await page.close();
+}
 }
 await browser.close();
 await sql`DELETE FROM sessions WHERE token_hash IN (SELECT token_hash FROM sessions WHERE expires_at > now() AND created_at > now() - interval '2 hours' AND user_id IN (SELECT id FROM users WHERE email LIKE '%@testco.io'))`.catch(() => {});
 await sql.end();
 
+const widthsLabel = WIDTHS.map((w) => `${w}px`).join(", ");
+if (wideTables.size) {
+  console.log(`
+Tables that scroll sideways inside their card (allowed, but check they are readable on a phone):`);
+  for (const k of wideTables.keys()) console.log(`  ${k}`);
+}
 if (problems.length === 0) {
-  console.log(`\nNo page spills sideways at ${WIDTH}px (${checks} checks, ${ROLES.length} roles).`);
+  console.log(`
+No page spills sideways at ${widthsLabel} (${checks} checks, ${ROLES.length} roles).`);
   process.exit(0);
 }
-// Group by page: the same page for several roles is one finding.
+// Group by page and width: the same page for several roles is one finding.
 const byRoute = new Map();
-for (const p of problems) { const k = p.route; (byRoute.get(k) ?? byRoute.set(k, []).get(k)).push(p); }
-console.log(`\n${byRoute.size} page(s) spill sideways at ${WIDTH}px:\n`);
+for (const p of problems) { const k = `${p.route} @${p.width}px`; (byRoute.get(k) ?? byRoute.set(k, []).get(k)).push(p); }
+console.log(`
+${byRoute.size} finding(s):
+`);
 for (const [route, ps] of byRoute) {
   const worst = ps.sort((a, b) => b.docWide - a.docWide)[0];
   console.log(`${route}   roles: ${ps.map((p) => p.role).join(", ")}   page is ${Math.max(0, worst.docWide)}px too wide`);

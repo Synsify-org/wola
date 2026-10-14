@@ -9,6 +9,28 @@ Replace `<site>` below with the address you open Wola on (for example
 
 ---
 
+## 0. Before the NEXT deploy: migrations 0026 and 0027
+
+- `0026_notifications.sql`: the bell reads a new `notifications` table on **every page**. If the
+  new code goes live before it is applied, every signed-in page fails.
+- `0027_platform_audit.sql`: the platform console records operator activity in a new table;
+  without it the console's pages fail.
+
+Apply both first (step 1 below, same two ways), and only then merge/deploy. Check with
+`node scripts/migrate.mjs --dry-run` that it lists both as pending before you merge, and
+`0 pending` after you apply them.
+
+## 0b. Email does not get sent yet (found while building the platform console)
+
+Invitations, password resets and approval alerts are written to a queue (`email_outbox`), but
+**nothing sends them**: the sender is `scripts/process-email-outbox.mjs`, which has to be run
+repeatedly by something, and no scheduler is set up. No email provider is configured either.
+Until both exist, a person who clicks "Forgot password" receives nothing. The platform console's
+"Platform checks" shows this (it warns when emails have waited more than 30 minutes).
+What it takes: an email provider with SMTP (Resend, SES, Postmark...), a sender domain with
+SPF/DKIM, and either (a) a scheduled job or (b) sending right after the action that queues the
+email. Option (b) is recommended: no scheduler, and mail goes out in seconds.
+
 ## 1. Apply migrations 0023, 0024 and 0025 to production
 
 They are additive (new tables and columns), so the version of the app that is live now
