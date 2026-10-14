@@ -7,6 +7,7 @@ import { requireSuperSession } from "@/lib/super-admin-guard";
 import { crossTenantAuditLog, listPlatformEvents } from "@wola/db";
 import { db } from "@/lib/tenant";
 import SuperAdminShell from "@/components/super-admin-shell";
+import ActivityFilters from "@/components/admin/activity-filters";
 import { Empty, Panel, timeAgo } from "@/components/admin/parts";
 import { pageMeta } from "@/lib/site";
 
@@ -38,7 +39,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
 
   const tab = (v: string, text: string) => (
     <Link
-      href={`/admin/audit-log?view=${v}`}
+      href={`/admin/audit-log?view=${v}${slug ? `&tenant=${encodeURIComponent(slug)}` : ""}`}
       aria-current={view === v ? "page" : undefined}
       className={"rounded-full border px-4 py-2 text-sm font-medium " + (view === v ? "border-brand-200 bg-brand-50 text-brand-800" : "border-rule bg-surface text-ink-soft hover:text-ink")}
     >
@@ -58,22 +59,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         {tab("operators", "Wola operators")}
       </div>
 
-      <form method="get" className="mb-5 flex flex-wrap items-end gap-3">
-        <input type="hidden" name="view" value={view} />
-        <label className="text-xs text-ink-soft">
-          Organisation
-          <select name="tenant" defaultValue={slug} className="mt-1 block h-10 min-w-48 rounded-xl border border-rule bg-surface px-3 text-sm text-ink">
-            <option value="">All organisations</option>
-            {data.tenants.map((t) => <option key={t.slug as string} value={t.slug as string}>{t.name as string}</option>)}
-          </select>
-        </label>
-        <label className="text-xs text-ink-soft">
-          Search
-          <input name="q" defaultValue={sp.q ?? ""} placeholder="action, person…" className="mt-1 block h-10 w-56 max-w-full rounded-xl border border-rule bg-surface px-3 text-sm text-ink placeholder:text-ink-faint" />
-        </label>
-        <button className="h-10 rounded-xl bg-brand px-4 text-sm font-medium text-brand-ink hover:bg-brand-700">Filter</button>
-        {slug || q ? <Link href={`/admin/audit-log?view=${view}`} className="pb-2.5 text-sm font-medium text-brand hover:underline">Clear</Link> : null}
-      </form>
+      <ActivityFilters view={view} tenant={slug} q={(sp.q ?? "").slice(0, 60)} tenants={data.tenants.map((t) => ({ slug: t.slug as string, name: t.name as string }))} />
 
       {view === "organisations" ? (
         <Panel title="Inside organisations" action={<span className="text-xs text-ink-soft">{orgRows.length} shown</span>}>

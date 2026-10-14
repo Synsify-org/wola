@@ -18,13 +18,41 @@ import path from "node:path";
 const args = process.argv.slice(2);
 const print = args.includes("--print");
 const wanted = args.filter((a) => !a.startsWith("--"));
-if (wanted.length === 0) {
+const check = args.includes("--check");
+if (wanted.length === 0 && !check) {
   console.error("Name the migrations to apply, e.g.  npm run migration:sql -- 0026 0027");
+  console.error("Or see which are applied (read-only):  npm run migration:sql -- --check");
   process.exit(1);
 }
 
 const dir = path.resolve(import.meta.dirname, "../packages/db/migrations");
 const files = (await readdir(dir)).filter((f) => f.endsWith(".sql")).sort();
+
+// --check: a READ-ONLY query for the Supabase SQL Editor. Lists every migration this version of
+// the code expects as "applied" or "MISSING" (missing first), so nobody has to read a table.
+if (check) {
+  const values = files.map((f) => `('${f}')`).join(", ");
+  const q = `-- Wola: which migrations are applied? Read-only: changes nothing.
+` +
+    `SELECT f.name, CASE WHEN m.name IS NULL THEN 'MISSING' ELSE 'applied' END AS status, m.applied_at
+` +
+    `FROM (VALUES ${values}) AS f(name)
+` +
+    `LEFT JOIN schema_migrations m ON m.name = f.name
+` +
+    `ORDER BY (m.name IS NOT NULL), f.name DESC
+` +
+    `LIMIT 12;
+`;
+  if (print) { process.stdout.write(q); process.exit(0); }
+  const clip = process.platform === "win32" ? ["clip"] : process.platform === "darwin" ? ["pbcopy"] : ["xclip", "-selection", "clipboard"];
+  const r = spawnSync(clip[0], clip.slice(1), { input: q, shell: process.platform === "win32" });
+  if (r.status !== 0) { console.error("Could not copy to the clipboard. Run again with --check --print and copy it by hand."); process.exit(1); }
+  console.log(`Copied a read-only check (${files.length} migrations known to this version) to your clipboard.`);
+  console.log("Supabase dashboard -> SQL Editor -> New query -> Ctrl+V -> Run.");
+  console.log("Any row saying MISSING is not applied yet; everything 'applied' means you are up to date.");
+  process.exit(0);
+}
 const picked = [];
 for (const w of wanted) {
   const hit = files.filter((f) => f === w || f === `${w}.sql` || f.startsWith(`${w}_`));

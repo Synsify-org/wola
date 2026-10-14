@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Download, Upload, Check, Pause, Loader2, Wallet } from "lucide-react";
 import { formatMoney } from "@wola/engine";
+import { OptionSelect } from "@/components/ui/select";
 import type { CycleReport, CycleLine, CycleStatus, ActualsPreview, EarlyRepaymentRequest } from "@wola/db";
 import {
   postBulkRunAction, previewActualsAction, postActualsAction, catchUpAction, pauseLoanAction,
@@ -107,7 +108,7 @@ export default function ReconciliationView({
                               </>
                             ) : (
                               <>
-                                <label className="text-xs text-ink-soft">Months<select className={`${inputCls} mt-1 block`} value={months} onChange={(e) => setMonths(e.target.value)}>{[1, 2, 3, 4, 5, 6, 9, 12].map((m) => <option key={m}>{m}</option>)}</select></label>
+                                <div className="text-xs text-ink-soft">Months<OptionSelect ariaLabel="Months to pause" className="mt-1 w-24" value={months} onValueChange={setMonths} options={[1, 2, 3, 4, 5, 6, 9, 12].map((m) => ({ value: String(m), label: String(m) }))} /></div>
                                 <label className="text-xs text-ink-soft">Reason<input className={`${inputCls} mt-1 block w-52`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unpaid leave" /></label>
                                 <button className={primaryCls} disabled={pending || !reason.trim()} onClick={() => pause(l)}>Pause from {report.label}</button>
                               </>

@@ -20,7 +20,11 @@
     "audit:mobile": "node --import dotenv/config scripts/audit-mobile.mjs",
     "rehearse": "node --import dotenv/config scripts/rehearse.mjs",
     "demo:reset": "node --import tsx --import dotenv/config scripts/demo-reset.mjs",
-    "process-email-outbox": "node --import tsx --import dotenv/config scripts/process-email-outbox.mjs"
+    "process-email-outbox": "node --import tsx --import dotenv/config scripts/process-email-outbox.mjs",
+    "email:test": "node --import tsx --import dotenv/config scripts/email-test.mjs",
+    "staff:prepare": "node scripts/prepare-staff.mjs",
+    "tenant:sql": "node scripts/tenant-sql.mjs",
+    "demo:passwords": "node scripts/demo-passwords.mjs"
   },
   "dependencies": {
     "postgres": "^3.4.5"

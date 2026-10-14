@@ -14,7 +14,9 @@
 //   X-Wola-Instance-Age: seconds since this server instance started (small = a cold start).
 // Read them with:  curl -D - https://<site>/api/health
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { db } from "@/lib/tenant";
+import { sweepWaitingEmails } from "@/lib/email-flush";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,8 @@ async function check() {
     const t1 = performance.now();
     await db`SELECT 1`;
     const rtt = ms(t1);
+    // The monitor that calls this every few minutes doubles as the retry timer for queued email.
+    try { after(() => sweepWaitingEmails(db)); } catch { /* not in a request (tests): skip */ }
     return NextResponse.json({ ok: true }, {
       headers: {
         "cache-control": "no-store",

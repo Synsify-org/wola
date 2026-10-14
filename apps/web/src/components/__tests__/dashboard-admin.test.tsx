@@ -13,6 +13,7 @@ const readyStatus: ConfigurationStatus = {
   pipelinesCount: 3,
   productsWithoutPipeline: [],
   productsMissingRateIndex: [],
+  stagesWithoutHolder: [],
   usersCount: 12,
 };
 
@@ -44,6 +45,23 @@ describe("DashboardAdmin", () => {
     };
     render(<DashboardAdmin status={status} />);
     expect(screen.getByText("2 products missing a rate index")).toBeInTheDocument();
+  });
+
+  test("warns when an approval step has nobody to act on it, and says whose loans will wait", () => {
+    const status: ConfigurationStatus = {
+      ...readyStatus,
+      stagesWithoutHolder: [{ role: "group_ceo", products: ["Development Loan", "Staff Car Loan"], appliesTo: ["ceo"] }],
+    };
+    render(<DashboardAdmin status={status} />);
+    expect(screen.getByText(/Nobody holds the .*role, so Development Loan, Staff Car Loan \(when the .* applies\) will wait at that step/i)).toBeInTheDocument();
+    expect(screen.queryByText("Every approval step has someone who can act on it")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /invite/i })).toHaveAttribute("href", "/settings/access");
+  });
+
+  test("a chain where everyone applies, with nobody holding a step, is not described as only the CEO's", () => {
+    const status: ConfigurationStatus = { ...readyStatus, stagesWithoutHolder: [{ role: "coo", products: ["Salary Advance"], appliesTo: ["default", "ceo"] }] };
+    render(<DashboardAdmin status={status} />);
+    expect(screen.getByText(/Nobody holds the .*role, so Salary Advance will wait at that step/i)).toBeInTheDocument();
   });
 
   test("never renders an approval queue — administration and approval stay separate duties", () => {

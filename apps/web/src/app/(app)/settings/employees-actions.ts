@@ -9,6 +9,7 @@
 import { requireSession } from "@/lib/guard";
 import { EMPLOYEE_DATA_ROLES as HR_ROLES, ACCOUNT_CREATOR_ROLES, FINANCE_ROLES } from "@/lib/permissions";
 import { audit, createInvitation, sendEmail, openExitRepaymentRequests } from "@wola/db";
+import { PROVISIONAL_EMPLOYEE_NO_PREFIX } from "@wola/engine";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
@@ -31,6 +32,10 @@ type ParsedRow = {
   net_salary: number;
   is_post_probation: boolean;
   on_final_warning: boolean;
+  work_email: string | null;
+  review_note: string | null;
+  /** Only "suspended" or null (leave as is / active). "Exited" is deliberately not importable. */
+  status: "active" | "suspended" | null;
 };
 
 export type ImportResult =
@@ -40,6 +45,7 @@ export type ImportResult =
 const truthy = (v: string) => ["true", "yes", "1"].includes(v.trim().toLowerCase());
 
 function parseCsv(text: string): { rows: ParsedRow[]; errors: string[] } {
+  // Optional columns: work_email (where the invitation goes) and review_note (why a person needs a look).
   const lines = text.split(/\r\n|\n|\r/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) return { rows: [], errors: ["Empty file."] };
 
@@ -73,6 +79,16 @@ function parseCsv(text: string): { rows: ParsedRow[]; errors: string[] } {
     if (seenNos.has(employeeNo)) { errors.push(`Row ${rowNum}: duplicate employee_no "${employeeNo}" in this file.`); continue; }
     seenNos.add(employeeNo);
 
+    const statusRaw = get(cells, "status").toLowerCase();
+    if (statusRaw && !["active", "suspended"].includes(statusRaw)) {
+      errors.push(statusRaw === "exited"
+        ? `Row ${rowNum}: status "exited" cannot be imported. Mark someone as exited one at a time, so any loan balance is handled.`
+        : `Row ${rowNum}: status "${statusRaw}" must be active or suspended.`);
+      continue;
+    }
+    const email = get(cells, "work_email").toLowerCase();
+    if (email && !EMAIL_RE.test(email)) { errors.push(`Row ${rowNum}: work_email "${email}" is not a valid email address.`); continue; }
+
     const gross = Number(grossStr);
     const net = Number(netStr);
     if (!Number.isFinite(gross) || gross < 0) { errors.push(`Row ${rowNum}: gross_salary "${grossStr}" is not a valid non-negative number.`); continue; }
@@ -89,6 +105,9 @@ function parseCsv(text: string): { rows: ParsedRow[]; errors: string[] } {
       net_salary: net,
       is_post_probation: truthy(get(cells, "is_post_probation")),
       on_final_warning: truthy(get(cells, "on_final_warning")),
+      work_email: email || null,
+      review_note: get(cells, "review_note").slice(0, 500) || null,
+      status: (statusRaw as "active" | "suspended") || null,
     });
   }
 
@@ -123,11 +142,17 @@ export async function importEmployeesAction(csvText: string): Promise<ImportResu
       await tx`
         INSERT INTO employees
           (tenant_id, employee_no, full_name, department, title,
-           gross_salary, net_salary, is_post_probation, on_final_warning)
+           gross_salary, net_salary, is_post_probation, on_final_warning, work_email, review_note, status)
         VALUES
           (${ctx.tenantId}, ${r.employee_no}, ${r.full_name}, ${r.department}, ${r.title},
-           ${r.gross_salary}, ${r.net_salary}, ${r.is_post_probation}, ${r.on_final_warning})
+           ${r.gross_salary}, ${r.net_salary}, ${r.is_post_probation}, ${r.on_final_warning}, ${r.work_email}, ${r.review_note},
+           ${r.status ?? "active"})
         ON CONFLICT (tenant_id, employee_no) DO UPDATE SET
+          -- An email in the file fills the gap; a blank never erases one HR typed in. A review note is
+          -- only ever set when a person is first loaded, so re-importing never re-flags what HR settled.
+          work_email = COALESCE(EXCLUDED.work_email, employees.work_email),
+          -- A status in the file applies; a blank leaves the person as they are.
+          status = COALESCE(${r.status}::text, employees.status),
           full_name = EXCLUDED.full_name,
           department = EXCLUDED.department,
           title = EXCLUDED.title,
@@ -255,6 +280,11 @@ export type EmployeeUpdate = {
   net_salary: number;
   is_post_probation: boolean;
   on_final_warning: boolean;
+  /** Only changes anything while the current number is a provisional one (TEMP-...). */
+  employee_no: string;
+  work_email: string | null;
+  /** Clear the "needs a look" flag: HR has settled it. */
+  resolve_review: boolean;
 };
 
 export type ActionResult = { ok: true; note?: string } | { ok: false; error: string };
@@ -269,14 +299,27 @@ export async function updateEmployeeAction(
   if (!fields.full_name.trim()) return { ok: false, error: "Enter the employee's name." };
   if (!Number.isFinite(fields.gross_salary) || fields.gross_salary < 0) return { ok: false, error: "Gross salary must be a non-negative number." };
   if (!Number.isFinite(fields.net_salary) || fields.net_salary < 0) return { ok: false, error: "Net salary must be a non-negative number." };
+  const workEmail = fields.work_email?.trim().toLowerCase() || null;
+  if (workEmail && !EMAIL_RE.test(workEmail)) return { ok: false, error: "Enter a valid work email address." };
 
   return requireSession(async (tx, ctx) => {
     if (!HR_ROLES.includes(ctx.role)) {
       return { ok: false, error: "You don't have permission to edit employees." };
     }
 
-    const [emp] = await tx`SELECT id FROM employees WHERE tenant_id = ${ctx.tenantId} AND id = ${employeeId}`;
+    const [emp] = await tx`SELECT id, employee_no FROM employees WHERE tenant_id = ${ctx.tenantId} AND id = ${employeeId}`;
     if (!emp) return { ok: false, error: "Employee not found." };
+
+    // A real employee number is the organisation's own key: it can be set once, while the current one is a stand-in.
+    let employeeNo = emp.employee_no as string;
+    const wanted = (fields.employee_no ?? "").trim().toUpperCase().replace(/\s+/g, "");
+    if (wanted && wanted !== employeeNo) {
+      if (!employeeNo.startsWith(PROVISIONAL_EMPLOYEE_NO_PREFIX)) return { ok: false, error: "An employee number cannot be changed once it is the real one." };
+      if (wanted.startsWith(PROVISIONAL_EMPLOYEE_NO_PREFIX)) return { ok: false, error: "Enter the real employee number, not another temporary one." };
+      const [taken] = await tx`SELECT 1 FROM employees WHERE tenant_id = ${ctx.tenantId} AND employee_no = ${wanted}`;
+      if (taken) return { ok: false, error: `Another employee already has the number ${wanted}.` };
+      employeeNo = wanted;
+    }
 
     let departmentHeadId: string | null = null;
     if (fields.department_head_no) {
@@ -296,6 +339,9 @@ export async function updateEmployeeAction(
         net_salary = ${fields.net_salary},
         is_post_probation = ${fields.is_post_probation},
         on_final_warning = ${fields.on_final_warning},
+        employee_no = ${employeeNo},
+        work_email = ${workEmail},
+        review_note = CASE WHEN ${fields.resolve_review} THEN NULL ELSE review_note END,
         updated_at = now()
       WHERE tenant_id = ${ctx.tenantId} AND id = ${employeeId}`;
 
@@ -305,11 +351,93 @@ export async function updateEmployeeAction(
       action: "employees.updated",
       entity: "employee",
       entityId: employeeId,
-      after: fields,
+      after: { ...fields, employee_no: employeeNo, work_email: workEmail },
     });
 
     revalidatePath("/settings/employees");
     return { ok: true };
+  });
+}
+
+export type DetailsRow = {
+  id: string;
+  /** Only used while the current number is a provisional one; ignored otherwise. */
+  employee_no: string;
+  gross_salary: number;
+  net_salary: number;
+  is_post_probation: boolean;
+  work_email: string | null;
+};
+export type DetailsResult =
+  | { ok: true; saved: number }
+  | { ok: false; error: string; rowErrors?: string[] };
+
+/** Save the "fill in details" sheet: pay, probation status, work email and (while provisional) the
+ *  real employee number, for many people at once. Every row is checked first and nothing is written if
+ *  any row is wrong. Each person who actually changed gets their own audit entry with before and after,
+ *  because pay and probation decide how much someone may borrow. */
+export async function saveDetailsAction(rows: DetailsRow[]): Promise<DetailsResult> {
+  if (!Array.isArray(rows) || rows.length === 0) return { ok: false, error: "Nothing to save." };
+  if (rows.length > 500) return { ok: false, error: "Save at most 500 people at a time." };
+
+  return requireSession(async (tx, ctx) => {
+    if (!HR_ROLES.includes(ctx.role)) return { ok: false, error: "You don't have permission to edit employees." };
+
+    const ids = rows.map((r) => r.id);
+    const current = await tx`
+      SELECT id, employee_no, full_name, gross_salary::float AS gross, net_salary::float AS net, is_post_probation, work_email
+      FROM employees WHERE tenant_id = ${ctx.tenantId} AND id = ANY(${ids}::uuid[])`;
+    const byId = new Map(current.map((c) => [c.id as string, c]));
+
+    const errors: string[] = [];
+    const numbersWanted = new Map<string, string>(); // new employee_no -> person, to catch duplicates inside this save
+    const plan = rows.map((r) => {
+      const c = byId.get(r.id);
+      const who = (c?.full_name as string) ?? r.id;
+      if (!c) { errors.push(`${who}: not found.`); return null; }
+      if (!Number.isFinite(r.gross_salary) || r.gross_salary < 0) errors.push(`${who}: gross pay must be a number, 0 or more.`);
+      if (!Number.isFinite(r.net_salary) || r.net_salary < 0) errors.push(`${who}: net pay must be a number, 0 or more.`);
+      if (r.net_salary > r.gross_salary) errors.push(`${who}: net pay is more than gross pay. Check the two figures.`);
+      const email = r.work_email?.trim().toLowerCase() || null;
+      if (email && !EMAIL_RE.test(email)) errors.push(`${who}: "${email}" is not a valid email address.`);
+      let employeeNo = c.employee_no as string;
+      const wanted = (r.employee_no ?? "").trim().toUpperCase().replace(/\s+/g, "");
+      if (wanted && wanted !== employeeNo && employeeNo.startsWith(PROVISIONAL_EMPLOYEE_NO_PREFIX)) {
+        if (wanted.startsWith(PROVISIONAL_EMPLOYEE_NO_PREFIX)) errors.push(`${who}: enter the real employee number, not another temporary one.`);
+        else if (numbersWanted.has(wanted)) errors.push(`${who}: ${wanted} is also used for ${numbersWanted.get(wanted)}.`);
+        else { numbersWanted.set(wanted, who); employeeNo = wanted; }
+      }
+      return { r, c, who, email, employeeNo };
+    });
+    if (numbersWanted.size) {
+      const taken = await tx`SELECT employee_no FROM employees WHERE tenant_id = ${ctx.tenantId} AND employee_no = ANY(${[...numbersWanted.keys()]}::text[])`;
+      for (const t of taken) errors.push(`Another employee already has the number ${t.employee_no}.`);
+    }
+    if (errors.length) return { ok: false, error: `${errors.length} problem${errors.length === 1 ? "" : "s"}: nothing was saved.`, rowErrors: errors };
+
+    let saved = 0;
+    for (const p of plan) {
+      if (!p) continue;
+      const { r, c, email, employeeNo } = p;
+      const unchanged =
+        Number(c.gross) === r.gross_salary && Number(c.net) === r.net_salary &&
+        Boolean(c.is_post_probation) === r.is_post_probation &&
+        ((c.work_email as string | null)?.toLowerCase() ?? null) === email && employeeNo === c.employee_no;
+      if (unchanged) continue;
+      await tx`
+        UPDATE employees SET gross_salary = ${r.gross_salary}, net_salary = ${r.net_salary},
+          is_post_probation = ${r.is_post_probation}, work_email = ${email}, employee_no = ${employeeNo}, updated_at = now()
+        WHERE tenant_id = ${ctx.tenantId} AND id = ${r.id}`;
+      await audit(tx, {
+        tenantId: ctx.tenantId, actorId: ctx.userId, action: "employees.updated", entity: "employee", entityId: r.id,
+        before: { employee_no: c.employee_no, gross_salary: c.gross, net_salary: c.net, is_post_probation: c.is_post_probation, work_email: c.work_email },
+        after: { employee_no: employeeNo, gross_salary: r.gross_salary, net_salary: r.net_salary, is_post_probation: r.is_post_probation, work_email: email },
+      });
+      saved++;
+    }
+    revalidatePath("/settings/employees");
+    revalidatePath("/");
+    return { ok: true, saved };
   });
 }
 

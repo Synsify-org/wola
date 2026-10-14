@@ -16,20 +16,60 @@ Replace `<site>` below with the address you open Wola on (for example
 - `0027_platform_audit.sql`: the platform console records operator activity in a new table;
   without it the console's pages fail.
 
-Apply both first (step 1 below, same two ways), and only then merge/deploy. Check with
+Apply both first (step 1 below, same two ways), and only then merge/deploy.
+
+**To see what is applied right now** (read-only, changes nothing): `npm run migration:sql -- --check`
+copies a query to your clipboard. Paste it in Supabase -> SQL Editor -> New query -> Run. Every
+migration this version of the code knows is listed as `applied` or `MISSING` (missing first). Anything
+`MISSING` still needs `npm run migration:sql -- <number>` (for example `0026 0027 0028`). Check with
 `node scripts/migrate.mjs --dry-run` that it lists both as pending before you merge, and
 `0 pending` after you apply them.
 
-## 0b. Email does not get sent yet (found while building the platform console)
+## 0b. Email: invitations, password resets and approval alerts
 
-Invitations, password resets and approval alerts are written to a queue (`email_outbox`), but
-**nothing sends them**: the sender is `scripts/process-email-outbox.mjs`, which has to be run
-repeatedly by something, and no scheduler is set up. No email provider is configured either.
-Until both exist, a person who clicks "Forgot password" receives nothing. The platform console's
-"Platform checks" shows this (it warns when emails have waited more than 30 minutes).
-What it takes: an email provider with SMTP (Resend, SES, Postmark...), a sender domain with
-SPF/DKIM, and either (a) a scheduled job or (b) sending right after the action that queues the
-email. Option (b) is recommended: no scheduler, and mail goes out in seconds.
+Wola sends email through **Resend**, from the domain you verified there (for example
+`bookings.synsify.africa`, status Verified). Nothing is sent from a schedule: when a page or action
+queues an email, it is sent a moment after the response goes out. If the provider is down the email
+stays queued and is retried (when anyone queues more mail, and every few minutes by the health
+check your uptime monitor calls). After 5 attempts it is marked failed, and anything that waited
+over 3 days is not sent (a reset link that old has expired); the platform console shows both.
+
+1. **Apply migration 0028** (adds one column; safe before or after the deploy):
+   `npm run migration:sql -- 0028`, paste into the Supabase SQL Editor, Run.
+2. In Resend: **API Keys -> Create API key**, permission *Sending access*, restricted to your
+   verified domain. Copy it once. **Never paste it in chat, a ticket or the repository.**
+3. In Vercel -> Project -> Settings -> Environment Variables (Production), add:
+
+   | Name | Value |
+   | --- | --- |
+   | `RESEND_API_KEY` | the key from step 2 |
+   | `EMAIL_FROM` | `Wola <no-reply@bookings.synsify.africa>` (any address on the verified domain) |
+   | `EMAIL_REPLY_TO` | optional: where replies should go |
+
+   Then **redeploy** (variables apply to new deployments only).
+4. **Check it works** before relying on it, from your own PowerShell (the key is typed on your
+   machine only):
+
+   ```powershell
+   $env:RESEND_API_KEY = Read-Host "Resend API key"
+   $env:EMAIL_FROM = "Wola <no-reply@bookings.synsify.africa>"
+   npm run email:test -- you@yourmail.com
+   Remove-Item Env:RESEND_API_KEY
+   ```
+   It prints `Sent to ...` or Resend's reason (403 "domain is not verified" = the From address is
+   not on the verified domain; 401 = wrong key). Check the spam folder the first time.
+5. In the app, use **Forgot password** on a real account; the email should arrive within seconds.
+   The platform console's *Platform checks -> Email delivery* turns green once mail has been sent.
+
+**Add the two Vercel variables for Production only** (untick Preview): preview deployments are pinned to the demo
+organisation and share its database, and should never send mail from the live key.
+
+**Demo organisations must have email switched off**, because their people have made-up addresses that would bounce
+and damage the sending domain's reputation. See [DEMO.md](DEMO.md) for the one-line SQL (it sets
+`tenants.settings.email.enabled = false`; nothing is queued for that organisation afterwards).
+
+Resend's "Enable tracking metrics" (open/click tracking) is optional and rewrites links; leave it
+off for password-reset and invitation emails.
 
 ## 1. Apply migrations 0023, 0024 and 0025 to production
 

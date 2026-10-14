@@ -4,12 +4,14 @@ import Reveal from "./reveal";
 import Metric from "./metric";
 import DashboardCard from "./dashboard-card";
 import CountUp from "./count-up";
+import { roleLabel } from "@/lib/product-summary";
 
 export type ConfigurationStatus = {
   productsCount: number;
   pipelinesCount: number;
   productsWithoutPipeline: { id: string; name: string }[];
   productsMissingRateIndex: { id: string; name: string }[];
+  stagesWithoutHolder: { role: string; products: string[]; appliesTo: string[] }[];
   usersCount: number;
 };
 
@@ -51,7 +53,8 @@ function ChecklistItem({
 export default function DashboardAdmin({ status }: { status: ConfigurationStatus }) {
   const pipelinesReady = status.productsCount > 0 && status.productsWithoutPipeline.length === 0;
   const rateIndexReady = status.productsMissingRateIndex.length === 0;
-  const checks = [status.productsCount > 0, pipelinesReady, rateIndexReady];
+  const approversReady = status.stagesWithoutHolder.length === 0;
+  const checks = [status.productsCount > 0, pipelinesReady, rateIndexReady, approversReady];
   const done = checks.filter(Boolean).length;
   const linkCard =
     "group flex items-center justify-between gap-3 rounded-2xl border border-rule bg-surface p-5 shadow-theme-xs transition-all duration-200 hover:border-brand-200 hover:shadow-theme-sm active:scale-[0.99]";
@@ -101,6 +104,21 @@ export default function DashboardAdmin({ status }: { status: ConfigurationStatus
               action="Set"
               href="/settings"
             />
+            {status.stagesWithoutHolder.length === 0 ? (
+              <ChecklistItem done label="Every approval step has someone who can act on it" />
+            ) : (
+              status.stagesWithoutHolder.map((s) => (
+                <ChecklistItem
+                  key={s.role}
+                  done={false}
+                  label={`Nobody holds the ${roleLabel(s.role)} role, so ${s.products.join(", ")} ${
+                    s.appliesTo.every((a) => a !== "default") ? `(when the ${s.appliesTo.map(roleLabel).join(" or ")} applies) ` : ""
+                  }will wait at that step`}
+                  action="Invite"
+                  href="/settings/access"
+                />
+              ))
+            )}
             {/* No disbursement-channel/bank concept exists in the schema yet —
                 deliberately not shown as a fake checked/unchecked line. */}
           </div>

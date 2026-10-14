@@ -8,6 +8,7 @@
 // no hire-date/probation-start column on `employees` to compute staleness
 // from, so it's deliberately left out rather than faked with a heuristic that
 // would misreport — see TASKS.md.
+import { PROVISIONAL_EMPLOYEE_NO_PREFIX } from "@wola/engine";
 import type { Tx } from "./client";
 
 export interface RegisterPerson {
@@ -26,6 +27,12 @@ export interface RegisterHealth {
    *  directory can show exactly those people — not just "4 staff". */
   missingDeptHeadPeople: RegisterPerson[];
   missingSalaryPeople: RegisterPerson[];
+  /** People whose employee number was made up by Wola, because the organisation's list had none. */
+  provisionalNoPeople: RegisterPerson[];
+  /** People flagged for a decision when the list was loaded (an unclear line manager, two managers...). */
+  reviewPeople: (RegisterPerson & { note: string })[];
+  /** Active staff with no login yet and no work email on file, so they cannot be invited. */
+  missingEmailPeople: RegisterPerson[];
 }
 
 /** Who needs a department head: ordinary staff only.
@@ -51,7 +58,10 @@ export async function registerHealth(tx: Tx, tenantId: string): Promise<Register
                  AND m.role <> ${NO_HEAD_NEEDED})) AS no_head,
            -- gross_salary is NOT NULL (schema-enforced); 0 is the only signal
            -- available that a real figure was never entered.
-           (e.gross_salary = 0) AS no_salary
+           (e.gross_salary = 0) AS no_salary,
+           (e.employee_no LIKE ${PROVISIONAL_EMPLOYEE_NO_PREFIX + "%"}) AS provisional_no,
+           e.review_note,
+           (e.user_id IS NULL AND e.work_email IS NULL) AS no_email
     FROM employees e
     WHERE e.tenant_id = ${tenantId} AND e.status = 'active'
     ORDER BY e.full_name`;
@@ -63,6 +73,9 @@ export async function registerHealth(tx: Tx, tenantId: string): Promise<Register
   });
   const missingDeptHeadPeople = rows.filter((r) => r.no_head).map(person);
   const missingSalaryPeople = rows.filter((r) => r.no_salary).map(person);
+  const provisionalNoPeople = rows.filter((r) => r.provisional_no).map(person);
+  const reviewPeople = rows.filter((r) => r.review_note).map((r) => ({ ...person(r), note: r.review_note as string }));
+  const missingEmailPeople = rows.filter((r) => r.no_email).map(person);
 
   return {
     headcount: rows.length,
@@ -72,5 +85,8 @@ export async function registerHealth(tx: Tx, tenantId: string): Promise<Register
     missingSalary: missingSalaryPeople.length,
     missingDeptHeadPeople,
     missingSalaryPeople,
+    provisionalNoPeople,
+    reviewPeople,
+    missingEmailPeople,
   };
 }

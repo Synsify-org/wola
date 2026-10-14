@@ -55,6 +55,7 @@ export default function EmployeeImport() {
       <p className="text-sm font-medium text-ink">Import employees (CSV)</p>
       <p className="mt-1 text-xs text-ink-soft">
         Header row required: <code className="num">employee_no, full_name, department, department_head_no, title, gross_salary, net_salary, is_post_probation, on_final_warning</code>.
+        Optional columns: <code className="num">work_email</code> (where the invitation goes), <code className="num">review_note</code> (flags a record for a decision) and <code className="num">status</code> (<code className="num">active</code> or <code className="num">suspended</code>).
         Re-running with an existing employee_no updates that row (salary refresh included) — the same import covers new starters and payroll updates. Values must not contain commas.
       </p>
 

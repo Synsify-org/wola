@@ -6,6 +6,7 @@
 // pooled connections. RLS policies key off current_tenant_id().
 
 import postgres from "postgres";
+import { emailWasQueued, notifyEmailQueued } from "./email";
 
 export type Sql = postgres.Sql;
 export type Tx = postgres.TransactionSql;
@@ -50,10 +51,16 @@ export async function tenantTx<T>(
   tenantId: string,
   fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return sql.begin(async (tx) => {
+  let queuedMail = false;
+  const result = await sql.begin(async (tx) => {
     await tx`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-    return fn(tx as Tx);
-  }) as Promise<T>;
+    const out = await fn(tx as Tx);
+    queuedMail = emailWasQueued(tx);
+    return out;
+  }) as T;
+  // Committed. If this transaction queued email, ask the app to send it now (best-effort).
+  if (queuedMail) notifyEmailQueued(tenantId);
+  return result;
 }
 
 /** Append-only audit write. Call inside the same tenantTx as the mutation. */
@@ -69,6 +76,7 @@ export async function audit(
 export * from "./metrics";
 export * from "./product-rules";
 export * from "./email";
+export * from "./mailer-resend";
 export * from "./auth";
 export * from "./rate-indices";
 export * from "./reconciliation";
@@ -77,6 +85,8 @@ export * from "./employee-position";
 export * from "./config-status";
 export * from "./notifications";
 export * from "./invitations";
+export * from "./bulk-invite";
+export * from "./practice-data";
 export * from "./super-admin";export * from "./product-admin";
 export * from "./routing-admin";
 export * from "./access-admin";

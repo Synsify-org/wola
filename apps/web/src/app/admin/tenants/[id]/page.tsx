@@ -1,5 +1,7 @@
 // apps/web/src/app/admin/tenants/[id]/page.tsx — one organisation, in full, for a Wola operator.
-// Read-only: the console shows and explains, it never changes an organisation's records.
+// Read-only: the console shows and explains, and does not change an organisation's records, with ONE exception:
+// on an organisation flagged as a TRIAL, an operator can load practice loans (see PracticeDataPanel). The library
+// refuses anything not flagged as a trial, the action needs the operator's two-step sign-in, and it is audited.
 // Opening this page is itself recorded in the operators' audit trail (who looked at whom).
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,9 +17,11 @@ import { Empty, Panel, StatusChip, timeAgo } from "@/components/admin/parts";
 import { roleLabel } from "@/lib/product-summary";
 import { formatMoney } from "@wola/engine";
 import { pageMeta } from "@/lib/site";
+import PracticeDataPanel from "@/components/admin/practice-data-panel";
 
 export const metadata = pageMeta({ title: "Organisation", description: "One organisation's people, loan book and recent activity.", path: "/admin/tenants" });
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // loading practice data writes a few hundred rows in one transaction
 
 const label = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 const words = (s: string) => s.replace(/[_.]/g, " ");
@@ -29,8 +33,9 @@ export default async function OrganisationPage({ params }: { params: Promise<{ i
   const data = await requireSuperSession(async (ctx) => {
     const [u] = await db`SELECT email FROM users WHERE id = ${ctx.userId}`;
     const detail = await orgDetail(db, id);
+    const [flag] = await db`SELECT settings->>'trial' AS trial FROM tenants WHERE id = ${id}`;
     if (detail) await recordPlatformEvent(db, { actorId: ctx.userId, action: "platform.viewed_tenant", tenantId: id, ip });
-    return { email: (u?.email as string) ?? "", detail };
+    return { email: (u?.email as string) ?? "", detail, trial: flag?.trial === "true" };
   });
   if (!data.detail) notFound();
   const { org, people, roles, loansByStatus, applicationsByStatus, mfaRequiredRoles, loanExitPolicy, recent, operatorViews } = data.detail;
@@ -50,6 +55,8 @@ export default async function OrganisationPage({ params }: { params: Promise<{ i
         </div>
         <StatusChip status={org.status} />
       </div>
+
+      {data.trial ? <PracticeDataPanel tenantId={id} slug={org.slug} /> : null}
 
       {attention.length > 0 ? (
         <ul className="mb-6 space-y-2" aria-label="Needs attention">
