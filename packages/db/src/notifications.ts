@@ -10,6 +10,7 @@
 // head, and the applicant; a rejection notifies the applicant with the reason.
 import { sendEmail, type EmailTemplate } from "./email";
 import type { Tx } from "./client";
+import { notifyUsers, userIdForEmployee, userIdsForRoles } from "./inapp";
 
 const STAGE_AWAITING: EmailTemplate = {
   subject: "Awaiting your decision: {{applicantName}}'s {{productName}} application",
@@ -119,10 +120,16 @@ export async function notifyApplicationDecision(
     amount: amountStr(ctx.amount),
     currency: ctx.currency,
   };
+  // The same events also go to the bell (in-app), in the same transaction.
+  const href = `/applications/${applicationId}`;
+  const what = `${ctx.productName} of ${ctx.currency} ${data.amount}`;
 
   if (outcome.kind === "rejected") {
     const to = ctx.applicantUserId ? await emailForUserId(tx, ctx.applicantUserId) : null;
     if (to) await sendEmail(tx, { tenantId, to, template: APPLICATION_REJECTED, data: { ...data, reason: outcome.reason } });
+    await notifyUsers(tx, tenantId, [ctx.applicantUserId], {
+      kind: "application.rejected", title: "Your application was not approved", body: `${what}. Reason: ${outcome.reason}`, href,
+    });
     return;
   }
 
@@ -141,6 +148,16 @@ export async function notifyApplicationDecision(
     for (const to of recipients) {
       await sendEmail(tx, { tenantId, to, template: LOAN_APPROVED_STAFF, data });
     }
+    await notifyUsers(tx, tenantId, [ctx.applicantUserId], {
+      kind: "application.approved", title: "Your loan was approved", body: `${what}. Finance will release the funds.`, href,
+    });
+    const staff = [
+      ...(await userIdsForRoles(tx, tenantId, ["cfo", "hr"])),
+      await userIdForEmployee(tx, ctx.departmentHeadId),
+    ].filter((u) => u !== ctx.applicantUserId);
+    await notifyUsers(tx, tenantId, staff, {
+      kind: "application.approved_staff", title: `${ctx.applicantName}'s loan was approved`, body: what, href,
+    });
     return;
   }
 
@@ -155,4 +172,11 @@ export async function notifyApplicationDecision(
   for (const to of recipients) {
     await sendEmail(tx, { tenantId, to, template: STAGE_AWAITING, data });
   }
+  const approvers =
+    outcome.nextStageRole === "dept_head"
+      ? [await userIdForEmployee(tx, ctx.departmentHeadId)]
+      : await userIdsForRoles(tx, tenantId, [outcome.nextStageRole]);
+  await notifyUsers(tx, tenantId, approvers, {
+    kind: "application.awaiting", title: "Awaiting your decision", body: `${ctx.applicantName}: ${what}`, href,
+  });
 }

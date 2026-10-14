@@ -5,7 +5,7 @@
 // they are leaving and the balance is to be recovered.
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/guard";
-import { EMPLOYEE_DATA_ROLES } from "@/lib/permissions";
+import { EMPLOYEE_DATA_ROLES, FINANCE_ROLES } from "@/lib/permissions";
 import { audit, requestEarlyRepayment, cancelEarlyRepayment } from "@wola/db";
 
 type Fail = { ok: false; error: string };
@@ -16,7 +16,7 @@ export async function requestEarlyAction(
   return requireSession(async (tx, ctx) => {
     const r = await requestEarlyRepayment(tx, {
       tenantId: ctx.tenantId, loanId, requestedBy: ctx.userId, kind, amount, reason,
-      onBehalf: EMPLOYEE_DATA_ROLES.includes(ctx.role),
+      onBehalf: EMPLOYEE_DATA_ROLES.includes(ctx.role), notifyRoles: FINANCE_ROLES,
     });
     if (!r.ok) return r;
     await audit(tx, {

@@ -391,6 +391,43 @@ test("when someone leaves, the default policy opens a payoff request for each ru
   await admin`UPDATE tenants SET settings = settings - 'loanExit' WHERE id = ${T}`;
 });
 
+// ------------------------------------------------------- 6c. the bell rings for money events
+
+test("money events notify the right people: finance on a request, the borrower on the outcome", async () => {
+  const [fin] = await admin`INSERT INTO users (email,name,status,password_hash) VALUES ('fin@loop.t','Fin','active','x') RETURNING id`;
+  await admin`INSERT INTO memberships (tenant_id,user_id,role) VALUES (${T},${fin.id},'cfo')`;
+  const bell = async (uid, kind) => (await admin`SELECT title, body, href FROM notifications WHERE tenant_id = ${T} AND user_id = ${uid} AND kind = ${kind} ORDER BY created_at`);
+
+  // The pause recorded earlier on E1's loan told E1.
+  const paused = await bell(emps.E1.userId, "loan.paused");
+  assert.ok(paused.length >= 1, "the borrower was told their payments were paused");
+  assert.match(paused[0].body, /Unpaid leave/);
+  assert.equal(paused[0].href, `/loans/${loans.paid.id}`);
+
+  const loanId = await makeLoan("ring", "E6");
+  const asked = await T1((tx) => requestEarlyRepayment(tx, { tenantId: T, loanId, requestedBy: emps.E6.userId, kind: "full", notifyRoles: ["cfo"] }));
+  assert.equal(asked.ok, true, asked.error);
+  const toFinance = await bell(fin.id, "early.requested");
+  assert.equal(toFinance.length, 1);
+  assert.equal(toFinance[0].href, "/reconciliation");
+  assert.equal((await bell(emps.E6.userId, "early.requested")).length, 0, "the requester isn't told about their own request");
+
+  // Declined: the borrower is told why.
+  await T1((tx) => declineEarlyRepayment(tx, { tenantId: T, requestId: asked.id, actorId: fin.id, note: "Not before payroll closes" }));
+  const declined = await bell(emps.E6.userId, "early.declined");
+  assert.equal(declined.length, 1);
+  assert.equal(declined[0].body, "Not before payroll closes");
+
+  // Asked again and recorded in full: the loan settles, and both messages arrive.
+  const again = await T1((tx) => requestEarlyRepayment(tx, { tenantId: T, loanId, requestedBy: emps.E6.userId, kind: "full", notifyRoles: ["cfo"] }));
+  const done = await T1((tx) => recordEarlyRepayment(tx, { tenantId: T, requestId: again.id, actorId: fin.id }));
+  assert.equal(done.settled, true);
+  assert.equal((await bell(emps.E6.userId, "loan.settled")).length, 1, "told the loan is fully repaid");
+  assert.equal((await bell(emps.E6.userId, "early.recorded")).length, 1);
+  // Someone who isn't involved heard nothing about E6's loan.
+  assert.equal((await bell(emps.E2.userId, "early.recorded")).length, 0);
+});
+
 // ------------------------------------------------ 7. isolation + append-only
 
 test("every new table is tenant-isolated: another organisation sees none of these rows", async () => {

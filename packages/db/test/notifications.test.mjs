@@ -92,6 +92,9 @@ const newApplication = async () => {
   return a.id;
 };
 const actor = (userId, employeeId, role) => ({ userId, employeeId, role });
+// The in-app bell: titles a person was sent since a timestamp (same events as the emails).
+const bellSince = async (userId, fromTs) =>
+  (await admin`SELECT kind, title, body, href FROM notifications WHERE tenant_id = ${T} AND user_id = ${userId} AND created_at > ${fromTs} ORDER BY created_at`);
 // uuid has no MAX() aggregate, so mark "since" with a timestamp instead of an id.
 const outboxSince = (fromTs) => admin`SELECT to_email, subject, body_html FROM email_outbox WHERE tenant_id = ${T} AND created_at > ${fromTs} ORDER BY created_at`;
 const markNow = async () => {
@@ -114,6 +117,15 @@ test("advancing to the next stage notifies only that stage's approver", async ()
   assert.equal(mail[0].to_email, "hr@notif.t");
   assert.match(mail[0].subject, /Awaiting your decision/);
   assert.match(mail[0].body_html, /Staff/); // applicant name rendered, not a literal {{applicantName}}
+
+  // The same approver's bell rings too, and it links to the application.
+  const hr = await bellSince(ids.uHr, before);
+  assert.equal(hr.length, 1);
+  assert.equal(hr[0].kind, "application.awaiting");
+  assert.equal(hr[0].title, "Awaiting your decision");
+  assert.equal(hr[0].href, `/applications/${appId}`);
+  assert.equal((await bellSince(ids.uCfo, before)).length, 0, "not the stage after next");
+  assert.equal((await bellSince(ids.uStaff, before)).length, 0, "not the applicant");
 });
 
 test("HR approving notifies the CFO next", async () => {
@@ -156,6 +168,14 @@ test("final approval notifies the applicant, CFO, HR, and the department head", 
   const recipients = mail.map((m) => m.to_email).sort();
   assert.deepEqual(recipients, ["cfo@notif.t", "hr@notif.t", "staff@notif.t"].concat(["head@notif.t"]).sort());
 
+  // Bells: the applicant, plus CFO, HR and the department head (not the CEO who just decided).
+  const bell = async (uid) => (await bellSince(uid, before)).map((n) => n.kind);
+  assert.deepEqual(await bell(ids.uStaff), ["application.approved"]);
+  assert.deepEqual(await bell(ids.uCfo), ["application.approved_staff"]);
+  assert.deepEqual(await bell(ids.uHr), ["application.approved_staff"]);
+  assert.deepEqual(await bell(ids.uHead), ["application.approved_staff"]);
+  assert.deepEqual(await bell(ids.uCeo), []);
+
   const applicantMail = mail.find((m) => m.to_email === "staff@notif.t");
   assert.match(applicantMail.subject, /has been approved/);
   const staffMail = mail.find((m) => m.to_email === "cfo@notif.t");
@@ -178,6 +198,11 @@ test("a rejection notifies the applicant with the reason", async () => {
   assert.equal(mail[0].to_email, "staff@notif.t");
   assert.match(mail[0].subject, /not approved/);
   assert.match(mail[0].body_html, /Existing exposure too high\./);
+
+  const bell = await bellSince(ids.uStaff, before);
+  assert.equal(bell.length, 1);
+  assert.equal(bell[0].kind, "application.rejected");
+  assert.match(bell[0].body, /Existing exposure too high\./);
 });
 
 test("another tenant cannot see these notification emails", async () => {

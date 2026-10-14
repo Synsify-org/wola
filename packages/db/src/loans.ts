@@ -7,9 +7,10 @@
 // dead. The CEO sees a COMPUTED preview on the application page (the engine
 // runs, nothing persists); persistence happens once, at approval.
 import { persistSchedule, persistScheduleObject } from "./schedules";
-import { applyEarlyPayment, getCurrencyDecimals, ENGINE_VERSION, type Schedule } from "@wola/engine";
+import { applyEarlyPayment, formatMoney, getCurrencyDecimals, ENGINE_VERSION, type Schedule } from "@wola/engine";
 import type { Tx } from "./client";
 import { loadSuspensionWindows } from "./suspensions";
+import { loanBorrower, notifyUsers } from "./inapp";
 import { withEffectiveDates, EPS, round2 } from "./ledger";
 
 export interface CreateLoanArgs {
@@ -111,6 +112,16 @@ export async function disburseLoan(
   await tx`
     UPDATE loans SET status = 'active'
     WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}`;
+
+  const borrower = await loanBorrower(tx, args.tenantId, args.loanId);
+  if (borrower) {
+    const [t] = await tx`SELECT currency FROM tenants WHERE id = ${args.tenantId}`;
+    await notifyUsers(tx, args.tenantId, [borrower.userId], {
+      kind: "loan.disbursed", title: "Your loan was disbursed",
+      body: `${borrower.product}: ${formatMoney(Number(loan.principal), (t?.currency as string) ?? "UGX")}. Your repayment schedule is now active.`,
+      href: `/loans/${args.loanId}`,
+    });
+  }
 
   return {
     loanId: args.loanId,
@@ -325,6 +336,13 @@ export async function recordRepayment(
   if (settled) {
     await tx`UPDATE loans SET status = 'settled'
              WHERE tenant_id = ${args.tenantId} AND id = ${args.loanId}`;
+    const borrower = await loanBorrower(tx, args.tenantId, args.loanId);
+    if (borrower) {
+      await notifyUsers(tx, args.tenantId, [borrower.userId], {
+        kind: "loan.settled", title: "Your loan is fully repaid",
+        body: `${borrower.product} is settled. Nothing more will be deducted.`, href: `/loans/${args.loanId}`,
+      });
+    }
   }
 
   // ---- Lump-sum re-amortization -------------------------------------------

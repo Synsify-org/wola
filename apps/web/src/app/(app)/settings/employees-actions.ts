@@ -7,7 +7,7 @@
 // refresh works. There is no separate "payroll" table or import path; salary
 // lives on the employee row, so one import mechanism covers both.
 import { requireSession } from "@/lib/guard";
-import { EMPLOYEE_DATA_ROLES as HR_ROLES, ACCOUNT_CREATOR_ROLES } from "@/lib/permissions";
+import { EMPLOYEE_DATA_ROLES as HR_ROLES, ACCOUNT_CREATOR_ROLES, FINANCE_ROLES } from "@/lib/permissions";
 import { audit, createInvitation, sendEmail, openExitRepaymentRequests } from "@wola/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -351,7 +351,7 @@ export async function setEmployeeStatusAction(
     revalidatePath("/settings/employees");
 
     if (status === "exited" && activeLoan) {
-      const exit = await openExitRepaymentRequests(tx, { tenantId: ctx.tenantId, employeeId, actorId: ctx.userId });
+      const exit = await openExitRepaymentRequests(tx, { tenantId: ctx.tenantId, employeeId, actorId: ctx.userId, notifyRoles: FINANCE_ROLES });
       if (exit.opened > 0) {
         await audit(tx, { tenantId: ctx.tenantId, actorId: ctx.userId, action: "loan.exit_recovery_opened", entity: "employee", entityId: employeeId, after: { requests: exit.opened } });
         revalidatePath("/reconciliation");

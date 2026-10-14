@@ -11,6 +11,7 @@
 import type { Tx } from "./client";
 import { EPS, round2 } from "./ledger";
 import { recordRepayment, repaymentPosition } from "./loans";
+import { loanBorrower, notifyRoles, notifyUsers } from "./inapp";
 
 export interface EarlyRepaymentRequest {
   id: string;
@@ -63,7 +64,11 @@ export type RequestResult = { ok: true; id: string; payoff: number } | { ok: fal
  *  (HR recovering a balance when someone leaves). */
 export async function requestEarlyRepayment(
   tx: Tx,
-  args: { tenantId: string; loanId: string; requestedBy: string; kind: "full" | "partial"; amount?: number | null; reason?: string | null; onBehalf?: boolean },
+  args: {
+    tenantId: string; loanId: string; requestedBy: string; kind: "full" | "partial"; amount?: number | null; reason?: string | null; onBehalf?: boolean;
+    /** Roles whose bell should ring: finance, who record the money. The web app passes its finance roles. */
+    notifyRoles?: readonly string[];
+  },
 ): Promise<RequestResult> {
   const [loan] = await tx`
     SELECT l.status, e.user_id AS borrower_user
@@ -86,6 +91,14 @@ export async function requestEarlyRepayment(
       VALUES (${args.tenantId}, ${args.loanId}, ${args.kind}, ${args.kind === "partial" ? round2(Number(args.amount)) : null},
               ${pos.payoff}, ${args.reason?.trim() || null}, ${args.requestedBy})
       RETURNING id`);
+    if (args.notifyRoles?.length) {
+      const b = await loanBorrower(tx, args.tenantId, args.loanId);
+      await notifyRoles(tx, args.tenantId, args.notifyRoles, {
+        kind: "early.requested", title: "Early repayment requested",
+        body: `${b?.name ?? "A borrower"} (${b?.product ?? "loan"}): ${args.kind === "full" ? "pay off the whole balance" : `a lump sum of ${round2(Number(args.amount))}`}. Record it when the money arrives.`,
+        href: "/reconciliation",
+      }, { exceptUserId: args.requestedBy });
+    }
     return { ok: true, id: row.id as string, payoff: pos.payoff };
   } catch (e) {
     if ((e as { code?: string }).code === "23505") return { ok: false, error: "There is already an open request for this loan." };
@@ -121,6 +134,15 @@ export async function recordEarlyRepayment(
     UPDATE early_repayment_requests
     SET status = 'paid', decided_by = ${args.actorId}, decided_at = now(), repayment_id = ${r.repaymentId}
     WHERE tenant_id = ${args.tenantId} AND id = ${args.requestId}`;
+  // Tell the borrower (and whoever asked on their behalf) it is done. If the loan just
+  // settled, recordRepayment already said "fully repaid"; this adds the request's outcome.
+  const [who] = await tx`SELECT requested_by FROM early_repayment_requests WHERE tenant_id = ${args.tenantId} AND id = ${args.requestId}`;
+  const borrower = await loanBorrower(tx, args.tenantId, req.loan_id as string);
+  await notifyUsers(tx, args.tenantId, [borrower?.userId, (who?.requested_by as string | null) ?? null], {
+    kind: "early.recorded", title: "Early repayment recorded",
+    body: r.settled ? "Your loan is now fully repaid." : "Your payment was recorded and your schedule was shortened.",
+    href: `/loans/${req.loan_id as string}`,
+  });
   return { ok: true, amount, outstanding: r.outstanding, settled: r.settled, reamortized: r.reamortized };
 }
 
@@ -132,8 +154,14 @@ export async function declineEarlyRepayment(
   const res = await tx`
     UPDATE early_repayment_requests
     SET status = 'declined', decided_by = ${args.actorId}, decided_at = now(), decision_note = ${args.note.trim()}
-    WHERE tenant_id = ${args.tenantId} AND id = ${args.requestId} AND status = 'requested' RETURNING id`;
-  return res.length ? { ok: true } : { ok: false, error: "That request is no longer open." };
+    WHERE tenant_id = ${args.tenantId} AND id = ${args.requestId} AND status = 'requested'
+    RETURNING id, loan_id, requested_by`;
+  if (!res.length) return { ok: false, error: "That request is no longer open." };
+  const borrower = await loanBorrower(tx, args.tenantId, res[0].loan_id as string);
+  await notifyUsers(tx, args.tenantId, [borrower?.userId, res[0].requested_by as string | null], {
+    kind: "early.declined", title: "Early repayment request declined", body: args.note.trim(), href: `/loans/${res[0].loan_id as string}`,
+  });
+  return { ok: true };
 }
 
 /** The person who asked withdraws it. */
@@ -155,7 +183,7 @@ export async function cancelEarlyRepayment(
  *   - "manual": nothing is opened; the caller is only warned.
  *  Returns how many requests were opened. */
 export async function openExitRepaymentRequests(
-  tx: Tx, args: { tenantId: string; employeeId: string; actorId: string },
+  tx: Tx, args: { tenantId: string; employeeId: string; actorId: string; notifyRoles?: readonly string[] },
 ): Promise<{ policy: "recover_balance" | "manual"; opened: number; loans: number }> {
   const [t] = await tx`SELECT settings FROM tenants WHERE id = ${args.tenantId}`;
   const raw = ((t?.settings ?? {}) as { loanExit?: { policy?: string } }).loanExit?.policy;
@@ -168,7 +196,7 @@ export async function openExitRepaymentRequests(
   for (const l of loans) {
     const r = await requestEarlyRepayment(tx, {
       tenantId: args.tenantId, loanId: l.id as string, requestedBy: args.actorId, kind: "full",
-      reason: "Employee left the organisation", onBehalf: true,
+      reason: "Employee left the organisation", onBehalf: true, notifyRoles: args.notifyRoles,
     });
     if (r.ok) opened++; // an already-open request is fine: it is still being handled
   }
