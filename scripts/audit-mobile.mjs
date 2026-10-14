@@ -44,7 +44,7 @@ const ALL_ROLES = [
   ["dept_head", "head@testco.io"], ["employee", "staff@testco.io"], ["org_admin", "admin@testco.io"],
 ];
 const ALL_ROUTES = [
-  "/", "/notifications", "/apply", "/applications", "/approvals", "/loans", "/book", "/analytics", "/reports", "/reconciliation", "/audit-log",
+  "/", "/notifications", "/apply", "/applications", "/approvals", "/loans", "/book", "/analytics", "/reports", "/payroll", "/audit-log",
   "/settings", "/settings/employees", "/settings/products", "/settings/products/new", "/settings/routing",
   "/settings/access", "/settings/security",
 ];

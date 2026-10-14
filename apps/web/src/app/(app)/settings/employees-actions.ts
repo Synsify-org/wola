@@ -354,7 +354,7 @@ export async function setEmployeeStatusAction(
       const exit = await openExitRepaymentRequests(tx, { tenantId: ctx.tenantId, employeeId, actorId: ctx.userId, notifyRoles: FINANCE_ROLES });
       if (exit.opened > 0) {
         await audit(tx, { tenantId: ctx.tenantId, actorId: ctx.userId, action: "loan.exit_recovery_opened", entity: "employee", entityId: employeeId, after: { requests: exit.opened } });
-        revalidatePath("/reconciliation");
+        revalidatePath("/payroll");
         return {
           ok: true,
           note: `${emp.full_name} has ${exit.loans === 1 ? "a running loan" : `${exit.loans} running loans`}. A request to recover the balance was sent to finance (Payroll screen); nothing is written off.`,

@@ -10,7 +10,7 @@ import type { CycleReport, CycleLine, CycleStatus, ActualsPreview, EarlyRepaymen
 import {
   postBulkRunAction, previewActualsAction, postActualsAction, catchUpAction, pauseLoanAction,
   recordEarlyAction, declineEarlyAction,
-} from "@/app/(app)/reconciliation/actions";
+} from "@/app/(app)/payroll/actions";
 
 type Request = EarlyRepaymentRequest & { borrower: string; employeeNo: string; product: string };
 
@@ -131,9 +131,9 @@ export default function ReconciliationView({
           <p className="mt-1 text-sm text-ink-soft">What should come out of salaries, what did, and what to do about the gap.</p>
         </div>
         <nav aria-label="Payroll month" className="flex items-center gap-1">
-          <Link href={`/reconciliation?cycle=${prev}`} className={btnCls} aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></Link>
+          <Link href={`/payroll?cycle=${prev}`} className={btnCls} aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></Link>
           <span className="min-w-32 text-center text-sm font-medium text-ink">{report.label}</span>
-          {next ? <Link href={`/reconciliation?cycle=${next}`} className={btnCls} aria-label="Next month"><ChevronRight className="h-4 w-4" /></Link>
+          {next ? <Link href={`/payroll?cycle=${next}`} className={btnCls} aria-label="Next month"><ChevronRight className="h-4 w-4" /></Link>
             : <span className={`${btnCls} pointer-events-none opacity-40`} aria-hidden><ChevronRight className="h-4 w-4" /></span>}
         </nav>
       </header>
@@ -146,7 +146,7 @@ export default function ReconciliationView({
       </dl>
 
       <div className="flex flex-wrap gap-2">
-        <a className={btnCls} href={`/reconciliation/expected.csv?cycle=${report.cycle}`}><Download className="h-4 w-4" /> Expected deductions (CSV)</a>
+        <a className={btnCls} href={`/payroll/expected.csv?cycle=${report.cycle}`}><Download className="h-4 w-4" /> Expected deductions (CSV)</a>
         {canAct ? (
           <>
             <label className={`${btnCls} cursor-pointer`}>

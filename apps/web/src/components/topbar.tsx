@@ -22,14 +22,14 @@ const roleLabel = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.
 /** Jump-to-page search: filters the pages THIS role can reach (same filter as
  *  the sidebar), Enter or click navigates. Ctrl/⌘+K focuses it. It searches
  *  destinations, not records — the placeholder says so. */
-function PageSearch({ canSeeAllLoans, canApprove }: { canSeeAllLoans: boolean; canApprove: boolean }) {
+function PageSearch({ role, canSeeAllLoans, canApprove }: { role: string; canSeeAllLoans: boolean; canApprove: boolean }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
 
-  const all = useMemo(() => [...visibleNavItems(canSeeAllLoans, canApprove), SETTINGS_ITEM], [canSeeAllLoans, canApprove]);
+  const all = useMemo(() => [...visibleNavItems(role, canSeeAllLoans, canApprove), SETTINGS_ITEM], [role, canSeeAllLoans, canApprove]);
   const results = q.trim() ? all.filter((i) => i.label.toLowerCase().includes(q.trim().toLowerCase())) : all;
 
   useEffect(() => {
@@ -169,7 +169,7 @@ export default function Topbar({
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-3 px-4 md:justify-between md:px-8">
         <div className="hidden min-w-0 flex-1 md:block">
-          <PageSearch canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} />
+          <PageSearch role={role} canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} />
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

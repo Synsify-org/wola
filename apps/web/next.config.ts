@@ -9,6 +9,23 @@ const nextConfig: NextConfig = {
   // Don't advertise the framework in an X-Powered-By header.
   poweredByHeader: false,
   allowedDevOrigins: ["testco.local", "other.local"],
+  // One address per page, named the way the menu names it (see docs/ROUTES.md).
+  //  - /reconciliation became /payroll. Kept as a permanent redirect because old
+  //    notifications, bookmarks and exported links still point at it.
+  //  - The rest are the addresses people guess; they land on the real page.
+  // Query strings (?cycle=2026-08) pass through untouched.
+  async redirects() {
+    return [
+      { source: "/reconciliation", destination: "/payroll", permanent: true },
+      { source: "/reconciliation/:path*", destination: "/payroll/:path*", permanent: true },
+      { source: "/dashboard", destination: "/", permanent: false },
+      { source: "/home", destination: "/", permanent: false },
+      { source: "/employees", destination: "/settings/employees", permanent: false },
+      { source: "/staff", destination: "/settings/employees", permanent: false },
+      { source: "/audit", destination: "/audit-log", permanent: false },
+      { source: "/my-loans", destination: "/loans", permanent: false },
+    ];
+  },
   // Baseline security headers on every response.
   //  - frame-ancestors 'none' + X-Frame-Options: nothing may embed Wola in an
   //    iframe, so the login page can't be overlaid for clickjacking. (CSP is

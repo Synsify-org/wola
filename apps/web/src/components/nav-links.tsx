@@ -54,7 +54,7 @@ const ITEMS: NavItem[] = [
   { href: "/loans", label: "My loans", icon: Wallet, group: "workspace" },
   { href: "/book", label: "Book", icon: Building2, need: "oversee", group: "oversight" },
   { href: "/approvals", label: "Approvals", icon: CheckSquare, need: "approve", group: "oversight" },
-  { href: "/reconciliation", label: "Payroll", icon: Scale, need: "fullBook", group: "oversight" },
+  { href: "/payroll", label: "Payroll", icon: Scale, need: "fullBook", group: "oversight" },
   { href: "/settings/employees", label: "Employees", icon: Users, need: "fullBook", group: "oversight" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, need: "fullBook", group: "insights" },
   { href: "/reports", label: "Reports", icon: FileBarChart, need: "fullBook", group: "insights" },
@@ -63,16 +63,43 @@ const ITEMS: NavItem[] = [
 
 export const SETTINGS_ITEM: NavItem = { href: "/settings", label: "Settings", icon: Settings, group: "workspace" };
 
+// What each role's menu is FOR. The links a person may open are decided by the access rules above
+// (`need`); this list says which of those are worth a place in THEIR menu, so each role sees a
+// menu shaped like its job instead of the same twelve links. Everything stays reachable by URL
+// where the access rules allow it (a CEO can still open Payroll); it just isn't in the way.
+// A role not listed here (a future one) falls back to everything it may open.
+const ROLE_FOCUS: Record<string, string[]> = {
+  employee: ["/", "/apply", "/applications", "/loans"],
+  dept_head: ["/", "/approvals", "/book", "/applications", "/apply", "/loans"],
+  // HR keeps the staff register accurate and vouches for employment before finance.
+  hr: ["/", "/approvals", "/settings/employees", "/applications", "/book", "/apply", "/loans"],
+  // Finance runs the money: approvals, the payroll loop, the book, reports and the audit trail.
+  cfo: ["/", "/approvals", "/payroll", "/book", "/applications", "/analytics", "/reports", "/audit-log", "/apply", "/loans"],
+  // Operations: exceptions and the book; oversight, not the staff register.
+  coo: ["/", "/approvals", "/payroll", "/book", "/applications", "/analytics", "/reports", "/apply", "/loans"],
+  // Executives oversee: the book, reports and the audit trail. No payroll or staff register.
+  ceo: ["/", "/approvals", "/book", "/applications", "/analytics", "/reports", "/audit-log", "/apply", "/loans"],
+  md: ["/", "/approvals", "/book", "/applications", "/analytics", "/reports", "/audit-log", "/apply", "/loans"],
+  group_ceo: ["/", "/approvals", "/book", "/applications", "/analytics", "/reports", "/audit-log", "/apply", "/loans"],
+  // Administrators set the organisation up (Settings) and look after the people; they sit on no approval chain.
+  org_admin: ["/", "/settings/employees", "/applications", "/audit-log", "/apply", "/loans"],
+  admin: ["/", "/settings/employees", "/applications", "/audit-log", "/apply", "/loans"],
+  // The auditor reads: the book, the reports and the trail. Cannot act, so nothing to apply for.
+  auditor: ["/", "/book", "/applications", "/analytics", "/reports", "/audit-log"],
+};
+
 /** The nav items this role may see — ONE filter shared by the sidebar, the
- *  mobile drawer, the mobile bottom bar and the topbar page search. */
-export function visibleNavItems(canSeeAllLoans: boolean, canApprove: boolean): NavItem[] {
+ *  mobile drawer, the mobile bottom bar and the topbar page search. Two steps:
+ *  what the person is ALLOWED to open, then what belongs in their menu. */
+export function visibleNavItems(role: string, canSeeAllLoans: boolean, canApprove: boolean): NavItem[] {
   const canOversee = canSeeAllLoans || canApprove;
+  const focus = ROLE_FOCUS[role];
   return ITEMS.filter((i) => {
     if (i.need === "fullBook") return canSeeAllLoans;
     if (i.need === "approve") return canApprove;
     if (i.need === "oversee") return canOversee;
     return true;
-  }).map((i) => {
+  }).filter((i) => !focus || focus.includes(i.href)).map((i) => {
     if (i.href === "/book" && !canSeeAllLoans) return { ...i, label: "Department" };
     // /applications is scoped per role by the page itself: an employee sees
     // only their own, so say so rather than implying a company-wide list.
@@ -80,6 +107,8 @@ export function visibleNavItems(canSeeAllLoans: boolean, canApprove: boolean): N
     return i;
   });
 }
+
+export { ROLE_FOCUS };
 
 /** Longest-prefix active match, so /settings/employees lights up Employees,
  *  not Settings, and "/" only matches the dashboard itself. */
@@ -126,17 +155,19 @@ export function SideLink({
 
 /** Sidebar / drawer nav: role-filtered items in divider-separated groups. */
 export default function NavLinks({
+  role,
   canSeeAllLoans,
   canApprove,
   collapsed = false,
   onNavigate,
 }: {
+  role: string;
   canSeeAllLoans: boolean;
   canApprove: boolean;
   collapsed?: boolean;
   onNavigate?: () => void;
 }) {
-  const items = visibleNavItems(canSeeAllLoans, canApprove);
+  const items = visibleNavItems(role, canSeeAllLoans, canApprove);
   const active = useActiveHref([...items, SETTINGS_ITEM]);
   const groups = (["workspace", "oversight", "insights"] as const)
     .map((g) => items.filter((i) => i.group === g))
@@ -166,17 +197,19 @@ export default function NavLinks({
  *  variant="tablet": every destination the role can reach, plus Settings;
  *                    at 768px+ there's room, so no drawer is needed. */
 export function AppDock({
+  role,
   canSeeAllLoans,
   canApprove,
   variant,
   onMore,
 }: {
+  role: string;
   canSeeAllLoans: boolean;
   canApprove: boolean;
   variant: "phone" | "tablet";
   onMore?: () => void;
 }) {
-  const items = visibleNavItems(canSeeAllLoans, canApprove);
+  const items = visibleNavItems(role, canSeeAllLoans, canApprove);
   const active = useActiveHref([...items, SETTINGS_ITEM]);
 
   const approvals = items.find((i) => i.href === "/approvals");

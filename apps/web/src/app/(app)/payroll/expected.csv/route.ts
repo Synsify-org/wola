@@ -1,5 +1,5 @@
 // The expected-deductions file finance hands to payroll for a cycle.
-// GET /reconciliation/expected.csv?cycle=2026-08
+// GET /payroll/expected.csv?cycle=2026-08
 import { requireSession } from "@/lib/guard";
 import { cycleReport, expectedCsv } from "@wola/db";
 import { cycleBounds } from "@wola/engine";

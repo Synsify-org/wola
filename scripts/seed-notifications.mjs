@@ -40,7 +40,7 @@ try {
     await put(l.user_id, "loan.disbursed", "Your loan was disbursed", `${l.product}: your repayment schedule is now active.`, `/loans/${l.id}`, 60 * 26 + i * 400, i > 0);
     n++;
   }
-  await put(cfo, "early.requested", "Early repayment requested", "A borrower wants to pay off a loan early. Record it when the money arrives.", "/reconciliation", 300, true);
+  await put(cfo, "early.requested", "Early repayment requested", "A borrower wants to pay off a loan early. Record it when the money arrives.", "/payroll", 300, true);
   n++;
   console.log(`    added ${n} demo notifications`);
 } finally {

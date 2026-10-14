@@ -24,7 +24,7 @@ export async function requestEarlyAction(
       after: { loanId, kind, amount, payoff: r.payoff },
     });
     revalidatePath(`/loans/${loanId}`);
-    revalidatePath("/reconciliation");
+    revalidatePath("/payroll");
     return { ok: true, payoff: r.payoff };
   });
 }
@@ -35,7 +35,7 @@ export async function cancelEarlyRequestAction(loanId: string, requestId: string
     if (!r.ok) return r;
     await audit(tx, { tenantId: ctx.tenantId, actorId: ctx.userId, action: "repayment.early_cancelled", entity: "early_repayment_request", entityId: requestId, after: { loanId } });
     revalidatePath(`/loans/${loanId}`);
-    revalidatePath("/reconciliation");
+    revalidatePath("/payroll");
     return { ok: true };
   });
 }

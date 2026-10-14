@@ -12,7 +12,7 @@ import { pageMeta } from "@/lib/site";
 import AccessDenied from "@/components/access-denied";
 import ReconciliationView from "@/components/reconciliation-view";
 
-export const metadata = pageMeta({ title: "Payroll reconciliation", description: "Expected against actual payroll deductions, and what to do about the gap.", path: "/reconciliation" });
+export const metadata = pageMeta({ title: "Payroll reconciliation", description: "Expected against actual payroll deductions, and what to do about the gap.", path: "/payroll" });
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const validCycle = (c: string | undefined): c is string => { if (!c) return false; try { cycleBounds(c); return true; } catch { return false; } };

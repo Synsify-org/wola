@@ -409,7 +409,7 @@ test("money events notify the right people: finance on a request, the borrower o
   assert.equal(asked.ok, true, asked.error);
   const toFinance = await bell(fin.id, "early.requested");
   assert.equal(toFinance.length, 1);
-  assert.equal(toFinance[0].href, "/reconciliation");
+  assert.equal(toFinance[0].href, "/payroll");
   assert.equal((await bell(emps.E6.userId, "early.requested")).length, 0, "the requester isn't told about their own request");
 
   // Declined: the borrower is told why.

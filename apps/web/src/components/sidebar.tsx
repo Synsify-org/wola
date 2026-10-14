@@ -5,10 +5,12 @@ import NavLinks, { SideLink, SETTINGS_ITEM, useActiveHref } from "./nav-links";
 // nav in divider-separated groups, Settings pinned to the bottom. Collapse
 // state lives in Shell (the toggle sits in the topbar brand block).
 export default function Sidebar({
+  role,
   canSeeAllLoans,
   canApprove,
   collapsed,
 }: {
+  role: string;
   canSeeAllLoans: boolean;
   canApprove: boolean;
   collapsed: boolean;
@@ -24,7 +26,7 @@ export default function Sidebar({
       }
     >
       <nav className="flex-1 overflow-y-auto px-4 py-6">
-        <NavLinks canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} collapsed={collapsed} />
+        <NavLinks role={role} canSeeAllLoans={canSeeAllLoans} canApprove={canApprove} collapsed={collapsed} />
       </nav>
       <div className="border-t border-rule px-4 py-4">
         <SideLink item={SETTINGS_ITEM} active={active === SETTINGS_ITEM.href} collapsed={collapsed} />

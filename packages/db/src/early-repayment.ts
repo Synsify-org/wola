@@ -96,7 +96,7 @@ export async function requestEarlyRepayment(
       await notifyRoles(tx, args.tenantId, args.notifyRoles, {
         kind: "early.requested", title: "Early repayment requested",
         body: `${b?.name ?? "A borrower"} (${b?.product ?? "loan"}): ${args.kind === "full" ? "pay off the whole balance" : `a lump sum of ${round2(Number(args.amount))}`}. Record it when the money arrives.`,
-        href: "/reconciliation",
+        href: "/payroll",
       }, { exceptUserId: args.requestedBy });
     }
     return { ok: true, id: row.id as string, payoff: pos.payoff };
