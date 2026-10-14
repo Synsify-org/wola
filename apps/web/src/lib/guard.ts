@@ -103,7 +103,9 @@ export async function requireSession<T>(
 
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = await verifySession(token, tenant.id as string);
-  if (!session) redirect("/login");
+  // A cookie that no longer works means the session ended (expired, or signed out
+  // elsewhere): say so on the login page. No cookie at all is just a first visit.
+  if (!session) redirect(token ? "/login?reason=expired" : "/login");
 
   return tenantTx(db, tenant.id as string, async (tx) => {
     // Role comes from the membership in THIS tenant.

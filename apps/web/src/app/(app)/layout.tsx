@@ -9,25 +9,30 @@
 // included) with a bare fallback, which is what blocked adding one before.
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { resolveTenant } from "@wola/db";
+import { resolveTenant, listNotifications } from "@wola/db";
 import { db } from "@/lib/tenant";
 import Shell from "@/components/shell";
+import AuthFlash from "@/components/auth-flash";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const slug = (await headers()).get("x-tenant-slug") ?? "";
   const tenant = slug ? await resolveTenant(db, slug) : null;
 
-  const user = await requireSession(async (tx, ctx) => {
+  const { user, notifications } = await requireSession(async (tx, ctx) => {
     const [me] = await tx`
       SELECT e.full_name, u.email
       FROM users u LEFT JOIN employees e ON e.user_id = u.id
       WHERE u.id = ${ctx.userId}`;
     return {
-      name: (me?.full_name as string) ?? (me?.email as string) ?? "User",
-      email: (me?.email as string) ?? "",
-      role: ctx.role,
-      canSeeAllLoans: ctx.canSeeAllLoans,
-      canApprove: ctx.canApprove,
+      user: {
+        name: (me?.full_name as string) ?? (me?.email as string) ?? "User",
+        email: (me?.email as string) ?? "",
+        role: ctx.role,
+        canSeeAllLoans: ctx.canSeeAllLoans,
+        canApprove: ctx.canApprove,
+      },
+      // My latest notifications for the bell, so the count is right on first paint.
+      notifications: await listNotifications(tx, ctx.tenantId, ctx.userId, { limit: 10 }),
     };
     // The layout only draws the shell. The two-step-sign-in gate is enforced by
     // each page and action (see requireSession); gating here too would bounce
@@ -35,8 +40,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }, { skipMfaGate: true });
 
   return (
-    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"}>
+    <Shell user={user} tenantName={(tenant?.name as string) ?? "Wola"} notifications={notifications}>
       {children}
+      {/* "Signed in. Welcome back, …" after a successful sign-in. */}
+      <AuthFlash name={user.name} />
     </Shell>
   );
 }

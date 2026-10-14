@@ -11,6 +11,13 @@ vi.mock("next/link", () => ({
   useLinkStatus: () => ({ pending: false }),
 }));
 
+// The bell (in the top bar) calls server actions; they aren't loadable in a unit test.
+vi.mock("@/app/(app)/notifications/actions", () => ({
+  loadNotificationsAction: async () => ({ items: [], unread: 0 }),
+  markNotificationReadAction: async () => ({ ok: true }),
+  markAllNotificationsReadAction: async () => ({ ok: true, marked: 0 }),
+}));
+
 // jsdom can't measure layout, so this pins the two classes the fix depends on.
 // Without `relative`, absolutely-positioned descendants (sr-only labels, chart
 // tooltip wrappers) escape the frame's clipping and stretch the DOCUMENT taller
