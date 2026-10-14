@@ -5,8 +5,8 @@
 // areas are the Company Admin panel (build plan Phase 6) — shown here as
 // upcoming so the nav link is honest rather than dead.
 import { requireSession } from "@/lib/guard";
-import { resolveTenant, listCurrentRateIndices, productsMissingRateIndex } from "@wola/db";
-import { db } from "@/lib/tenant";
+import { listCurrentRateIndices, productsMissingRateIndex } from "@wola/db";
+import { db, getTenantBySlug } from "@/lib/tenant";
 import { headers } from "next/headers";
 import Link from "next/link";
 import ThemeEditor from "@/components/theme-editor";
@@ -27,7 +27,7 @@ export const metadata = pageMeta({ title: "Settings", description: "Your account
 
 export default async function SettingsPage() {
   const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
+  const tenant = slug ? await getTenantBySlug(slug) : null;
 
   const data = await requireSession(async (tx, ctx) => {
     const [me] = await tx`

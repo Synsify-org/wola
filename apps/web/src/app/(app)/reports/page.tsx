@@ -2,8 +2,8 @@
 // Admin-only. Inline aggregate + detail queries are stopgaps. TODO: @wola/db.
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { resolveTenant, approverMetrics, inboxFor, arrearsByLoan } from "@wola/db";
-import { db } from "@/lib/tenant";
+import { approverMetrics, inboxFor, arrearsByLoan } from "@wola/db";
+import { db, getTenantBySlug } from "@/lib/tenant";
 import ReportsView from "@/components/reports-view";
 import { pageMeta } from "@/lib/site";
 import AccessDenied from "@/components/access-denied";
@@ -15,7 +15,7 @@ export default async function ReportsPage() {
   // letterhead shows the tenant name, and brand colors come from
   // tenant.settings.
   const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
+  const tenant = slug ? await getTenantBySlug(slug) : null;
 
   const data = await requireSession(async (tx, ctx) => {
     if (!ctx.canSeeAllLoans) return { authorized: false as const };

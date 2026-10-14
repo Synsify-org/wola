@@ -10,8 +10,7 @@ import { headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { resolveTenant } from "@wola/db";
-import { db } from "@/lib/tenant";
+import { db, getTenantBySlug } from "@/lib/tenant";
 import { themeStyle } from "@/lib/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { SHARE_IMAGES, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, siteOrigin } from "@/lib/site";
@@ -71,7 +70,7 @@ export default async function RootLayout({
   let brand: { primary?: string; accent?: string; font?: string } | null = null;
   if (slug) {
     try {
-      const tenant = await resolveTenant(db, slug);
+      const tenant = await getTenantBySlug(slug);
       const settings = (tenant?.settings ?? {}) as { brand?: { primary?: string; accent?: string; font?: string } };
       brand = settings.brand ?? null;
     } catch {

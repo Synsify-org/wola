@@ -9,14 +9,14 @@
 // included) with a bare fallback, which is what blocked adding one before.
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { resolveTenant, listNotifications } from "@wola/db";
-import { db } from "@/lib/tenant";
+import { listNotifications } from "@wola/db";
+import { db, getTenantBySlug } from "@/lib/tenant";
 import Shell from "@/components/shell";
 import AuthFlash from "@/components/auth-flash";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const slug = (await headers()).get("x-tenant-slug") ?? "";
-  const tenant = slug ? await resolveTenant(db, slug) : null;
+  const tenant = slug ? await getTenantBySlug(slug) : null;
 
   const { user, notifications } = await requireSession(async (tx, ctx) => {
     const [me] = await tx`

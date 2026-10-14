@@ -282,38 +282,99 @@ export async function decide(
   return { ok: true, routing: after };
 }
 
+/** What is waiting for THIS person: the open applications whose current stage they may act on.
+ *
+ *  Three queries however many applications are open (it used to run three PER application, so
+ *  a busy tenant with 50 pending made the dashboard cost 150+ queries):
+ *    1. every open application with the facts routing needs and the fields the inbox shows;
+ *    2. each application's approval chain AS IT STOOD when it was submitted (stages created by
+ *       then and not yet retired, compared in SQL: a JS Date would truncate microseconds);
+ *    3. every decision made so far.
+ *  Routing itself is unchanged: the same resolvePipeline / route / canAct, now fed from memory. */
 export async function inboxFor(tx: Tx, tenantId: string, actor: Actor) {
-  const rows = await tx`
-    SELECT la.id FROM loan_applications la
-    WHERE la.tenant_id = ${tenantId}
-      AND la.status IN ('submitted','in_review')`;
+  const apps = await tx`
+    SELECT la.id AS application_id, la.loan_product_id, la.amount, la.tenor_months, la.status,
+           e.id AS employee_id, e.user_id AS applicant_user_id, e.department_head_id, e.full_name,
+           lp.name AS product_name, COALESCE(m.role, 'employee') AS applicant_role,
+           COALESCE((SELECT max(a.decided_at) FROM approvals a
+                     WHERE a.application_id = la.id AND a.decision = 'approved'), la.created_at) AS waiting_since
+    FROM loan_applications la
+    JOIN employees e ON e.id = la.employee_id
+    JOIN loan_products lp ON lp.id = la.loan_product_id
+    LEFT JOIN memberships m ON m.user_id = e.user_id AND m.tenant_id = la.tenant_id
+    WHERE la.tenant_id = ${tenantId} AND la.status IN ('submitted', 'in_review')
+    ORDER BY la.created_at`;
+  if (apps.length === 0) return [];
+  const ids = apps.map((r) => r.application_id as string);
+
+  const stageRows = await tx`
+    SELECT la.id AS application_id, p.id AS pipeline_id, p.applies_to,
+           s.id AS stage_id, s.position, s.approver_role, s.sla_hours, s.allow_delegation
+    FROM loan_applications la
+    JOIN approval_pipelines p ON p.loan_product_id = la.loan_product_id
+    JOIN approval_stages s ON s.pipeline_id = p.id
+    WHERE la.id = ANY(${ids}::uuid[])
+      AND s.created_at <= la.created_at
+      AND (s.retired_at IS NULL OR s.retired_at > la.created_at)
+    ORDER BY la.id, p.applies_to, s.position`;
+  const pipelinesBy = new Map<string, Map<string, Pipeline>>();
+  for (const r of stageRows) {
+    const appId = r.application_id as string;
+    const byPipeline = pipelinesBy.get(appId) ?? pipelinesBy.set(appId, new Map()).get(appId)!;
+    const pid = r.pipeline_id as string;
+    if (!byPipeline.has(pid)) byPipeline.set(pid, { id: pid, appliesTo: r.applies_to as string, stages: [] });
+    byPipeline.get(pid)!.stages.push({
+      id: r.stage_id as string,
+      position: r.position as number,
+      approverRole: r.approver_role as Stage["approverRole"],
+      slaHours: r.sla_hours as number | null,
+      allowDelegation: r.allow_delegation as boolean,
+    });
+  }
+
+  const approvalRows = await tx`
+    SELECT application_id, stage_id, decision, comment FROM approvals
+    WHERE application_id = ANY(${ids}::uuid[]) ORDER BY created_at`;
+  const approvalsBy = new Map<string, ApprovalRecord[]>();
+  for (const r of approvalRows) {
+    const k = r.application_id as string;
+    (approvalsBy.get(k) ?? approvalsBy.set(k, []).get(k)!).push({
+      stageId: r.stage_id as string, decision: r.decision as Decision, comment: r.comment as string | null,
+    });
+  }
+
   const out = [];
-  for (const r of rows) {
-    const loaded = await routeApplication(tx, r.id as string);
-    if (!loaded || loaded.routing.state !== "pending" || !loaded.routing.currentStage) continue;
-    const applicant: Applicant = {
-      employeeId: loaded.app.employeeId,
-      role: loaded.app.applicantRole,
-      departmentHeadId: loaded.app.departmentHeadId,
+  for (const r of apps) {
+    const appId = r.application_id as string;
+    const app: ApplicationForApproval = {
+      applicationId: appId,
+      employeeId: r.employee_id as string,
+      applicantUserId: r.applicant_user_id as string | null,
+      applicantRole: r.applicant_role as string,
+      departmentHeadId: r.department_head_id as string | null,
+      loanProductId: r.loan_product_id as string,
+      amount: Number(r.amount),
+      tenorMonths: r.tenor_months as number,
+      status: r.status as string,
     };
-    if (!canAct(loaded.routing.currentStage, actor, applicant)) continue;
-    const [meta] = await tx`
-      SELECT e.full_name, lp.name AS product_name,
-             COALESCE((SELECT max(a.decided_at) FROM approvals a
-                       WHERE a.application_id = la.id AND a.decision = 'approved'), la.created_at) AS waiting_since
-      FROM loan_applications la
-      JOIN employees e ON e.id = la.employee_id
-      JOIN loan_products lp ON lp.id = la.loan_product_id
-      WHERE la.id = ${r.id}`;
+    const pipeline = resolvePipeline([...(pipelinesBy.get(appId)?.values() ?? [])], app.applicantRole);
+    if (!pipeline) continue;
+    const usable: Pipeline = app.departmentHeadId
+      ? pipeline
+      : { ...pipeline, stages: pipeline.stages.filter((st) => st.approverRole !== "dept_head") };
+    const routing = route(usable, app.applicantRole, approvalsBy.get(appId) ?? []);
+    if (routing.state !== "pending" || !routing.currentStage) continue;
+    const applicant: Applicant = { employeeId: app.employeeId, role: app.applicantRole, departmentHeadId: app.departmentHeadId };
+    if (!canAct(routing.currentStage, actor, applicant)) continue;
     out.push({
-      ...loaded.app,
-      stageRole: loaded.routing.currentStage.approverRole,
-      employeeName: meta.full_name as string,
-      productName: meta.product_name as string,
+      ...app,
+      stageRole: routing.currentStage.approverRole,
+      employeeName: r.full_name as string,
+      productName: r.product_name as string,
       /** When it reached this approver (the previous approval, or submission),
        *  and the time limit the admin set for this stage (null = none). */
-      waitingSince: new Date(meta.waiting_since as string).toISOString(),
-      slaHours: loaded.routing.currentStage.slaHours,
+      waitingSince: new Date(r.waiting_since as string).toISOString(),
+      slaHours: routing.currentStage.slaHours,
     });
   }
   return out;
