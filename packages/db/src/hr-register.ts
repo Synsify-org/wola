@@ -28,11 +28,16 @@ export interface RegisterHealth {
   missingSalaryPeople: RegisterPerson[];
 }
 
-/** Roles at the top of the chain of command. They have nobody above them to
- *  be their department head, and their applications route through a pipeline
- *  with no dept-head stage — flagging them as "missing a department head"
- *  raised a warning that could never be cleared. */
-const TOP_OF_CHAIN_ROLES = ["ceo", "group_ceo", "md"];
+/** Who needs a department head: ordinary staff only.
+ *
+ *  Anyone who holds a role beyond plain "employee" (executives, the CFO and COO, HR,
+ *  administrators, the auditor and the department heads themselves) sits at the top of a
+ *  function: there is nobody above them to be their department head, and their applications
+ *  route through a pipeline with no department-head stage. Flagging them as "missing a
+ *  department head" raised an alarm that could never be cleared (the head of operations, the
+ *  CFO and HR all showed up on the HR dashboard). Only a person who holds no such role
+ *  genuinely has a gap. */
+const NO_HEAD_NEEDED = "employee";
 
 export async function registerHealth(tx: Tx, tenantId: string): Promise<RegisterHealth> {
   const rows = await tx`
@@ -43,7 +48,7 @@ export async function registerHealth(tx: Tx, tenantId: string): Promise<Register
              AND NOT EXISTS (
                SELECT 1 FROM memberships m
                WHERE m.tenant_id = e.tenant_id AND m.user_id = e.user_id
-                 AND m.role = ANY(${TOP_OF_CHAIN_ROLES}))) AS no_head,
+                 AND m.role <> ${NO_HEAD_NEEDED})) AS no_head,
            -- gross_salary is NOT NULL (schema-enforced); 0 is the only signal
            -- available that a real figure was never entered.
            (e.gross_salary = 0) AS no_salary
