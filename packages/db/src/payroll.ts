@@ -445,9 +445,18 @@ export async function postBulkRun(
   await lockCycle(tx, args.tenantId, args.cycle);
   const report = await cycleReport(tx, args.tenantId, args.cycle, today);
   const valueDate = minIso(report.end, today);
-  const due = report.lines.filter((l) => l.status !== "suspended" && l.remaining > TOL);
+  const owing = report.lines.filter((l) => l.status !== "suspended" && l.remaining > TOL);
+  // A past cycle still lists loans settled since (its history), and one paid off early
+  // can show a gap there; a settled loan takes no more money, so it is skipped.
+  const activeRows = owing.length ? await tx`
+    SELECT id FROM loans WHERE tenant_id = ${args.tenantId} AND status = 'active'
+      AND id = ANY(${owing.map((l) => l.loanId)}::uuid[])` : [];
+  const active = new Set(activeRows.map((r) => r.id as string));
+  const due = owing.filter((l) => active.has(l.loanId));
+  const skipped = owing.filter((l) => !active.has(l.loanId))
+    .map((l) => ({ employeeNo: l.employeeNo, name: l.name, reason: "Loan already settled; nothing more to deduct." }));
   if (due.length === 0) {
-    return { runId: null, cycle: args.cycle, kind: "bulk", posted: 0, postedTotal: 0, expectedTotal: 0, skipped: [] };
+    return { runId: null, cycle: args.cycle, kind: "bulk", posted: 0, postedTotal: 0, expectedTotal: 0, skipped };
   }
   const plan = due.map((l) => ({ loanId: l.loanId, amount: l.remaining, valueDate }));
   const expectedTotal = round2(due.reduce((s, l) => s + l.expected, 0));
@@ -455,7 +464,7 @@ export async function postBulkRun(
     tenantId: args.tenantId, cycle: args.cycle, kind: "bulk", actorId: args.actorId,
     note: "Recorded the expected deduction for every loan that was due.", plan, expectedTotal,
   });
-  return { runId, cycle: args.cycle, kind: "bulk", posted: plan.length, postedTotal, expectedTotal, skipped: [] };
+  return { runId, cycle: args.cycle, kind: "bulk", posted: plan.length, postedTotal, expectedTotal, skipped };
 }
 
 /** Record what payroll's own file says was deducted. Re-checks the file against the
