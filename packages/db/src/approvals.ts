@@ -292,6 +292,39 @@ export async function decide(
  *    3. every decision made so far.
  *  Routing itself is unchanged: the same resolvePipeline / route / canAct, now fed from memory. */
 export async function inboxFor(tx: Tx, tenantId: string, actor: Actor) {
+  return openApplications(tx, tenantId, (stage, applicant) => canAct(stage, actor, applicant));
+}
+
+export interface StageWaiting {
+  stageRole: string;
+  count: number;
+  amount: number;
+  /** Hours the longest-waiting application has sat at this stage. */
+  oldestHours: number;
+  /** Applications past the time limit the administrator set for the stage. */
+  overdue: number;
+}
+
+/** Every open application grouped by the stage it is waiting at, for oversight (the CEO's
+ *  overview): where applications pile up, and for how long. Same routing as inboxFor. */
+export async function openApplicationsByStage(tx: Tx, tenantId: string, now = Date.now()): Promise<StageWaiting[]> {
+  const open = await openApplications(tx, tenantId, () => true);
+  const by = new Map<string, StageWaiting>();
+  for (const a of open) {
+    const s = by.get(a.stageRole) ?? { stageRole: a.stageRole, count: 0, amount: 0, oldestHours: 0, overdue: 0 };
+    const hours = Math.max(0, (now - new Date(a.waitingSince).getTime()) / 3_600_000);
+    s.count++;
+    s.amount += a.amount;
+    s.oldestHours = Math.max(s.oldestHours, hours);
+    if (a.slaHours != null && hours > a.slaHours) s.overdue++;
+    by.set(a.stageRole, s);
+  }
+  return [...by.values()].sort((x, y) => y.count - x.count || y.oldestHours - x.oldestHours);
+}
+
+async function openApplications(
+  tx: Tx, tenantId: string, keep: (stage: Stage, applicant: Applicant) => boolean,
+) {
   const apps = await tx`
     SELECT la.id AS application_id, la.loan_product_id, la.amount, la.tenor_months, la.status,
            e.id AS employee_id, e.user_id AS applicant_user_id, e.department_head_id, e.full_name,
@@ -365,7 +398,7 @@ export async function inboxFor(tx: Tx, tenantId: string, actor: Actor) {
     const routing = route(usable, app.applicantRole, approvalsBy.get(appId) ?? []);
     if (routing.state !== "pending" || !routing.currentStage) continue;
     const applicant: Applicant = { employeeId: app.employeeId, role: app.applicantRole, departmentHeadId: app.departmentHeadId };
-    if (!canAct(routing.currentStage, actor, applicant)) continue;
+    if (!keep(routing.currentStage, applicant)) continue;
     out.push({
       ...app,
       stageRole: routing.currentStage.approverRole,

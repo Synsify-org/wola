@@ -5,7 +5,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import postgres from "postgres";
-import { decide, inboxFor, routeApplication } from "../src/approvals.ts";
+import { decide, inboxFor, openApplicationsByStage, routeApplication } from "../src/approvals.ts";
 import { canAct } from "@wola/engine";
 
 const ADMIN = process.env.DATABASE_ADMIN_URL;
@@ -112,4 +112,21 @@ test("the cost does not grow with the number of open applications: three queries
   });
   assert.ok(rows.length >= 2);
   assert.equal(n, 3, `inboxFor ran ${n} queries`);
+});
+
+test("by stage (the CEO's overview): every open application counted once, at the stage it waits at", async () => {
+  const rows = await inTenant((tx) => tx`SELECT la.id FROM loan_applications la WHERE la.tenant_id = ${T} AND la.status IN ('submitted','in_review')`);
+  const expected = {};
+  for (const r of rows) {
+    const loaded = await inTenant((tx) => routeApplication(tx, r.id));
+    if (!loaded || loaded.routing.state !== "pending" || !loaded.routing.currentStage) continue;
+    const role = loaded.routing.currentStage.approverRole;
+    expected[role] = (expected[role] ?? 0) + 1;
+  }
+  const stages = await inTenant((tx) => openApplicationsByStage(tx, T));
+  assert.deepEqual(Object.fromEntries(stages.map((s) => [s.stageRole, s.count])), expected);
+  assert.ok(stages.length >= 2, "applications wait at more than one stage");
+  for (const s of stages) {
+    assert.ok(s.amount > 0 && s.oldestHours >= 0 && s.overdue === 0, `${s.stageRole}: amount, wait, no time limit set`);
+  }
 });
