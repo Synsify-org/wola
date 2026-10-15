@@ -354,3 +354,59 @@ export async function interestReport(tx: Tx, args: { from: string; to: string })
     },
   };
 }
+
+export interface DepartmentUptake { department: string; headcount: number; borrowers: number; outstanding: number }
+export interface PeopleOverview {
+  /** Active employees. */
+  headcount: number;
+  /** Active employees with at least one running loan. */
+  borrowers: number;
+  byDepartment: DepartmentUptake[];
+  /** People no longer employed (exited or suspended) who still have a running loan. */
+  leaversWithBalance: { people: number; outstanding: number };
+}
+
+/** The people side of the programme, for the CEO's overview: how many staff borrow, by
+ *  department, and balances left behind by people who have gone. Outstanding comes from
+ *  loan_balances (the one definition). RLS scopes every table to the caller's tenant. */
+export async function peopleOverview(tx: Tx): Promise<PeopleOverview> {
+  const [rows, [leavers]] = await Promise.all([
+    tx`
+      WITH running AS (
+        SELECT la.employee_id, sum(COALESCE(lb.outstanding, l.principal)) AS outstanding
+        FROM loans l
+        JOIN loan_applications la ON la.id = l.application_id
+        LEFT JOIN loan_balances lb ON lb.loan_id = l.id
+        WHERE l.status = 'active'
+        GROUP BY la.employee_id
+      )
+      SELECT COALESCE(NULLIF(e.department, ''), 'Unassigned') AS department,
+             count(*)::int AS headcount,
+             count(r.employee_id)::int AS borrowers,
+             COALESCE(sum(r.outstanding), 0) AS outstanding
+      FROM employees e
+      LEFT JOIN running r ON r.employee_id = e.id
+      WHERE e.status = 'active'
+      GROUP BY 1
+      ORDER BY count(r.employee_id) DESC, count(*) DESC`,
+    tx`
+      SELECT count(DISTINCT e.id)::int AS people, COALESCE(sum(COALESCE(lb.outstanding, l.principal)), 0) AS outstanding
+      FROM loans l
+      JOIN loan_applications la ON la.id = l.application_id
+      JOIN employees e ON e.id = la.employee_id
+      LEFT JOIN loan_balances lb ON lb.loan_id = l.id
+      WHERE l.status = 'active' AND e.status <> 'active'`,
+  ]);
+  const byDepartment = rows.map((r) => ({
+    department: r.department as string,
+    headcount: Number(r.headcount),
+    borrowers: Number(r.borrowers),
+    outstanding: Number(r.outstanding),
+  }));
+  return {
+    headcount: byDepartment.reduce((s, d) => s + d.headcount, 0),
+    borrowers: byDepartment.reduce((s, d) => s + d.borrowers, 0),
+    byDepartment,
+    leaversWithBalance: { people: Number(leavers.people), outstanding: Number(leavers.outstanding) },
+  };
+}

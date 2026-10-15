@@ -17,6 +17,9 @@ import {
   registerHealth,
   configurationStatus,
   collectionsTrend,
+  arrearsByLoan,
+  peopleOverview,
+  openApplicationsByStage,
   type CollectionsPoint,
 } from "@wola/db";
 import { db, getTenantBySlug } from "@/lib/tenant";
@@ -155,7 +158,7 @@ export default async function Dashboard({
 
     const [
       book, mix, pipelineRows, recentRows, growthRows,
-      queue, reconciliation, health, settledRows, configStatus, auditRowsRaw, collections,
+      queue, reconciliation, health, settledRows, configStatus, auditRowsRaw, collections, ceoExtra,
     ] = await Promise.all([
       approverMetrics(tx, inbox.length),
       loansByProduct(tx),
@@ -201,6 +204,18 @@ export default async function Dashboard({
         : Promise.resolve(null),
       // Collected vs Expected chart — the CFO and CEO dashboards only.
       showsCollections ? collectionsTrend(tx, 6) : Promise.resolve([] as CollectionsPoint[]),
+      // The CEO's overview: the CFO's money picture and HR's people picture, summarised and
+      // read-only (no disbursing, no reconciling, no register edits from this screen).
+      ctx.role === "ceo"
+        ? Promise.all([
+            reconciliationThisCycle(tx, ctx.tenantId),
+            disbursementQueue(tx, ctx.tenantId),
+            arrearsByLoan(tx, ctx.tenantId),
+            registerHealth(tx, ctx.tenantId),
+            peopleOverview(tx),
+            openApplicationsByStage(tx, ctx.tenantId),
+          ])
+        : Promise.resolve(null),
     ]);
 
     const pipeline = pipelineRows.map((r) => ({
@@ -223,8 +238,25 @@ export default async function Dashboard({
       return cum;
     });
 
-    const ceoView: { settled: number } | null = ctx.role === "ceo"
-      ? { settled: Number((settledRows as unknown as { n: number }[] | null)?.[0]?.n ?? 0) }
+    const ceoView = ctx.role === "ceo" && ceoExtra
+      ? (() => {
+          const [cycle, payouts, arrears, register, people, stages] = ceoExtra;
+          const behind = [...arrears.values()].filter((v) => v > 0.01);
+          return {
+            settled: Number((settledRows as unknown as { n: number }[] | null)?.[0]?.n ?? 0),
+            cycle,
+            payouts: { count: payouts.length, amount: payouts.reduce((t, p) => t + p.amount, 0) },
+            arrears: { amount: behind.reduce((t, v) => t + v, 0), loans: behind.length },
+            register: {
+              onProbation: register.onProbation,
+              onFinalWarning: register.onFinalWarning,
+              issues: register.missingDeptHead + register.missingSalary + register.provisionalNoPeople.length
+                + register.reviewPeople.length + register.missingEmailPeople.length,
+            },
+            people,
+            stages,
+          };
+        })()
       : null;
 
     const auditRows = auditRowsRaw as unknown as
@@ -353,15 +385,18 @@ export default async function Dashboard({
       ) : ceoView && book ? (
         <DashboardCEO
           totalExposure={book.totalExposure}
-          principalDisbursed={book.principalDisbursed}
+          activeLoans={book.activeLoans}
           interestCollected={book.interestCollected}
           interestProjected={book.interestBook}
-          exposureTrend={exposureTrend ?? []}
           inProgress={book.applicationsInFlight}
           settled={ceoView.settled}
-          rejectedThisYear={book.rejectedThisYear}
+          cycle={ceoView.cycle}
+          payouts={ceoView.payouts}
+          arrears={ceoView.arrears}
+          register={ceoView.register}
+          people={ceoView.people}
+          stages={ceoView.stages}
           inbox={inbox as unknown as CEOInboxItem[]}
-          mix={mix as unknown as MixRow[]}
           collections={collections}
           currency={currency}
         />
