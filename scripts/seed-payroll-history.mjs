@@ -4,7 +4,8 @@
 // For testco: every month before last is recorded as fully deducted (one bulk run per
 // month, through the real ledger code). LAST month is left deliberately imperfect, one
 // loan missed and one short, so there is something to resolve in a demo.
-// Idempotent in effect: demo-reset wipes the database first.
+// Safe to re-run: a bulk run records only what is still owed for its month, and the
+// imperfect last month is skipped once it has any payroll deduction.
 //
 // Usage: node --import tsx --import dotenv/config scripts/seed-payroll-history.mjs
 import postgres from "postgres";
@@ -27,21 +28,22 @@ try {
   const [tenant] = await sql`SELECT id FROM tenants WHERE slug = 'testco'`;
   if (!tenant) { console.error("testco not found"); process.exit(1); }
   const T = tenant.id;
-  // Running twice would deduct the same months twice: only seed a book with no payroll yet.
-  const [{ n }] = await sql`SELECT count(*)::int AS n FROM repayments WHERE tenant_id = ${T} AND source = 'payroll'`;
-  if (n > 0) { console.log(`    testco already has ${n} payroll deductions; nothing seeded`); process.exit(0); }
   const thisMonth = new Date().toISOString().slice(0, 7);
   const lastMonth = shiftCycle(thisMonth, -1);
   const [{ first }] = await sql`SELECT to_char(min(start_date), 'YYYY-MM') AS first FROM loans WHERE tenant_id = ${T} AND status = 'active'`;
   if (!first) { console.log("no active loans; nothing to record"); process.exit(0); }
 
-  let months = 0, rows = 0;
+  let months = 0, rows = 0, lastSkipped = false;
   await sql.begin(async (tx) => {
     for (let c = first; c < lastMonth; c = shiftCycle(c, 1)) {
       const r = await postBulkRun(tx, { tenantId: T, cycle: c, actorId: null, today: cycleBounds(c).end });
       months++; rows += r.posted;
     }
-    // Last month: imperfect on purpose.
+    // Last month: imperfect on purpose, but only once (recordRepayment is not idempotent).
+    const { start, end } = cycleBounds(lastMonth);
+    const [{ n }] = await tx`SELECT count(*)::int AS n FROM repayments
+      WHERE tenant_id = ${T} AND source = 'payroll' AND value_date BETWEEN ${start} AND ${end}`;
+    if (n > 0) { lastSkipped = true; return; }
     const rep = await cycleReport(tx, T, lastMonth, cycleBounds(lastMonth).end);
     const todo = rep.lines.filter((l) => l.remaining > 0.5);
     for (const [i, l] of todo.entries()) {
@@ -52,7 +54,8 @@ try {
     }
     months++;
   });
-  console.log(`    recorded ${rows} deductions over ${months} month(s); ${cycleBounds(lastMonth).label} left with one missed and one short`);
+  console.log(`    recorded ${rows} deductions over ${months} month(s); ` +
+    (lastSkipped ? `${cycleBounds(lastMonth).label} already had deductions, left as is` : `${cycleBounds(lastMonth).label} left with one missed and one short`));
 } finally {
   await sql.end();
 }
