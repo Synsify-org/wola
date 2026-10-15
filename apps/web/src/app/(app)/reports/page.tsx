@@ -2,15 +2,42 @@
 // Admin-only. Inline aggregate + detail queries are stopgaps. TODO: @wola/db.
 import { headers } from "next/headers";
 import { requireSession } from "@/lib/guard";
-import { approverMetrics, inboxFor, arrearsByLoan } from "@wola/db";
+import { approverMetrics, inboxFor, arrearsByLoan, interestReport } from "@wola/db";
 import { db, getTenantBySlug } from "@/lib/tenant";
 import ReportsView from "@/components/reports-view";
+import InterestReport, { type RangePreset } from "@/components/interest-report";
 import { pageMeta } from "@/lib/site";
 import AccessDenied from "@/components/access-denied";
 
 export const metadata = pageMeta({ title: "Reports", description: "Portfolio, interest and exposure reports, ready to print or export.", path: "/reports" });
 
-export default async function ReportsPage() {
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const shift = (ym: string, k: number) => {
+  const d = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + k, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+
+// Quick ranges for the interest report. The default looks both ways: six months of
+// what came in against what was due, and six months of what is still to come.
+function interestPresets(): RangePreset[] {
+  const now = new Date().toISOString().slice(0, 7);
+  const y = Number(now.slice(0, 4));
+  return [
+    { label: "Last 6 and next 6 months", from: shift(now, -5), to: shift(now, 6) },
+    { label: "Last 12 months", from: shift(now, -11), to: now },
+    { label: "Next 12 months", from: shift(now, 1), to: shift(now, 12) },
+    { label: "This year", from: `${y}-01`, to: `${y}-12` },
+    { label: "Last year", from: `${y - 1}-01`, to: `${y - 1}-12` },
+  ];
+}
+
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const asked = await searchParams;
+  const presets = interestPresets();
+  const range = MONTH.test(asked.from ?? "") && MONTH.test(asked.to ?? "")
+    ? { from: asked.from!, to: asked.to! }
+    : { from: presets[0].from, to: presets[0].to };
+
   // Still needed here (not just by the layout's Shell): the report
   // letterhead shows the tenant name, and brand colors come from
   // tenant.settings.
@@ -66,6 +93,9 @@ export default async function ReportsPage() {
       SELECT COALESCE(sum((r.allocation->>'interest')::numeric), 0) AS actual_interest
       FROM repayments r`;
     const actualInterestCollected = Number(actualInterestRow?.actual_interest ?? 0);
+
+    // The CFO's interest report: expected vs collected for the chosen months.
+    const interest = await interestReport(tx, range);
 
     // Top exposure concentration — a standard audit/board question. Per
     // BORROWER, not per loan: someone with two active loans is one line of
@@ -152,7 +182,7 @@ export default async function ReportsPage() {
       authorized: true as const, book, loans, applications, departments,
       tenantName: (tenant?.name as string) ?? "Wola",
       totalArrears, overdueCount, parRatio, actualInterestCollected,
-      topBorrowers, approvalTrail,
+      topBorrowers, approvalTrail, interest,
     };
   });
 
@@ -164,7 +194,11 @@ export default async function ReportsPage() {
 
   const brand = ((tenant?.settings ?? {}) as { brand?: { primary?: string; accent?: string } }).brand ?? {};
 
+  const currency = (tenant?.currency as string) ?? "UGX";
+
   return (
+    <>
+    <InterestReport report={data.interest} presets={presets} currency={currency} />
     <ReportsView
       book={data.book}
       loans={data.loans}
@@ -179,7 +213,8 @@ export default async function ReportsPage() {
       actualInterestCollected={data.actualInterestCollected}
       topBorrowers={data.topBorrowers}
       approvalTrail={data.approvalTrail}
-      currency={(tenant?.currency as string) ?? "UGX"}
+      currency={currency}
     />
+    </>
   );
 }
