@@ -37,6 +37,7 @@ import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
+import { humanize } from "@/lib/product-summary";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
 
@@ -80,8 +81,7 @@ const statusChip: Record<string, string> = {
   written_off: "chip chip--rejected",
 };
 
-const statusLabel = (s: string) =>
-  s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const statusLabel = humanize;
 
 export const metadata = pageMeta({ title: "Loan", description: "A loan: its repayment schedule, balance and payment history.", path: "/loans" });
 

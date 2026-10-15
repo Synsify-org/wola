@@ -16,6 +16,7 @@ import type { ApplicationRow } from "@/app/(app)/applications/page";
 import { formatMoney } from "@wola/engine";
 import { Avatar } from "@/components/ui/avatar";
 import { MobileRow, MobileRowList } from "@/components/mobile-row";
+import { humanize } from "@/lib/product-summary";
 
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", {
@@ -39,8 +40,7 @@ const STATUS_CHIP: Record<string, string> = {
   withdrawn: "chip",
   draft: "chip",
 };
-const statusLabel = (s: string) =>
-  s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const statusLabel = humanize;
 
 const col = createColumnHelper<ApplicationRow>();
 

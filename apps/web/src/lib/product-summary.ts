@@ -30,3 +30,12 @@ export const ROLE_LABEL: Record<string, string> = {
 
 export const roleLabel = (r: string) =>
   ROLE_LABEL[r] ?? r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+// Any snake_case code (role, status, stage) as words, keeping role acronyms
+// upper-case: "cfo" -> "CFO", "in_review" -> "In Review", "hr_stage" -> "HR Stage".
+export const humanize = (s: string) =>
+  ROLE_LABEL[s] ??
+  s
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\b(Cfo|Ceo|Coo|Hr|Md)\b/g, (m) => m.toUpperCase());

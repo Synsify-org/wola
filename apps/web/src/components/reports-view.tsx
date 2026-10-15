@@ -2,12 +2,13 @@
 import { FileDown, FileText, Printer, ShieldAlert, TrendingUp, Users2 } from "lucide-react";
 import DashboardCard from "./dashboard-card";
 import { formatMoney } from "@wola/engine";
+import { humanize } from "@/lib/product-summary";
 
 const shortDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "-";
 const shortDateTime = (d: string | null) =>
   d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-";
-const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const label = humanize;
 
 type Book = { totalExposure: number; activeLoans: number; principalDisbursed: number; interestBook: number };
 type Loan = { borrower: string; employeeNo: string; department: string; product: string; principal: number; rate: number; tenor: number; outstanding: number; arrears: number };

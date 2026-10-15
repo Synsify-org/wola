@@ -62,7 +62,7 @@ describe("DashboardEmployee", () => {
     };
     render(<DashboardEmployee mine={mine} currency="UGX" />);
     expect(screen.getByText("Staff Car Loan")).toBeInTheDocument();
-    expect(screen.getByText("Cfo stage")).toBeInTheDocument();
+    expect(screen.getByText("CFO stage")).toBeInTheDocument();
   });
 
   test("lists eligibility as an amount, never a bare pass/fail", () => {

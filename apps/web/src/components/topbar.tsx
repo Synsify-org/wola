@@ -16,8 +16,9 @@ import { IconTip } from "@/components/ui/tooltip";
 import { visibleNavItems, SETTINGS_ITEM } from "./nav-links";
 import NotificationBell from "./notification-bell";
 import type { Notification } from "@wola/db";
+import { humanize } from "@/lib/product-summary";
 
-const roleLabel = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const roleLabel = humanize;
 
 /** Jump-to-page search: filters the pages THIS role can reach (same filter as
  *  the sidebar), Enter or click navigates. Ctrl/⌘+K focuses it. It searches

@@ -4,8 +4,9 @@ import { formatMoney } from "@wola/engine";
 import DashboardCard from "./dashboard-card";
 import { Avatar } from "@/components/ui/avatar";
 import type { RejectionRow } from "@/lib/rejections";
+import { humanize } from "@/lib/product-summary";
 
-const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const label = humanize;
 const shortDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
 

@@ -26,7 +26,10 @@ export default async function AnalyticsPage() {
     const statusCounts = statusRows.map((r) => ({ status: r.status as string, n: Number(r.n) }));
     const totalApps = statusCounts.reduce((s, r) => s + r.n, 0);
     const approvedApps = statusCounts.filter((r) => r.status === "approved").reduce((s, r) => s + r.n, 0);
-    const approvalRate = totalApps > 0 ? Math.round((approvedApps / totalApps) * 100) : 0;
+    // Of the applications that have been decided: pending and withdrawn ones are not "not approved".
+    const rejectedApps = statusCounts.filter((r) => r.status === "rejected").reduce((s, r) => s + r.n, 0);
+    const decided = approvedApps + rejectedApps;
+    const approvalRate = decided > 0 ? Math.round((approvedApps / decided) * 100) : 0;
 
     // Applications by month (real, however sparse).
     const monthRows = await tx`
@@ -111,7 +114,8 @@ export default async function AnalyticsPage() {
       SELECT lp.name AS product,
              count(la.id)::int AS apps,
              avg(la.amount)::numeric AS avg_amount,
-             count(la.id) FILTER (WHERE la.status = 'approved')::int AS approved
+             count(la.id) FILTER (WHERE la.status = 'approved')::int AS approved,
+             count(la.id) FILTER (WHERE la.status = 'rejected')::int AS rejected
       FROM loan_products lp
       LEFT JOIN loan_applications la ON la.loan_product_id = lp.id
       GROUP BY lp.name ORDER BY count(la.id) DESC`;
@@ -119,7 +123,7 @@ export default async function AnalyticsPage() {
       product: r.product as string,
       apps: Number(r.apps),
       avgAmount: Number(r.avg_amount ?? 0),
-      approvalRate: Number(r.apps) > 0 ? Math.round((Number(r.approved) / Number(r.apps)) * 100) : 0,
+      approvalRate: Number(r.approved) + Number(r.rejected) > 0 ? Math.round((Number(r.approved) / (Number(r.approved) + Number(r.rejected))) * 100) : 0,
     }));
 
     const collections = await collectionsTrend(tx, 12);

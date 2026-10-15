@@ -8,6 +8,7 @@ import { formatMoney } from "@wola/engine";
 import DashboardCard from "./dashboard-card";
 import { Avatar } from "@/components/ui/avatar";
 import { waitingFor } from "@/lib/waiting";
+import { humanize } from "@/lib/product-summary";
 
 export type DecisionItem = {
   applicationId: string;
@@ -30,7 +31,7 @@ function Waiting({ item }: { item: DecisionItem }) {
     : <span className="text-xs text-ink-soft">{w.text}</span>;
 }
 
-const roleLabel = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const roleLabel = humanize;
 
 export default function DecisionQueue({
   title,

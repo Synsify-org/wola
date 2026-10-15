@@ -11,8 +11,9 @@ import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
+import { humanize } from "@/lib/product-summary";
 
-const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const label = humanize;
 
 export const metadata = pageMeta({ title: "Application", description: "Review an application: the applicant, the figures, the decision timeline and the next step.", path: "/applications" });
 
