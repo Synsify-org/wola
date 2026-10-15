@@ -8,6 +8,7 @@ import DashboardCard from "./dashboard-card";
 import CountUp from "./count-up";
 import { FileText, CheckCircle, Wallet, Layers, Clock3 } from "lucide-react";
 import { formatMoney } from "@wola/engine";
+import { humanize } from "@/lib/product-summary";
 
 type Book = { totalExposure: number; activeLoans: number; principalDisbursed: number; interestBook: number };
 type StatusCount = { status: string; n: number };
@@ -21,8 +22,10 @@ const STATUS_COLOR: Record<string, string> = {
   submitted: "#b54708",
   in_review: "#2e90fa",
   rejected: "#b42318",
+  withdrawn: "#a3acb9",
+  draft: "#a3acb9",
 };
-const label = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const label = humanize;
 
 export default function AnalyticsView({
   book, mix, statusCounts, totalApps, approvalRate, trend, byDepartment, sizeBands, productPerf,
@@ -57,7 +60,7 @@ export default function AnalyticsView({
       {/* KPI strip */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <Metric tone="brand" label="Applications" value={<CountUp value={totalApps} />} sub="All time" icon={FileText} accent="brand" />
-        <Metric tone="teal" label="Approval rate" value={<CountUp value={approvalRate} format="percent" />} sub="Of all applications" icon={CheckCircle} accent="approved" />
+        <Metric tone="teal" label="Approval rate" value={<CountUp value={approvalRate} format="percent" />} sub="Of decided applications" icon={CheckCircle} accent="approved" />
         <Metric tone="deep" label="Avg. decision time" value={<CountUp value={avgDecisionDays} format="days" />} sub="Submission to final decision" icon={Clock3} accent="brand" />
         <Metric tone="info" label="Portfolio" value={<CountUp value={book.totalExposure} format="money" currency={currency} />} sub={book.activeLoans + " active loans"} icon={Wallet} accent="brand" />
         <Metric tone="ink" label="Avg loan size" value={<CountUp value={avgLoan} format="money" currency={currency} />} sub="Per active loan" icon={Layers} accent="brand" />

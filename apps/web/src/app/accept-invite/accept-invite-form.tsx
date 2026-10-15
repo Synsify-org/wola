@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { AcceptInviteState } from "./page";
+import { humanize } from "@/lib/product-summary";
 
-const roleLabel = (r: string) =>
-  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const roleLabel = humanize;
 
 export default function AcceptInviteForm(props: {
   action: (prev: AcceptInviteState, formData: FormData) => Promise<AcceptInviteState>;

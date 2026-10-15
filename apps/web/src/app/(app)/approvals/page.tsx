@@ -8,9 +8,9 @@ import { ArrowRight, Inbox } from "lucide-react";
 import { formatMoney } from "@wola/engine";
 import { getTenantCurrency } from "@/lib/tenant";
 import { pageMeta } from "@/lib/site";
+import { humanize } from "@/lib/product-summary";
 
-const label = (r: string) =>
-  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const label = humanize;
 
 export const metadata = pageMeta({ title: "Approvals", description: "Applications waiting for your decision.", path: "/approvals" });
 

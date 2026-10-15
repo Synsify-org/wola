@@ -11,7 +11,7 @@ export type DonutDatum = { name: string; value: number; key: string };
 // gets full config-driven colouring via chart.tsx.
 export default function StatusDonutImpl({ data, colors }: { data: DonutDatum[]; colors: Record<string, string> }) {
   const config = Object.fromEntries(
-    Object.entries(colors).map(([status, color]) => [status, { label: status.replace(/_/g, " "), color }]),
+    Object.entries(colors).map(([status, color]) => [status, { label: (status.charAt(0).toUpperCase() + status.slice(1)).replace(/_/g, " "), color }]),
   ) satisfies ChartConfig;
 
   return (

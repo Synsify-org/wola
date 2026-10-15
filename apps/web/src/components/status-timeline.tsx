@@ -1,8 +1,8 @@
 ﻿"use client";
 import { Check, X } from "lucide-react";
+import { humanize } from "@/lib/product-summary";
 
-const label = (r: string) =>
-  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const label = humanize;
 
 type Stage = { id: string; approverRole: string };
 

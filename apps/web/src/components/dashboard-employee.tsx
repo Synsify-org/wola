@@ -3,11 +3,11 @@ import { Wallet } from "lucide-react";
 import CountUp from "./count-up";
 import DashboardCard from "./dashboard-card";
 import { formatMoney } from "@wola/engine";
+import { humanize } from "@/lib/product-summary";
 
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-const roleLabel = (r: string) =>
-  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const roleLabel = humanize;
 
 export type LoanPosition = {
   loanId: string;

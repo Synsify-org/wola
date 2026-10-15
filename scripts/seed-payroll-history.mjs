@@ -14,12 +14,22 @@ import { cycleBounds, shiftCycle } from "@wola/engine";
 
 const url = process.env.DATABASE_ADMIN_URL;
 if (!url) { console.error("DATABASE_ADMIN_URL required"); process.exit(1); }
+// Same rule as demo-reset: invented history never lands on a remote database by accident.
+const { hostname } = new URL(url);
+const local = ["localhost", "127.0.0.1", "::1", "[::1]", "host.docker.internal"].includes(hostname);
+if (!local && process.env.WOLA_ALLOW_RESET !== "1") {
+  console.error(`Refusing to seed ${hostname}: not a local database. (Set WOLA_ALLOW_RESET=1 to override.)`);
+  process.exit(1);
+}
 const sql = postgres(url, { max: 1 });
 
 try {
   const [tenant] = await sql`SELECT id FROM tenants WHERE slug = 'testco'`;
   if (!tenant) { console.error("testco not found"); process.exit(1); }
   const T = tenant.id;
+  // Running twice would deduct the same months twice: only seed a book with no payroll yet.
+  const [{ n }] = await sql`SELECT count(*)::int AS n FROM repayments WHERE tenant_id = ${T} AND source = 'payroll'`;
+  if (n > 0) { console.log(`    testco already has ${n} payroll deductions; nothing seeded`); process.exit(0); }
   const thisMonth = new Date().toISOString().slice(0, 7);
   const lastMonth = shiftCycle(thisMonth, -1);
   const [{ first }] = await sql`SELECT to_char(min(start_date), 'YYYY-MM') AS first FROM loans WHERE tenant_id = ${T} AND status = 'active'`;

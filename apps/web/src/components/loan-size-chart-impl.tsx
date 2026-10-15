@@ -74,8 +74,7 @@ export default function LoanSizeChart({ bands, currency }: { bands: SizeBand[]; 
           </ChartContainer>
           {modal ? (
             <p className="mt-3 text-xs text-ink-soft">
-              Most loans sit in <span className="font-medium text-ink">{modal.band}</span> ({modal.n} of {totalLoans}
-              active loans). Hover a bar for the principal behind it.
+              Most loans sit in <span className="font-medium text-ink">{modal.band}</span> ({modal.n} of {totalLoans} active loans). Hover or tap a bar for the principal behind it.
             </p>
           ) : null}
         </>

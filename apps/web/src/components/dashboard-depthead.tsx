@@ -7,9 +7,9 @@ import CountUp from "./count-up";
 import Metric from "./metric";
 import DashboardCard from "./dashboard-card";
 import { formatMoney } from "@wola/engine";
+import { humanize } from "@/lib/product-summary";
 
-const roleLabel = (r: string) =>
-  r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const roleLabel = humanize;
 const today = () => new Date().toISOString().slice(0, 10);
 
 export type QueueItem = {
