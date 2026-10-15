@@ -39,7 +39,7 @@ export default function DashboardCEO({
   totalExposure: number;
   /** Principal of active loans — the Book breakup's total. */
   principalDisbursed: number;
-  /** Interest received through repayments to date: the "profit made". */
+  /** Interest received through repayments to date: "Interest earned". */
   interestCollected: number;
   /** Interest the book earns if every active loan runs to term. */
   interestProjected: number;
@@ -70,13 +70,13 @@ export default function DashboardCEO({
           icon={Wallet}
           trend={exposureTrend}
         />
-        {/* Profit = interest actually received through repayments so far —
+        {/* Interest earned = interest actually received through repayments so far —
             real money in, not a projection. The projection sits beside it as
             context. No sparkline: the only series available is disbursement
-            growth, which says nothing about profit. */}
+            growth, which says nothing about interest. */}
         <FeaturedMetric
           tone="brand"
-          label="Profit made"
+          label="Interest earned"
           value={<CountUp value={interestCollected} format="money" currency={currency} />}
           sub={`Interest collected to date · ${formatMoney(interestProjected, currency)} projected if every loan runs to term`}
           icon={TrendingUp}

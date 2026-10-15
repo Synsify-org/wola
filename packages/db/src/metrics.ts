@@ -228,3 +228,129 @@ export async function collectionsTrend(tx: Tx, months = 6): Promise<CollectionsP
     current: Boolean(r.current),
   }));
 }
+
+export interface InterestMonth {
+  /** YYYY-MM */
+  month: string;
+  /** Short month label, e.g. "Sep 26". */
+  label: string;
+  /** Interest falling due that month on the loans' ACTIVE schedules. */
+  expected: number;
+  /** Interest actually received that month (the interest part of every repayment). */
+  collected: number;
+  /** The current calendar month. */
+  current: boolean;
+  /** After the current month: expected only, nothing can have been collected yet. */
+  future: boolean;
+}
+export interface InterestByProduct { product: string; expected: number; collected: number }
+export interface InterestReport {
+  from: string;
+  to: string;
+  months: InterestMonth[];
+  byProduct: InterestByProduct[];
+  totals: {
+    expected: number;
+    collected: number;
+    /** Expected in months already over (before the current one): what collection is measured against. */
+    expectedToDate: number;
+    /** Collected in those same finished months. */
+    collectedToDate: number;
+    /** Expected this month (still in progress) and in the months after it. */
+    expectedAhead: number;
+  };
+}
+
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const monthLabel = (ym: string) =>
+  new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1))
+    .toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" });
+const addMonth = (ym: string, k: number) => {
+  const d = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + k, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+
+/** Interest expected vs collected for the months `from`..`to` (YYYY-MM, inclusive, at
+ *  most 36 months), by month and by product. The CFO's interest report.
+ *
+ *  Expected = interest_due on each live loan's active schedule (an active schedule keeps
+ *  its already-due periods through re-amortization, so history is stable). A settled loan
+ *  counts only up to the day it was paid off: interest it would have earned after that
+ *  is not expected any more. Payment holidays are not shifted here; they move instalments
+ *  later without forgiving them, so totals over a longer range still agree.
+ *  Collected = the interest part of every repayment, by value date (payroll, finance or
+ *  early). Display only: balances still come from loan_balances. RLS scopes every table
+ *  to the caller's tenant. */
+export async function interestReport(tx: Tx, args: { from: string; to: string }): Promise<InterestReport> {
+  if (!MONTH_RE.test(args.from) || !MONTH_RE.test(args.to)) throw new Error("Months must be YYYY-MM.");
+  let { from, to } = args;
+  if (from > to) [from, to] = [to, from];
+  if (addMonth(from, 35) < to) to = addMonth(from, 35);
+  const start = `${from}-01`;
+  const endExclusive = `${addMonth(to, 1)}-01`;
+
+  const [{ today }] = await tx`SELECT to_char(CURRENT_DATE, 'YYYY-MM') AS today`;
+  const rows = await tx`
+    WITH live AS (
+      SELECT l.id, l.status, lp.name AS product,
+             CASE WHEN l.status = 'settled'
+                  THEN (SELECT max(r.value_date) FROM repayments r WHERE r.loan_id = l.id) END AS closed_on
+      FROM loans l
+      JOIN loan_applications la ON la.id = l.application_id
+      JOIN loan_products lp ON lp.id = la.loan_product_id
+    ),
+    due AS (
+      SELECT to_char(sl.due_date, 'YYYY-MM') AS month, live.product, sum(sl.interest_due) AS expected
+      FROM schedule_lines sl
+      JOIN loan_schedules s ON s.id = sl.schedule_id AND s.is_active
+      JOIN live ON live.id = s.loan_id
+      WHERE live.status IN ('active', 'settled')
+        AND (live.closed_on IS NULL OR sl.due_date <= live.closed_on)
+        AND sl.due_date >= ${start}::date AND sl.due_date < ${endExclusive}::date
+      GROUP BY 1, 2
+    ),
+    paid AS (
+      SELECT to_char(r.value_date, 'YYYY-MM') AS month, live.product,
+             sum(COALESCE((r.allocation->>'interest')::numeric, 0)) AS collected
+      FROM repayments r
+      JOIN live ON live.id = r.loan_id
+      WHERE r.value_date >= ${start}::date AND r.value_date < ${endExclusive}::date
+      GROUP BY 1, 2
+    )
+    SELECT COALESCE(due.month, paid.month) AS month,
+           COALESCE(due.product, paid.product) AS product,
+           COALESCE(due.expected, 0) AS expected,
+           COALESCE(paid.collected, 0) AS collected
+    FROM due FULL JOIN paid ON paid.month = due.month AND paid.product = due.product`;
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const byMonth = new Map<string, { expected: number; collected: number }>();
+  const byProduct = new Map<string, { expected: number; collected: number }>();
+  for (const r of rows) {
+    const e = Number(r.expected), c = Number(r.collected);
+    const m = byMonth.get(r.month as string) ?? { expected: 0, collected: 0 };
+    m.expected += e; m.collected += c; byMonth.set(r.month as string, m);
+    const p = byProduct.get(r.product as string) ?? { expected: 0, collected: 0 };
+    p.expected += e; p.collected += c; byProduct.set(r.product as string, p);
+  }
+
+  const months: InterestMonth[] = [];
+  for (let m = from; m <= to; m = addMonth(m, 1)) {
+    const v = byMonth.get(m) ?? { expected: 0, collected: 0 };
+    months.push({ month: m, label: monthLabel(m), expected: r2(v.expected), collected: r2(v.collected), current: m === today, future: m > today });
+  }
+  const sum = (xs: InterestMonth[], k: "expected" | "collected") => r2(xs.reduce((s, x) => s + x[k], 0));
+  return {
+    from, to, months,
+    byProduct: [...byProduct.entries()]
+      .map(([product, v]) => ({ product, expected: r2(v.expected), collected: r2(v.collected) }))
+      .sort((a, b) => b.expected - a.expected || b.collected - a.collected),
+    totals: {
+      expected: sum(months, "expected"),
+      collected: sum(months, "collected"),
+      expectedToDate: sum(months.filter((m) => !m.future && !m.current), "expected"),
+      collectedToDate: sum(months.filter((m) => !m.future && !m.current), "collected"),
+      expectedAhead: sum(months.filter((m) => m.future || m.current), "expected"),
+    },
+  };
+}

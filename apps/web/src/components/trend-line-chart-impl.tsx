@@ -190,10 +190,12 @@ export default function TrendLineChart({
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
                 const row = payload[0].payload as Row;
+                // A row may leave the actual out (a month still ahead): the line stops there.
+                const hasA = row[actual.key] !== undefined;
                 const a = Number(row[actual.key]);
                 const t = Number(row[target.key]);
                 const delta =
-                  showDelta && t > 0
+                  showDelta && hasA && t > 0
                     ? { dir: (a >= t ? "up" : "down") as "up" | "down", pct: Math.round(Math.abs(((a - t) / t) * 100)), note: compareNote }
                     : null;
                 return (
@@ -206,7 +208,7 @@ export default function TrendLineChart({
                       <div className="flex items-center justify-between gap-3">
                         <SeriesChip label={actual.label} color={actual.color} />
                         <span className="flex items-center gap-1.5">
-                          <span className="num font-semibold text-ink">{fmt(a)}</span>
+                          <span className="num font-semibold text-ink">{hasA ? fmt(a) : "Upcoming"}</span>
                           {delta ? <DeltaPill delta={delta} /> : null}
                         </span>
                       </div>
