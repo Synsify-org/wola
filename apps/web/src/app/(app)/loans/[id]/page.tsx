@@ -42,7 +42,9 @@ import { displayPurpose } from "@/lib/purpose";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
 
-type PaymentRow = { id: string; value_date: string; amount: string; source: string; principal: string; interest: string };
+// allocation is the {interest, principal} split recorded with each payment (display only;
+// balances come from repaymentPosition / loan_balances).
+type PaymentRow = { id: string; value_date: string; amount: string; source: string; allocation: { principal?: number | string; interest?: number | string } | null };
 const SOURCE_LABEL: Record<string, string> = { payroll: "Payroll deduction", manual: "Payment recorded by finance", early: "Early repayment" };
 
 const shortDate = (d: string | null) =>
@@ -137,9 +139,7 @@ export default async function LoanDetail({
 
     // Every deduction and payment actually received, newest first (the ledger itself).
     const payments = (await tx`
-      SELECT id, to_char(value_date, 'YYYY-MM-DD') AS value_date, amount, source,
-             COALESCE((allocation->>'principal')::numeric, 0) AS principal,
-             COALESCE((allocation->>'interest')::numeric, 0) AS interest
+      SELECT id, to_char(value_date, 'YYYY-MM-DD') AS value_date, amount, source, allocation
       FROM repayments
       WHERE loan_id = ${loan.id}
       ORDER BY value_date DESC, created_at DESC`) as unknown as PaymentRow[];
@@ -373,8 +373,8 @@ export default async function LoanDetail({
                     <td className="text-sm text-ink">{shortDate(p.value_date)}</td>
                     <td className="text-sm text-ink-soft">{SOURCE_LABEL[p.source] ?? p.source}</td>
                     <td className="num r text-sm font-medium text-ink">{ugx(p.amount)}</td>
-                    <td className="num r text-sm text-ink-soft">{ugx(p.principal)}</td>
-                    <td className="num r text-sm text-ink-soft">{ugx(p.interest)}</td>
+                    <td className="num r text-sm text-ink-soft">{ugx(p.allocation?.principal ?? 0)}</td>
+                    <td className="num r text-sm text-ink-soft">{ugx(p.allocation?.interest ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>
