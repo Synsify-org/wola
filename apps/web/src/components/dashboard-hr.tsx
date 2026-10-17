@@ -97,7 +97,15 @@ export default function DashboardHR({
       {/* HERO (row 1): employee register health as KPI cards. */}
       <section className="grid grid-cols-2 gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <Metric tone="brand" label="Headcount" value={<CountUp value={health.headcount} />} sub="Active employees" icon={Users} />
-        <Metric label="On probation" value={<CountUp value={health.onProbation} />} sub="Not yet loan-eligible" icon={Clock} accent="awaiting" />
+        {/* Amber only when someone is actually on probation: zero is not a warning. */}
+        <Metric
+          label="On probation"
+          value={<CountUp value={health.onProbation} />}
+          sub="Not yet loan-eligible"
+          icon={Clock}
+          accent="awaiting"
+          tone={health.onProbation > 0 ? undefined : "info"}
+        />
         <Metric
           label="Final warning"
           value={<CountUp value={health.onFinalWarning} />}
@@ -115,8 +123,9 @@ export default function DashboardHR({
       </section>
 
       {/* Row 2 (2/3 + 1/3): HR-stage queue beside register issues + pipeline. */}
-      <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:gap-5">
-        <DecisionQueue title="At your stage" items={inbox} currency={currency} className="lg:col-span-2" />
+      {/* items-start: an empty queue stays short instead of stretching into a tall blank card. */}
+      <Reveal as="section" className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start xl:gap-5">
+        <DecisionQueue title="At your stage" items={inbox} currency={currency} className="h-auto! lg:col-span-2" />
         <div className="flex min-w-0 flex-col gap-4 xl:gap-5">
           <DashboardCard title="Register issues">
             {blockers.length > 0 ? (

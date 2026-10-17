@@ -106,7 +106,9 @@ export default function Shell({
 
         {/* Only THIS column scrolls — sidebar and topbar stay put. */}
         <main id="main" className="min-w-0 flex-1 overflow-y-auto px-4 pb-32 pt-6 sm:px-6 md:px-8 md:pt-8 lg:pb-10">
-          <div className="mx-auto w-full max-w-[1440px]">{children}</div>
+          {/* 90rem (1440px) on ordinary screens; wider monitors get more room so the
+              page doesn't float as a small island (see the 2200px rule in globals.css). */}
+          <div className="mx-auto w-full max-w-[90rem] min-[1800px]:max-w-[100rem]">{children}</div>
         </main>
       </div>
 
