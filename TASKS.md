@@ -10,6 +10,33 @@ Status tags match the architecture document's convention:
 
 ---
 
+## After the first pitch (2026-10-15 to 2026-10-17)
+
+Pitch to the insurer went well; their changes, in the order they came.
+
+- [x] Pitch polish (#34): approval rate is approved ÷ decided; role acronyms (CFO, HR)
+      everywhere via `humanize()`; donut colours for withdrawn/draft; copy fixes.
+- [x] Payroll bulk run skips loans settled since the cycle instead of failing (#35);
+      demo payroll seed is safe to re-run; loan page lists the deductions received.
+- [x] CBR change applies to new applications only: already true and tested
+      (`quoted_rate.test.mjs`); now said plainly in Settings, and each loan shows its
+      rate "fixed at approval".
+- [x] CFO interest report on /reports (#36): expected vs collected for any range of
+      months, by month and product, CSV; gap measured on finished months only; payment
+      holidays move interest to the month it is now due.
+- [x] "Profit made" renamed "Interest earned" (#36).
+- [x] CEO overview (#37): the CFO's money picture and HR's people picture on one
+      read-only screen (`peopleOverview()`, `openApplicationsByStage()`).
+- [x] Small fixes: schedule header no longer shows rows through it when scrolled; the
+      "[demo]" seed marker is never shown (`lib/purpose.ts`); demo purposes are realistic.
+- [ ] Cleaner UI on large screens: waiting on the CEO to name the screens and his monitor size.
+- [ ] Pricing proposal for the insurer: needs Wola's running costs, a minimum monthly
+      price and any launch discount (**you**).
+- [ ] admin@testco.io cannot sign in on production: reset with
+      `npm run demo:passwords -- --emails admin@testco.io` (**you**, SQL Editor).
+- [ ] Decide what to do with the uncommitted confetti/toast work in the main checkout
+      (main now has its own pop-ups).
+
 ## Phones, platform console (2026-10-14) `DONE, on branch feat/login-notifications`
 
 **Migrations 0026 and 0027 must reach production BEFORE this deploys.**

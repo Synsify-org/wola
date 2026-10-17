@@ -17,6 +17,7 @@ import { formatMoney } from "@wola/engine";
 import { Avatar } from "@/components/ui/avatar";
 import { MobileRow, MobileRowList } from "@/components/mobile-row";
 import { humanize } from "@/lib/product-summary";
+import { displayPurpose } from "@/lib/purpose";
 
 const shortDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", {
@@ -25,12 +26,9 @@ const shortDate = (d: string) =>
     year: "numeric",
   });
 
-// Strip the "[demo] kind for Name" seed marker; show a clean purpose.
-const cleanPurpose = (p: string | null, kind: string) => {
-  if (!p) return kind.charAt(0).toUpperCase() + kind.slice(1);
-  const m = p.replace(/^\[demo\][^a-z]*/i, "").trim();
-  return m.length > 0 ? m : kind;
-};
+// The applicant's purpose (demo markers removed), or the product kind when there is none.
+const cleanPurpose = (p: string | null, kind: string) =>
+  displayPurpose(p) ?? kind.charAt(0).toUpperCase() + kind.slice(1);
 
 const STATUS_CHIP: Record<string, string> = {
   approved: "chip chip--approved",

@@ -12,6 +12,7 @@ import { getTenantCurrency } from "@/lib/tenant";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
 import { humanize } from "@/lib/product-summary";
+import { displayPurpose } from "@/lib/purpose";
 
 const label = humanize;
 
@@ -133,9 +134,7 @@ export default async function ApplicationDetail({
       : snap.interestApplies === false
         ? "Interest-free"
         : "Set at final approval";
-  const cleanPurpose = meta.purpose
-    ? (meta.purpose as string).replace(/^\[demo\][^a-z]*/i, "").trim()
-    : "";
+  const cleanPurpose = displayPurpose(meta.purpose as string | null) ?? "";
   const appliedDate = meta.created_at
     ? new Date(meta.created_at as string).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
     : "-";

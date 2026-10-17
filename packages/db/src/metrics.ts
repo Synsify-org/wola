@@ -7,6 +7,7 @@
 // projection. A projection would silently disagree with the true, auditable
 // paid-down balance the moment any repayment lands off-schedule.
 import type { Tx } from "./client";
+import { effectiveDueDate, type SuspensionWindow } from "@wola/engine";
 
 export interface EmployeeMetrics {
   kind: "employee";
@@ -276,8 +277,9 @@ const addMonth = (ym: string, k: number) => {
  *  Expected = interest_due on each live loan's active schedule (an active schedule keeps
  *  its already-due periods through re-amortization, so history is stable). A settled loan
  *  counts only up to the day it was paid off: interest it would have earned after that
- *  is not expected any more. Payment holidays are not shifted here; they move instalments
- *  later without forgiving them, so totals over a longer range still agree.
+ *  is not expected any more. A payment holiday moves an instalment's interest to the month
+ *  it is now due (the same effectiveDueDate rule as the payroll cycle and "next deduction");
+ *  loans without one are summed in SQL.
  *  Collected = the interest part of every repayment, by value date (payroll, finance or
  *  early). Display only: balances still come from loan_balances. RLS scopes every table
  *  to the caller's tenant. */
@@ -290,6 +292,15 @@ export async function interestReport(tx: Tx, args: { from: string; to: string })
   const endExclusive = `${addMonth(to, 1)}-01`;
 
   const [{ today }] = await tx`SELECT to_char(CURRENT_DATE, 'YYYY-MM') AS today`;
+  const suspensions = await tx`
+    SELECT loan_id, to_char(from_date, 'YYYY-MM-DD') AS f, to_char(to_date, 'YYYY-MM-DD') AS t
+    FROM loan_suspensions WHERE cancelled_at IS NULL ORDER BY from_date`;
+  const windows = new Map<string, SuspensionWindow[]>();
+  for (const s of suspensions) {
+    const id = s.loan_id as string;
+    (windows.get(id) ?? windows.set(id, []).get(id)!).push({ from: s.f as string, to: s.t as string });
+  }
+  const paused = [...windows.keys()];
   const rows = await tx`
     WITH live AS (
       SELECT l.id, l.status, lp.name AS product,
@@ -305,6 +316,7 @@ export async function interestReport(tx: Tx, args: { from: string; to: string })
       JOIN loan_schedules s ON s.id = sl.schedule_id AND s.is_active
       JOIN live ON live.id = s.loan_id
       WHERE live.status IN ('active', 'settled')
+        AND NOT (live.id = ANY(${paused}::uuid[]))
         AND (live.closed_on IS NULL OR sl.due_date <= live.closed_on)
         AND sl.due_date >= ${start}::date AND sl.due_date < ${endExclusive}::date
       GROUP BY 1, 2
@@ -332,6 +344,30 @@ export async function interestReport(tx: Tx, args: { from: string; to: string })
     m.expected += e; m.collected += c; byMonth.set(r.month as string, m);
     const p = byProduct.get(r.product as string) ?? { expected: 0, collected: 0 };
     p.expected += e; p.collected += c; byProduct.set(r.product as string, p);
+  }
+
+  // Loans with a payment holiday: place each instalment's interest in the month it now falls.
+  if (paused.length > 0) {
+    const lines = await tx`
+      SELECT s.loan_id, lp.name AS product, to_char(sl.due_date, 'YYYY-MM-DD') AS due_iso, sl.interest_due,
+             CASE WHEN l.status = 'settled'
+                  THEN (SELECT to_char(max(r.value_date), 'YYYY-MM-DD') FROM repayments r WHERE r.loan_id = l.id) END AS closed_on
+      FROM schedule_lines sl
+      JOIN loan_schedules s ON s.id = sl.schedule_id AND s.is_active
+      JOIN loans l ON l.id = s.loan_id
+      JOIN loan_applications la ON la.id = l.application_id
+      JOIN loan_products lp ON lp.id = la.loan_product_id
+      WHERE l.id = ANY(${paused}::uuid[]) AND l.status IN ('active', 'settled')`;
+    for (const l of lines) {
+      const due = effectiveDueDate(l.due_iso as string, windows.get(l.loan_id as string) ?? []);
+      if (l.closed_on && due > (l.closed_on as string)) continue;
+      if (due < start || due >= endExclusive) continue;
+      const e = Number(l.interest_due);
+      const m = byMonth.get(due.slice(0, 7)) ?? { expected: 0, collected: 0 };
+      m.expected += e; byMonth.set(due.slice(0, 7), m);
+      const p = byProduct.get(l.product as string) ?? { expected: 0, collected: 0 };
+      p.expected += e; byProduct.set(l.product as string, p);
+    }
   }
 
   const months: InterestMonth[] = [];
