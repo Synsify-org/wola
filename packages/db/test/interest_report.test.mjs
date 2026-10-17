@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import postgres from "postgres";
 import { persistSchedule } from "../src/schedules.ts";
 import { interestReport } from "../src/metrics.ts";
+import { effectiveDueDate } from "@wola/engine";
 
 const ADMIN = process.env.DATABASE_ADMIN_URL;
 const APP = process.env.DATABASE_URL;
@@ -143,4 +144,29 @@ test("another tenant sees none of it", async () => {
   const r = await inTenant(OTHER, (tx) => interestReport(tx, { from: ym(-4), to: ym(4) }));
   assert.ok(r.months.every((m) => m.expected === 0 && m.collected === 0));
   assert.deepEqual(r.byProduct, []);
+});
+
+test("a payment holiday moves an instalment's interest to the month it is now due", async () => {
+  const before = await inTenant(T, (tx) => interestReport(tx, { from: ym(-4), to: ym(6) }));
+  const held = await makeLoan("held", "active", "Holiday");
+  const added = await inTenant(T, (tx) => interestReport(tx, { from: ym(-4), to: ym(6) }));
+
+  // One month off, next month: that instalment and every later one fall a month later.
+  const window = { from: `${ym(1)}-01`, to: `${ym(1)}-28` };
+  await admin`INSERT INTO loan_suspensions (tenant_id,loan_id,from_date,to_date,reason)
+    VALUES (${T},${held},${window.from},${window.to},'Unpaid leave')`;
+  const after = await inTenant(T, (tx) => interestReport(tx, { from: ym(-4), to: ym(6) }));
+
+  const lines = await scheduledInterest(held);
+  const shifted = {};
+  for (const l of lines) {
+    const m = effectiveDueDate(l.due, [window]).slice(0, 7);
+    shifted[m] = (shifted[m] ?? 0) + Number(l.interest_due);
+  }
+  const cents = (n) => Math.round(n * 100);
+  for (const m of after.months) {
+    const base = before.months.find((x) => x.month === m.month).expected;
+    assert.equal(cents(m.expected - base), cents(shifted[m.month] ?? 0), `held loan's interest in ${m.month}`);
+  }
+  assert.notDeepEqual(after.months.map((m) => m.expected), added.months.map((m) => m.expected), "the holiday moved something");
 });

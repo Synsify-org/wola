@@ -38,6 +38,7 @@ import { getTenantCurrency } from "@/lib/tenant";
 import { pageMeta } from "@/lib/site";
 import Breadcrumbs from "@/components/breadcrumbs";
 import { humanize } from "@/lib/product-summary";
+import { displayPurpose } from "@/lib/purpose";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
 
@@ -167,6 +168,7 @@ export default async function LoanDetail({
   }));
 
   const ratePct = Number(loan.annual_rate) * 100; // fraction -> percent, e.g. 0.16 -> 16.0
+  const purpose = displayPurpose(loan.purpose);
   const monthly = schedule.length ? schedule[0].instalment : 0;
 
   // Everything below is ledger-derived (repaymentPosition), so a loan repaid
@@ -233,7 +235,7 @@ export default async function LoanDetail({
             ) : (
               <>Started {shortDate(loan.start_date)}</>
             )}
-            {loan.purpose ? <> · {loan.purpose}</> : null}
+            {purpose ? <> · {purpose}</> : null}
           </p>
         </div>
         {loan.status === "pending_disbursement" && canDisburse ? (
@@ -297,7 +299,8 @@ export default async function LoanDetail({
           tone="info"
           label="Monthly payment"
           value={ugx(monthly)}
-          sub={`${ratePct.toFixed(1)}% p.a.`}
+          // The rate was fixed when the loan was approved: a later CBR change never moves it.
+          sub={ratePct === 0 ? "Interest-free" : `${ratePct.toFixed(1)}% p.a., fixed at approval`}
           icon={Banknote}
           accent="brand"
         />

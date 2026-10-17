@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Percent, Loader2, Check, AlertTriangle } from "lucide-react";
+import { Percent, Loader2, Check, AlertTriangle, Info } from "lucide-react";
 import { setRateIndexAction } from "@/app/(app)/settings/rate-indices-actions";
 import DashboardCard from "./dashboard-card";
 
@@ -120,11 +120,14 @@ export default function RateIndexEditor({
         </div>
       </div>
       {error ? <p className="mt-3 text-xs font-medium text-error-600">{error}</p> : null}
-      <p className="mt-3 text-xs text-ink-soft">
-        Effective today, for applications submitted from now on. Loans already running, and
-        applications already submitted, keep the rate they were quoted. Past values are kept
-        for audit.
-      </p>
+      <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-info-200 bg-info-50 px-3 py-2.5 text-xs text-ink">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info-600" aria-hidden />
+        <p>
+          <span className="font-semibold">A new rate applies to new applications only.</span>{" "}
+          Loans already running, and applications already submitted, keep the rate they were
+          given. Past values are kept for audit.
+        </p>
+      </div>
       </>
       )}
     </DashboardCard>

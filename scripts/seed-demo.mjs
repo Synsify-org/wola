@@ -12,7 +12,8 @@ const url = process.env.DATABASE_ADMIN_URL;
 if (!url) { console.error("DATABASE_ADMIN_URL required"); process.exit(1); }
 const sql = postgres(url, { max: 1 });
 
-const MARK = "[demo]"; // purpose marker so re-runs can clean up
+const MARK = "[demo]"; // purpose marker so re-runs can clean up (never shown: apps/web/src/lib/purpose.ts)
+const PURPOSE = { asset: "Car purchase", term: "School fees", advance: "Medical bill" };
 
 // ---- resolve tenant, products, employees ----------------------------------
 const [tenant] = await sql`SELECT id FROM tenants WHERE slug = 'testco'`;
@@ -47,7 +48,7 @@ async function makeApp(employeeNo, kind, amount, tenor, status) {
     INSERT INTO loan_applications
       (tenant_id, employee_id, loan_product_id, amount, tenor_months, status, purpose)
     VALUES (${T}, ${e.id}, ${p.id}, ${amount}, ${tenor}, ${status},
-            ${MARK + " " + kind + " for " + e.full_name})
+            ${MARK + " " + (PURPOSE[kind] ?? "Personal")})
     RETURNING id`;
   return { appId: app.id, product: p };
 }
