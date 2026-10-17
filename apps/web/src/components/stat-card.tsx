@@ -1,5 +1,5 @@
 // apps/web/src/components/stat-card.tsx
-// The dashboard KPI tile: a solid, tinted card with a soft decorative pattern,
+// The dashboard KPI tile: a solid, tinted card with one quiet decorative shape,
 // a dominant number, a period-over-period badge and a "vs last month" footer.
 // Adapted from the statistics-card-2 reference to Wola's theme:
 //
@@ -43,51 +43,14 @@ const TONE: Record<StatTone, string> = {
   danger: "bg-gradient-to-br from-error-600 to-error-700 text-white",
 };
 
-const PATTERNS: Record<StatTone, 0 | 1 | 2 | 3> = {
-  brand: 0, deep: 1, ink: 0, info: 2, teal: 3, success: 1, warn: 2, danger: 3,
-};
-
-/** Soft shapes in the card's top-right corner. Decorative only. */
-function Pattern({ variant }: { variant: 0 | 1 | 2 | 3 }) {
-  const common = "pointer-events-none absolute right-0 top-0 h-full w-2/3 text-current";
-  switch (variant) {
-    case 0:
-      return (
-        <svg className={common} viewBox="0 0 300 200" fill="none" aria-hidden focusable="false">
-          <circle cx="220" cy="100" r="90" fill="currentColor" fillOpacity="0.07" />
-          <circle cx="260" cy="60" r="60" fill="currentColor" fillOpacity="0.09" />
-          <circle cx="200" cy="160" r="50" fill="currentColor" fillOpacity="0.06" />
-          <circle cx="270" cy="150" r="30" fill="currentColor" fillOpacity="0.1" />
-        </svg>
-      );
-    case 1:
-      return (
-        <svg className={common} viewBox="0 0 300 200" fill="none" aria-hidden focusable="false">
-          <ellipse cx="250" cy="50" rx="52" ry="22" fill="currentColor" fillOpacity="0.09" />
-          <rect x="190" y="30" width="80" height="26" rx="10" fill="currentColor" fillOpacity="0.08" />
-          <polygon points="220,0 300,0 300,70" fill="currentColor" fillOpacity="0.06" />
-          <circle cx="262" cy="118" r="18" fill="currentColor" fillOpacity="0.12" />
-        </svg>
-      );
-    case 2:
-      return (
-        <svg className={common} viewBox="0 0 300 200" fill="none" aria-hidden focusable="false">
-          <rect x="190" y="0" width="100" height="100" rx="50" fill="currentColor" fillOpacity="0.08" />
-          <ellipse cx="250" cy="120" rx="40" ry="16" fill="currentColor" fillOpacity="0.09" />
-          <polygon points="300,0 300,80 210,0" fill="currentColor" fillOpacity="0.06" />
-          <circle cx="226" cy="44" r="13" fill="currentColor" fillOpacity="0.12" />
-        </svg>
-      );
-    default:
-      return (
-        <svg className={common} viewBox="0 0 300 200" fill="none" aria-hidden focusable="false">
-          <polygon points="300,0 300,140 160,0" fill="currentColor" fillOpacity="0.07" />
-          <ellipse cx="250" cy="60" rx="44" ry="24" fill="currentColor" fillOpacity="0.09" />
-          <rect x="210" y="90" width="60" height="24" rx="10" fill="currentColor" fillOpacity="0.08" />
-          <line x1="180" y1="0" x2="300" y2="120" stroke="currentColor" strokeOpacity="0.06" strokeWidth="8" />
-        </svg>
-      );
-  }
+/** One quiet shape in the card's top-right corner, the same on every tile: enough to
+ *  keep a solid fill from looking flat, not enough to compete with the number. */
+function Pattern() {
+  return (
+    <svg className="pointer-events-none absolute right-0 top-0 h-full w-1/2 text-current" viewBox="0 0 200 200" fill="none" aria-hidden focusable="false">
+      <circle cx="190" cy="10" r="110" fill="currentColor" fillOpacity="0.06" />
+    </svg>
+  );
 }
 
 export default function StatCard({
@@ -126,7 +89,7 @@ export default function StatCard({
         TONE[tone],
       )}
     >
-      <Pattern variant={PATTERNS[tone]} />
+      <Pattern />
 
       <CardHeader className="relative z-10 min-h-0 flex-nowrap items-start border-0 px-4 pb-0 pt-4 sm:px-5 sm:pt-5">
         <CardTitle className="text-[0.9375rem] font-medium leading-snug text-current opacity-90">{label}</CardTitle>

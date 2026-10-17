@@ -200,6 +200,12 @@
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground; }
   html { @apply font-sans; }
+  /* Big monitors (27-inch 1440p and up at 100% scaling): everything is sized in rem,
+     so a slightly larger root scales text, cards and spacing together instead of
+     leaving a 1440px page lost in the middle of the screen. */
+  @media (min-width: 2200px) {
+    html { font-size: 17px; }
+  }
 }
 
 @layer components {

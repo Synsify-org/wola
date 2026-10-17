@@ -29,13 +29,19 @@ Pitch to the insurer went well; their changes, in the order they came.
       read-only screen (`peopleOverview()`, `openApplicationsByStage()`).
 - [x] Small fixes: schedule header no longer shows rows through it when scrolled; the
       "[demo]" seed marker is never shown (`lib/purpose.ts`); demo purposes are realistic.
-- [ ] Cleaner UI on large screens: waiting on the CEO to name the screens and his monitor size.
-- [ ] Pricing proposal for the insurer: needs Wola's running costs, a minimum monthly
-      price and any launch discount (**you**).
+- [x] Large screens, general pass: content widens to 100rem from 1800px and the root
+      font scales to 17px from 2200px, so a 1440p monitor no longer shows a small island;
+      KPI tiles carry one quiet shape instead of four busy ones; HR's "On probation" is
+      amber only when someone is on probation; an empty queue no longer stretches.
+- [ ] Large screens, specific: the screens the CEO found cluttered (waiting on him).
+- [x] Pricing proposal drafted: [docs/business/PRICING_PROPOSAL.md](docs/business/PRICING_PROPOSAL.md).
+- [ ] Fill in the pricing blanks: running cost per client, minimum monthly price, setup
+      days and day rate, early-customer offer (**you**).
+- [x] Restored three commits that missed #35 (payroll skips repaid loans; deductions
+      received on the loan page): #39.
 - [ ] admin@testco.io cannot sign in on production: reset with
       `npm run demo:passwords -- --emails admin@testco.io` (**you**, SQL Editor).
-- [ ] Decide what to do with the uncommitted confetti/toast work in the main checkout
-      (main now has its own pop-ups).
+- [x] Confetti/toast experiment dropped (main has its own pop-ups); old branch deleted.
 
 ## Phones, platform console (2026-10-14) `DONE, on branch feat/login-notifications`
 
