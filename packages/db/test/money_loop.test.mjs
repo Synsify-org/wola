@@ -453,3 +453,18 @@ test("history is append-only for the runtime role", async () => {
   await assert.rejects(T1((tx) => tx`DELETE FROM loan_suspensions`), /permission denied/i);
   await assert.rejects(T1((tx) => tx`DELETE FROM early_repayment_requests`), /permission denied/i);
 });
+
+test("bulk run on a past cycle skips a loan settled since, instead of failing the whole run", async () => {
+  // Paid off early in April, so February still shows its instalment as missing.
+  await makeLoan("early", "E90", 3_000_000, 3, 0);
+  await pay("early", 3_000_000, "2026-04-05", "manual");
+  const [{ status }] = await admin`SELECT status FROM loans WHERE id = ${loans.early.id}`;
+  assert.equal(status, "settled");
+  const feb = await T1((tx) => cycleReport(tx, T, "2026-02", TODAY));
+  assert.ok(line(feb, "early").remaining > 0.5, "the settled loan still shows a gap in its history");
+
+  const run = await T1((tx) => postBulkRun(tx, { tenantId: T, cycle: "2026-02", actorId: null, today: TODAY }));
+  assert.ok(run.skipped.some((s) => s.employeeNo === "E90"), "the settled loan is reported as skipped");
+  const [{ n }] = await admin`SELECT count(*)::int AS n FROM repayments WHERE loan_id = ${loans.early.id}`;
+  assert.equal(n, 1, "nothing more was recorded against the settled loan");
+});

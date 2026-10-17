@@ -42,6 +42,11 @@ import { displayPurpose } from "@/lib/purpose";
 
 // Finance roles that may disburse. Must match DISBURSER_ROLES in the action.
 
+// allocation is the {interest, principal} split recorded with each payment (display only;
+// balances come from repaymentPosition / loan_balances).
+type PaymentRow = { id: string; value_date: string; amount: string; source: string; allocation: { principal?: number | string; interest?: number | string } | null };
+const SOURCE_LABEL: Record<string, string> = { payroll: "Payroll deduction", manual: "Payment recorded by finance", early: "Early repayment" };
+
 const shortDate = (d: string | null) =>
   d
     ? new Date(d).toLocaleDateString("en-GB", {
@@ -118,7 +123,7 @@ export default async function LoanDetail({
       scope: ctx.scope, canDisburse: false, canRepay: false,
       position: null as RepaymentPosition | null,
       openRequest: null as { id: string; kind: "full" | "partial"; amount: number | null; mine: boolean } | null,
-      canRequestEarly: false, holidays: [] as Suspension[],
+      canRequestEarly: false, holidays: [] as Suspension[], payments: [] as PaymentRow[],
     };
 
     // Active schedule lines, ordered. schedule_lines.closing_balance is the
@@ -131,6 +136,13 @@ export default async function LoanDetail({
       JOIN loan_schedules s ON s.id = sl.schedule_id
       WHERE s.loan_id = ${loan.id} AND s.is_active = true
       ORDER BY sl.period_no ASC`) as unknown as LineRow[];
+
+    // Every deduction and payment actually received, newest first (the ledger itself).
+    const payments = (await tx`
+      SELECT id, to_char(value_date, 'YYYY-MM-DD') AS value_date, amount, source, allocation
+      FROM repayments
+      WHERE loan_id = ${loan.id}
+      ORDER BY value_date DESC, created_at DESC`) as unknown as PaymentRow[];
 
     // Outstanding, progress and the next deduction, all from the ledger.
     const position = await repaymentPosition(tx, ctx.tenantId, loan.id as string);
@@ -149,10 +161,11 @@ export default async function LoanDetail({
       openRequest: open ? { id: open.id, kind: open.kind, amount: open.amount, mine: open.requestedBy === ctx.userId } : null,
       canRequestEarly: isBorrower || EMPLOYEE_DATA_ROLES.includes(ctx.role),
       holidays,
+      payments,
     };
   });
 
-  const { loan, lines, scope, canDisburse, canRepay, position, openRequest, canRequestEarly, holidays } = data;
+  const { loan, lines, scope, canDisburse, canRepay, position, openRequest, canRequestEarly, holidays, payments } = data;
   if (!loan || !position) notFound();
 
   // ScheduleTable wants { period, dueDate, instalment, principal, interest,
@@ -330,6 +343,42 @@ export default async function LoanDetail({
               className={"h-full rounded-full transition-[width] duration-500 ease-out " + (settled ? "bg-approved" : "bg-brand")}
               style={{ width: `${progress}%` }}
             />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Deductions received: what payroll (or the borrower) actually paid, from the ledger. */}
+      {payments.length > 0 ? (
+        <div className="mb-6 rounded-xl border border-rule bg-surface p-5 shadow-theme-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="caps">Deductions received</div>
+            <div className="num text-xs text-ink-soft">
+              {payments.length} payment{payments.length === 1 ? "" : "s"} · {ugx(payments.reduce((t, p) => t + Number(p.amount), 0))} in total
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="ledger">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th className="r">Amount</th>
+                  <th className="r">Principal</th>
+                  <th className="r">Interest</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id}>
+                    <td className="text-sm text-ink">{shortDate(p.value_date)}</td>
+                    <td className="text-sm text-ink-soft">{SOURCE_LABEL[p.source] ?? p.source}</td>
+                    <td className="num r text-sm font-medium text-ink">{ugx(p.amount)}</td>
+                    <td className="num r text-sm text-ink-soft">{ugx(p.allocation?.principal ?? 0)}</td>
+                    <td className="num r text-sm text-ink-soft">{ugx(p.allocation?.interest ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       ) : null}

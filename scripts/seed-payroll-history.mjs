@@ -45,7 +45,8 @@ try {
       WHERE tenant_id = ${T} AND source = 'payroll' AND value_date BETWEEN ${start} AND ${end}`;
     if (n > 0) { lastSkipped = true; return; }
     const rep = await cycleReport(tx, T, lastMonth, cycleBounds(lastMonth).end);
-    const todo = rep.lines.filter((l) => l.remaining > 0.5);
+    const active = new Set((await tx`SELECT id FROM loans WHERE tenant_id = ${T} AND status = 'active'`).map((r) => r.id));
+    const todo = rep.lines.filter((l) => l.remaining > 0.5 && active.has(l.loanId));
     for (const [i, l] of todo.entries()) {
       if (i === 0) continue;                                   // missed: nothing deducted
       const amount = i === 1 ? Math.round(l.remaining / 2) : l.remaining;  // short, then in full
